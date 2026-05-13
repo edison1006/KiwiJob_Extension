@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "EasyJob",
+  "description": "Save job postings, track applications, and run CV match analysis with EasyJob.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "EasyJob",
+    "default_popup": "popup.html"
+  },
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

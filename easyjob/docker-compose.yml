@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: easyjob
+      POSTGRES_PASSWORD: easyjob
+      POSTGRES_DB: easyjob
+    ports:
+      - "5432:5432"
+    volumes:
+      - easyjob_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U easyjob -d easyjob"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg2://easyjob:easyjob@db:5432/easyjob
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      RESUME_STORAGE_DIR: /data/resumes
+    ports:
+      - "8000:8000"
+    volumes:
+      - easyjob_resumes:/data/resumes
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  easyjob_pg:
+  easyjob_resumes:
