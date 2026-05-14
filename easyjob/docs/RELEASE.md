@@ -39,8 +39,9 @@ Explicitly **out of scope for 1.0**: ATS one-click autofill, referral/network gr
 
 ## CI
 
-- GitHub Actions workflow: `.github/workflows/easyjob-ci.yml` (builds Node workspaces + runs `python -m pytest` under `apps/api`).
+- GitHub Actions workflow: `.github/workflows/easyjob-ci.yml` (builds Node workspaces + runs `python -m pytest` under `apps/api`). Root **`postinstall`** runs `scripts/ensure-rollup-native.cjs` so Vite gets the correct `@rollup/rollup-*` native binding after [npm optional-deps + workspaces](https://github.com/npm/cli/issues/4828) omit it.
 - Run locally: `cd easyjob && npm run ci` (requires Python 3.12+ with `pip install -r apps/api/requirements.txt` so `python -m pytest` works, or run tests inside `apps/api/.venv`).
+- If you cloned before this script existed: from `easyjob/` run `npm install` once (or `node scripts/ensure-rollup-native.cjs`) so Rollup’s platform package is present, then `npm run dev -w @easyjob/web`.
 
 ## Follow-ups (not in MVP)
 

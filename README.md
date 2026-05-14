@@ -19,7 +19,7 @@ Monorepo layout:
 
 - Checklist: [`docs/RELEASE.md`](docs/RELEASE.md) (production env, CORS, store listing; **1.0 product scope** is at the top of that file).
 - Local CI-style run from `easyjob/`: `npm run ci` (Node builds + API tests via `python3 -m pytest`; install Python deps first: `pip install -r apps/api/requirements.txt`, or use `apps/api/.venv`).
-- GitHub Actions: `.github/workflows/easyjob-ci.yml` (runs on pushes/PRs that touch `easyjob/**`).
+- GitHub Actions: `.github/workflows/easyjob-ci.yml` (runs on pushes/PRs that touch `easyjob/**`). Root `postinstall` runs `easyjob/scripts/ensure-rollup-native.cjs` so Vite/Rollup works after `npm ci` on Linux and macOS (see `easyjob/docs/RELEASE.md` → CI).
 
 ## Quick start (local)
 

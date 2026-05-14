@@ -7,7 +7,7 @@
     "packages/shared"
   ],
   "scripts": {
-    "postinstall": "npm run build -w @easyjob/shared",
+    "postinstall": "node scripts/ensure-rollup-native.cjs && npm run build -w @easyjob/shared",
     "dev:web": "npm run dev -w @easyjob/web",
     "dev:extension": "npm run dev -w @easyjob/extension",
     "build:web": "npm run build -w @easyjob/web",
