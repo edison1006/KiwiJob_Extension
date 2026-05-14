@@ -14,11 +14,17 @@ _engine = None
 def get_engine():
     global _engine
     if _engine is None:
-        _engine = create_engine(
-            get_settings().database_url,
-            echo=False,
-            pool_pre_ping=True,
-        )
+        url = get_settings().database_url
+        kwargs: dict = {"echo": False}
+        if url.startswith("sqlite"):
+            from pathlib import Path
+
+            Path("data").mkdir(parents=True, exist_ok=True)
+            kwargs["connect_args"] = {"check_same_thread": False}
+            kwargs["pool_pre_ping"] = False
+        else:
+            kwargs["pool_pre_ping"] = True
+        _engine = create_engine(url, **kwargs)
     return _engine
 
 

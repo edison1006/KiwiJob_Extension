@@ -6,24 +6,140 @@ function text(el: Element | null | undefined): string | null {
   return t && t.length ? t : null;
 }
 
+function jsonLdTypeMatches(types: unknown, needle: string): boolean {
+  if (types === needle) return true;
+  if (Array.isArray(types)) return types.includes(needle);
+  return false;
+}
+
+function flattenJsonLdValue(data: unknown, out: Record<string, unknown>[]): void {
+  if (data == null) return;
+  if (Array.isArray(data)) {
+    for (const item of data) flattenJsonLdValue(item, out);
+    return;
+  }
+  if (typeof data !== "object") return;
+  const o = data as Record<string, unknown>;
+  const graph = o["@graph"];
+  if (Array.isArray(graph)) {
+    for (const item of graph) flattenJsonLdValue(item, out);
+    return;
+  }
+  out.push(o);
+}
+
+function collectJsonLdObjects(): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = [];
+  for (const script of Array.from(document.querySelectorAll('script[type="application/ld+json"]'))) {
+    try {
+      const raw = script.textContent?.trim();
+      if (!raw) continue;
+      flattenJsonLdValue(JSON.parse(raw), out);
+    } catch {
+      /* skip invalid JSON */
+    }
+  }
+  return out;
+}
+
+function orgNameFromJsonLd(org: unknown): string | null {
+  if (org == null) return null;
+  if (typeof org === "string") return org.trim() || null;
+  if (Array.isArray(org)) return orgNameFromJsonLd(org[0]);
+  if (typeof org !== "object") return null;
+  const o = org as Record<string, unknown>;
+  if (typeof o.name === "string" && o.name.trim()) return o.name.trim();
+  return null;
+}
+
+function formatJsonLdPostalAddress(address: unknown): string | null {
+  if (address == null) return null;
+  if (typeof address === "string") return address.trim() || null;
+  if (typeof address !== "object") return null;
+  const a = address as Record<string, unknown>;
+  const loc = typeof a.addressLocality === "string" ? a.addressLocality.trim() : "";
+  const region = typeof a.addressRegion === "string" ? a.addressRegion.trim() : "";
+  const parts = [loc, region].filter(Boolean);
+  return parts.length ? parts.join(", ") : null;
+}
+
+function formatJsonLdJobLocation(jobLocation: unknown): string | null {
+  if (jobLocation == null) return null;
+  if (typeof jobLocation === "string") return jobLocation.trim() || null;
+  if (Array.isArray(jobLocation)) {
+    const parts = jobLocation.map(formatJsonLdJobLocation).filter((x): x is string => Boolean(x?.trim()));
+    return parts.length ? parts.join(" · ") : null;
+  }
+  if (typeof jobLocation !== "object") return null;
+  const loc = jobLocation as Record<string, unknown>;
+  if (jsonLdTypeMatches(loc["@type"], "Place")) {
+    const name = typeof loc.name === "string" ? loc.name.trim() : "";
+    const addr = formatJsonLdPostalAddress(loc.address);
+    if (name && addr) return `${name} (${addr})`;
+    return addr || name || null;
+  }
+  if (loc.address) return formatJsonLdPostalAddress(loc.address);
+  return typeof loc.name === "string" ? loc.name.trim() || null : null;
+}
+
+/** Prefer structured JobPosting (SEEK, many career sites) over og:title / og:site_name. */
+function tryJobPostingJsonLd(): Partial<JobSavePayload> | null {
+  for (const node of collectJsonLdObjects()) {
+    if (!jsonLdTypeMatches(node["@type"], "JobPosting")) continue;
+    const title = typeof node.title === "string" ? node.title.trim() : "";
+    const company = orgNameFromJsonLd(node.hiringOrganization);
+    const location = formatJsonLdJobLocation(node.jobLocation);
+    let description: string | undefined;
+    if (typeof node.description === "string") {
+      const stripped = node.description.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      if (stripped.length > 80) description = stripped.slice(0, 50000);
+    }
+    const posted = typeof node.datePosted === "string" ? node.datePosted.trim() : "";
+    if (!title && !company && !location && !description) continue;
+    const out: Partial<JobSavePayload> = {};
+    if (title) out.title = title;
+    if (company) out.company = company;
+    if (location) out.location = location;
+    if (description) out.description = description;
+    if (posted) out.posted_date = posted;
+    return out;
+  }
+  return null;
+}
+
+function pickH1JobTitle(): string | null {
+  const path = window.location.pathname;
+  const href = window.location.href;
+  if (!/\/job\b|\/jobs\/view\/|\/viewjob\b/i.test(`${path}${href}`)) return null;
+  return (
+    text(document.querySelector('[data-automation="job-detail-title"]')) ||
+    text(document.querySelector("article h1")) ||
+    text(document.querySelector("main h1")) ||
+    text(document.querySelector("h1"))
+  );
+}
+
 function pickTitle(): string | null {
+  const h1 = pickH1JobTitle();
+  if (h1 && h1.length < 280) return h1;
   const og = document.querySelector('meta[property="og:title"]')?.getAttribute("content")?.trim();
   if (og) return og;
   const tw = document.querySelector('meta[name="twitter:title"]')?.getAttribute("content")?.trim();
   if (tw) return tw;
   const t = document.querySelector("title")?.textContent?.trim();
   if (t) return t.split(/[|\-–]/)[0]?.trim() || t;
-  const h1 = text(document.querySelector("h1"));
-  return h1;
+  return text(document.querySelector("h1"));
 }
 
 function pickCompany(): string | null {
-  const og = document.querySelector('meta[property="og:site_name"]')?.getAttribute("content")?.trim();
-  if (og) return og;
   const name = document.querySelector(
     '[data-testid="jobsearch-CompanyName"], .jobs-unified-top-card__company-name, a[data-control-name="job_card_company_link"]',
   );
-  return text(name);
+  const fromDom = text(name);
+  if (fromDom) return fromDom;
+  const og = document.querySelector('meta[property="og:site_name"]')?.getAttribute("content")?.trim();
+  if (og && !/seek/i.test(window.location.hostname)) return og;
+  return null;
 }
 
 function pickLocation(): string | null {
@@ -76,33 +192,39 @@ function fallbackBodyText(): string {
  * Site-specific extractors can layer on top via `siteExtractors`.
  */
 export function extractJobFromPage(): JobSavePayload {
-  const base = genericExtract();
+  let merged = genericExtract();
   for (const ex of siteExtractors) {
     const partial = ex.tryExtract();
-    if (partial) {
-      return normalizePayload({
-        ...base,
-        ...partial,
-        url: partial.url || base.url,
-        title: partial.title || base.title,
-      });
-    }
+    if (!partial || !Object.keys(partial).length) continue;
+    merged = {
+      ...merged,
+      ...partial,
+      url: partial.url || merged.url,
+      title: partial.title || merged.title,
+      company: partial.company ?? merged.company,
+      location: partial.location ?? merged.location,
+      description: partial.description ?? merged.description,
+      salary: partial.salary ?? merged.salary,
+      posted_date: partial.posted_date ?? merged.posted_date,
+      source_website: partial.source_website ?? merged.source_website,
+    };
   }
-  return normalizePayload(base);
+  return normalizePayload(merged);
 }
 
 function genericExtract(): JobSavePayload {
-  const title = pickTitle() || "Untitled role";
-  const description = pickDescription() || fallbackBodyText();
+  const jd = tryJobPostingJsonLd();
+  const title = jd?.title || pickTitle() || "Untitled role";
+  const description = (jd?.description ?? pickDescription()) || fallbackBodyText();
   return {
     title,
-    company: pickCompany(),
-    location: pickLocation(),
+    company: jd?.company ?? pickCompany(),
+    location: jd?.location ?? pickLocation(),
     description,
     salary: pickSalary(),
     url: window.location.href,
     source_website: hostnameSource(),
-    posted_date: pickPostedDate(),
+    posted_date: jd?.posted_date ?? pickPostedDate(),
     status: "Saved",
   };
 }

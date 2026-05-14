@@ -15,7 +15,7 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        popup: path.resolve(__dirname, "popup.html"),
+        sidepanel: path.resolve(__dirname, "sidepanel.html"),
       },
       output: {
         entryFileNames: "[name].js",

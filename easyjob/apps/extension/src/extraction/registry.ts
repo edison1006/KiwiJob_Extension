@@ -1,13 +1,7 @@
-import type { JobSavePayload } from "@easyjob/shared";
+import { seekSiteExtractor } from "./seek";
+import type { SiteExtractor } from "./types";
 
-export type SiteExtractor = {
-  id: string;
-  /** Return partial fields when this extractor recognizes the page; otherwise null. */
-  tryExtract: () => Partial<JobSavePayload> | null;
-};
+/** Per-site layers merged after generic + JSON-LD extraction. */
+export const siteExtractors: SiteExtractor[] = [seekSiteExtractor];
 
-/** Placeholder registry for SEEK / LinkedIn / Indeed / Trade Me / career sites. */
-export const siteExtractors: SiteExtractor[] = [
-  // Example stub — implement per-site later without changing the pipeline.
-  // { id: "linkedin", tryExtract: () => null },
-];
+export type { SiteExtractor } from "./types";

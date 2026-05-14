@@ -1,13 +1,8 @@
-from __future__ import annotations
-
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, Optional
 
 from sqlalchemy import JSON, Column, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
-
-if TYPE_CHECKING:
-    pass
 
 
 class User(SQLModel, table=True):

@@ -5,7 +5,7 @@ EasyJob is a **Chrome Extension** + **React dashboard** + **FastAPI API** for sa
 Monorepo layout:
 
 - `apps/web` — Vite + React + TypeScript + Tailwind dashboard
-- `apps/extension` — Manifest V3 Chrome extension (content script + service worker + popup)
+- `apps/extension` — Manifest V3 Chrome extension (content script + service worker + side panel)
 - `apps/api` — FastAPI + SQLModel + PostgreSQL API
 - `packages/shared` — Shared TypeScript contracts (`JobSavePayload`, statuses, DTO shapes)
 
@@ -17,11 +17,48 @@ Monorepo layout:
 
 ## Quick start (local)
 
-### 1) Database
+### 1) Database (optional for quick local API)
+
+By default the API uses **SQLite** (`./data/easyjob.db`) so you can skip Postgres and Docker for local dev.
+
+For **PostgreSQL** instead, start a server (example with Docker — requires Docker Desktop running):
 
 ```bash
 docker run --name easyjob-pg -e POSTGRES_USER=easyjob -e POSTGRES_PASSWORD=easyjob -e POSTGRES_DB=easyjob -p 5432:5432 -d postgres:16-alpine
 ```
+
+Then set `DATABASE_URL` in `apps/api/.env` to the Postgres URL from `.env.example` (commented block).
+
+### Postgres user + database (local, one-time)
+
+If you use **PostgreSQL** instead of SQLite, create role `easyjob` and database `easyjob` once:
+
+```bash
+cd easyjob
+chmod +x scripts/setup-postgres.sh   # if you see "permission denied"
+./scripts/setup-postgres.sh
+# or without execute bit:
+bash scripts/setup-postgres.sh
+```
+
+If the script cannot guess your superuser, specify it (Homebrew Postgres often uses your macOS login name):
+
+```bash
+cd easyjob
+PGUSER=zhangxiaoyu bash scripts/setup-postgres.sh
+# or:
+PGUSER=postgres PGPASSWORD=your_password bash scripts/setup-postgres.sh
+```
+
+Manual option:
+
+```bash
+psql -U postgres -d postgres -f easyjob/scripts/postgres-init.sql
+```
+
+Then in `apps/api/.env` set:
+
+`DATABASE_URL=postgresql+psycopg2://easyjob:easyjob@localhost:5432/easyjob`
 
 ### 2) API
 
@@ -31,8 +68,24 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp ../../.env.example .env
-# edit .env: DATABASE_URL, OPENAI_API_KEY (optional)
+# Default .env uses SQLite — no Postgres needed. For Postgres, edit DATABASE_URL in .env.
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Important:** run `uvicorn` only from `easyjob/apps/api` (where the `app/` package lives). If you see `No module named 'app'`, you are in the wrong directory. From repo root you can use:
+
+```bash
+bash easyjob/apps/api/dev.sh
+```
+
+If you previously created `.venv` while the folder was named `jobsync-ai`, you may see **`bad interpreter: .../jobsync-ai/.../python3`**. Delete the broken venv and recreate:
+
+```bash
+cd easyjob/apps/api
+rm -rf .venv
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ### 3) Web dashboard
@@ -55,11 +108,15 @@ cd easyjob
 npm run build -w @easyjob/extension
 ```
 
-Then in Chrome: **Extensions → Load unpacked →** select `easyjob/apps/extension/dist`.
+Then in Chrome (**114+**, Side Panel API): **Extensions → Load unpacked →** select `easyjob/apps/extension/dist`.
 
 Notes:
 
-- Set **API base URL** in the popup (defaults to `http://localhost:8000`).
+- **Open the UI:** click the EasyJob toolbar icon — the **side panel** opens (no popup). You can dock it on the left or right with Chrome’s side panel controls.
+- **Where to use it:** open a normal **https** job posting first. On `chrome://extensions` or other built-in pages, capture is disabled by design — you will see a hint in the side panel.
+- **Service worker “inactive”** in `chrome://extensions` is normal until the extension wakes it (e.g. save/analyze).
+- **Toolbar / list icon (gray “E”):** Chrome needs **PNG** paths in `manifest.json`. This repo ships the logo in the side panel as **SVG**; for a branded toolbar icon, run `python3 scripts/render_icons.py` inside `apps/extension`, then add `"icons"` / `"action"."default_icon"` entries pointing at `public/icons/icon-*.png` and rebuild.
+- Set **API base URL** in the side panel (defaults to `http://localhost:8000`).
 - Optional **Mock user id** header maps to `X-Mock-User-Id` (defaults to `1`).
 
 ## Docker Compose (API + Postgres)
@@ -82,7 +139,7 @@ Mock auth: send `X-Mock-User-Id` (optional). Default user `1` is auto-created.
 - `GET /jobs`, `GET /jobs/{job_id}`, `PUT /jobs/{job_id}`, `DELETE /jobs/{job_id}`  
   (`job_id` is the **application / tracker row id**)
 - `POST /resumes/upload`, `GET /resumes`
-- `POST /match/analyze` — body `{ "job_id": <applicationId> }` (requires CV text)
+- `POST /match/analyze` — body `{ "job_id": <applicationId> }`. If `OPENAI_API_KEY` is **unset or blank**, the mock scorer runs on the **JD alone** (no CV required). If a **non-empty** key is set, a resume with extracted text is required.
 - `GET /match/{job_id}` — latest stored match JSON
 - `GET /analytics/summary`
 

@@ -8,7 +8,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str = "postgresql+psycopg2://easyjob:easyjob@localhost:5432/easyjob"
+    # Default: file SQLite so `uvicorn` works without Docker/local Postgres. Override with Postgres in .env or Docker.
+    database_url: str = "sqlite:///./data/easyjob.db"
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
     mock_user_id: int = 1

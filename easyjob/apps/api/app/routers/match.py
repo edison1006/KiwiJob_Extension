@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
+from app.core.config import get_settings
 from app.deps import ensure_demo_user, get_mock_user_id
 from app.db.session import get_session
 from app.models import Application, MatchResult, Resume
@@ -17,6 +18,11 @@ router = APIRouter(prefix="/match", tags=["match"])
 
 def _latest_resume(session: Session, user_id: int) -> Resume | None:
     return session.exec(select(Resume).where(Resume.user_id == user_id).order_by(Resume.created_at.desc())).first()
+
+
+def _openai_configured() -> bool:
+    key = get_settings().openai_api_key
+    return bool(key and str(key).strip())
 
 
 @router.post("/analyze", response_model=MatchAnalysisOut)
@@ -38,11 +44,16 @@ def analyze_match(
     assert app_row.job_post is not None
 
     resume = _latest_resume(session, uid)
-    if not resume or not (resume.extracted_text or "").strip():
-        raise HTTPException(status_code=400, detail="Upload a CV first")
+    cv_text = (resume.extracted_text or "").strip() if resume else ""
+    if not cv_text and _openai_configured():
+        raise HTTPException(
+            status_code=400,
+            detail="Upload a CV first (required when OPENAI_API_KEY is set). Upload via the web dashboard or POST /resumes/upload.",
+        )
 
     jd = app_row.job_post.description or app_row.job_post.title or ""
-    result = analyze_cv_vs_jd(resume.extracted_text, jd)
+    # Without API key the scorer is mock/heuristic and can run on JD alone; with OpenAI, CV text is required above.
+    result = analyze_cv_vs_jd(cv_text, jd)
 
     mr = MatchResult(
         application_id=app_row.id,

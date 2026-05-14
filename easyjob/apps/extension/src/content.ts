@@ -1,4 +1,7 @@
 import { extractJobFromPage } from "./extraction/generic";
+import { initSeekNativeSaveOnClick } from "./seekNativeSave";
+
+initSeekNativeSaveOnClick();
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "EXTRACT_JOB") {

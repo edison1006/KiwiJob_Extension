@@ -6,7 +6,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
 
-from app.core.config import get_settings
 from app.db.session import get_engine, init_db
 from app.deps import ensure_demo_user
 from app.routers import analytics, jobs, match, resumes
@@ -21,15 +20,14 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    settings = get_settings()
     app = FastAPI(title="EasyJob API", version="0.1.0", lifespan=lifespan)
 
-    origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+    # MVP: permissive CORS so the web app (5173) and MV3 extension (chrome-extension://) can call the API
+    # without cookie credentials on requests (fetch defaults are fine).
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins if origins else ["http://localhost:5173"],
-        allow_origin_regex=r"chrome-extension://.*|http://localhost:\d+",
-        allow_credentials=True,
+        allow_origins=["*"],
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )

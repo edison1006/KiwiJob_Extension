@@ -9,12 +9,15 @@ export function AppLayout() {
   return (
     <div className="min-h-screen lg:flex">
       <aside className="border-b border-slate-200 bg-white lg:w-64 lg:border-b-0 lg:border-r">
-        <div className="flex items-center gap-2 px-5 py-4">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-600 to-indigo-700 shadow-sm" />
-          <div>
-            <div className="text-sm font-semibold text-slate-900">EasyJob</div>
-            <div className="text-xs text-slate-500">Application workspace</div>
-          </div>
+        <div className="border-b border-slate-100 px-5 py-4">
+          <img
+            src="/easyjob-logo.svg"
+            alt="EasyJob"
+            className="h-14 w-auto max-w-[11rem] object-contain object-left"
+            width={176}
+            height={98}
+          />
+          <div className="mt-2 text-xs text-slate-500">Application workspace</div>
         </div>
         <nav className="space-y-1 px-3 pb-6">
           <NavLink to="/" end className={linkClass}>
