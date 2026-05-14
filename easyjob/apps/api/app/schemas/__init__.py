@@ -106,6 +106,26 @@ class ResumeOut(BaseModel):
         from_attributes = True
 
 
+class ApplicantAutofillOut(BaseModel):
+    fullName: str = ""
+    email: str = ""
+    phone: str = ""
+    linkedInUrl: str = ""
+    portfolioUrl: str = ""
+    city: str = ""
+    country: str = ""
+
+
+class ApplicantAutofillIn(BaseModel):
+    fullName: str = Field(default="", max_length=500)
+    email: str = Field(default="", max_length=500)
+    phone: str = Field(default="", max_length=80)
+    linkedInUrl: str = Field(default="", max_length=2048)
+    portfolioUrl: str = Field(default="", max_length=2048)
+    city: str = Field(default="", max_length=200)
+    country: str = Field(default="", max_length=200)
+
+
 class AnalyticsSummaryOut(BaseModel):
     total_saved: int
     total_applied: int

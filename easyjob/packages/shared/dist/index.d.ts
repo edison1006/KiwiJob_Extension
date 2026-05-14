@@ -69,4 +69,15 @@ export interface ResumeDTO {
     created_at: string;
     text_preview: string;
 }
+/** Stored per user (API + web Settings) and used by the extension to fill ATS / career-site forms. */
+export interface ApplicantAutofillProfile {
+    fullName: string;
+    email: string;
+    phone: string;
+    linkedInUrl: string;
+    portfolioUrl: string;
+    city: string;
+    country: string;
+}
+export declare const EMPTY_APPLICANT_AUTOFILL_PROFILE: ApplicantAutofillProfile;
 //# sourceMappingURL=index.d.ts.map

@@ -1,5 +1,6 @@
 import type {
   AnalyticsSummary,
+  ApplicantAutofillProfile,
   ApplicationDetail,
   ApplicationListItem,
   ApplicationStatus,
@@ -115,6 +116,20 @@ export async function uploadResume(file: File): Promise<ResumeDTO> {
 
 export async function fetchAnalytics(): Promise<AnalyticsSummary> {
   const res = await fetch(`${API_URL}/analytics/summary`, { headers: headers() });
+  return parseJson(res);
+}
+
+export async function fetchApplicantProfile(): Promise<ApplicantAutofillProfile> {
+  const res = await fetch(`${API_URL}/me/applicant-profile`, { headers: headers() });
+  return parseJson(res);
+}
+
+export async function saveApplicantProfile(profile: ApplicantAutofillProfile): Promise<ApplicantAutofillProfile> {
+  const res = await fetch(`${API_URL}/me/applicant-profile`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...headers() },
+    body: JSON.stringify(profile),
+  });
   return parseJson(res);
 }
 

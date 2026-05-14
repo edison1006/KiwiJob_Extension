@@ -28,8 +28,27 @@ def get_engine():
     return _engine
 
 
+def _ensure_sqlite_user_applicant_profile_column() -> None:
+    engine = get_engine()
+    url = str(engine.url)
+    if not url.startswith("sqlite"):
+        return
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if not insp.has_table("user"):
+        return
+    cols = {c["name"] for c in insp.get_columns("user")}
+    if "applicant_profile" in cols:
+        return
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE user ADD COLUMN applicant_profile JSON"))
+
+
 def init_db() -> None:
-    SQLModel.metadata.create_all(get_engine())
+    engine = get_engine()
+    SQLModel.metadata.create_all(engine)
+    _ensure_sqlite_user_applicant_profile_column()
 
 
 def get_session() -> Generator[Session, None, None]:

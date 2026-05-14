@@ -1,366 +1,65 @@
-"use strict";
-(() => {
-  // src/extraction/seek.ts
-  function t(el) {
-    const s = el?.textContent?.trim();
-    return s && s.length ? s : null;
-  }
-  function isSeekHost(hostname) {
-    const h = hostname.toLowerCase();
-    return /\.seek\.co\.nz$/i.test(h) || /\.seek\.com\.au$/i.test(h) || /^[a-z0-9-]+\.seek\.com$/i.test(h) || h === "www.seek.com";
-  }
-  function pickShortH1AvoidingSiteChrome() {
-    const nodes = document.querySelectorAll("main h1, article h1, [role='main'] h1, h1");
-    const bad = /SEEK|Indeed|LinkedIn|Glassdoor|Trade Me|Careers/i;
-    for (const el of Array.from(nodes)) {
-      const s = t(el);
-      if (!s || s.length < 2 || s.length > 200) continue;
-      if (bad.test(s)) continue;
-      return s;
-    }
-    return null;
-  }
-  var seekSiteExtractor = {
-    id: "seek",
-    tryExtract() {
-      if (!isSeekHost(window.location.hostname)) return null;
-      if (!/\/job\b/i.test(window.location.pathname)) return null;
-      const title = t(document.querySelector('[data-automation="job-detail-title"]')) || t(document.querySelector('[data-automation="jobDetailTitle"]')) || t(document.querySelector('[data-testid="job-detail-title"]')) || pickShortH1AvoidingSiteChrome() || t(document.querySelector("article h1")) || t(document.querySelector("main h1")) || null;
-      const company = t(document.querySelector('[data-automation="advertiser-name"]')) || t(document.querySelector('a[data-automation="advertiser-name"]')) || t(document.querySelector('[data-testid="advertiser-name"]')) || t(document.querySelector('[data-automation="job-ad-advertiser"]')) || null;
-      const location = t(document.querySelector('[data-automation="job-detail-location"]')) || t(document.querySelector('[data-automation="jobDetailLocation"]')) || t(document.querySelector('[data-automation="locationAndWorkArrangement"]')) || t(document.querySelector('[data-testid="job-detail-location"]')) || t(document.querySelector('[data-automation="job-ad-location"]')) || null;
-      if (!title && !company && !location) return null;
-      const out = {};
-      if (title) out.title = title;
-      if (company) out.company = company;
-      if (location) out.location = location;
-      return out;
-    }
-  };
-
-  // src/extraction/registry.ts
-  var siteExtractors = [seekSiteExtractor];
-
-  // src/extraction/generic.ts
-  function text(el) {
-    const t2 = el?.textContent?.trim();
-    return t2 && t2.length ? t2 : null;
-  }
-  function jsonLdTypeMatches(types, needle) {
-    if (types === needle) return true;
-    if (Array.isArray(types)) return types.includes(needle);
-    return false;
-  }
-  function flattenJsonLdValue(data, out) {
-    if (data == null) return;
-    if (Array.isArray(data)) {
-      for (const item of data) flattenJsonLdValue(item, out);
-      return;
-    }
-    if (typeof data !== "object") return;
-    const o = data;
-    const graph = o["@graph"];
-    if (Array.isArray(graph)) {
-      for (const item of graph) flattenJsonLdValue(item, out);
-      return;
-    }
-    out.push(o);
-  }
-  function collectJsonLdObjects() {
-    const out = [];
-    for (const script of Array.from(document.querySelectorAll('script[type="application/ld+json"]'))) {
-      try {
-        const raw = script.textContent?.trim();
-        if (!raw) continue;
-        flattenJsonLdValue(JSON.parse(raw), out);
-      } catch {
-      }
-    }
-    return out;
-  }
-  function orgNameFromJsonLd(org) {
-    if (org == null) return null;
-    if (typeof org === "string") return org.trim() || null;
-    if (Array.isArray(org)) return orgNameFromJsonLd(org[0]);
-    if (typeof org !== "object") return null;
-    const o = org;
-    if (typeof o.name === "string" && o.name.trim()) return o.name.trim();
-    return null;
-  }
-  function formatJsonLdPostalAddress(address) {
-    if (address == null) return null;
-    if (typeof address === "string") return address.trim() || null;
-    if (typeof address !== "object") return null;
-    const a = address;
-    const loc = typeof a.addressLocality === "string" ? a.addressLocality.trim() : "";
-    const region = typeof a.addressRegion === "string" ? a.addressRegion.trim() : "";
-    const parts = [loc, region].filter(Boolean);
-    return parts.length ? parts.join(", ") : null;
-  }
-  function formatJsonLdJobLocation(jobLocation) {
-    if (jobLocation == null) return null;
-    if (typeof jobLocation === "string") return jobLocation.trim() || null;
-    if (Array.isArray(jobLocation)) {
-      const parts = jobLocation.map(formatJsonLdJobLocation).filter((x) => Boolean(x?.trim()));
-      return parts.length ? parts.join(" \xB7 ") : null;
-    }
-    if (typeof jobLocation !== "object") return null;
-    const loc = jobLocation;
-    if (jsonLdTypeMatches(loc["@type"], "Place")) {
-      const name = typeof loc.name === "string" ? loc.name.trim() : "";
-      const addr = formatJsonLdPostalAddress(loc.address);
-      if (name && addr) return `${name} (${addr})`;
-      return addr || name || null;
-    }
-    if (loc.address) return formatJsonLdPostalAddress(loc.address);
-    return typeof loc.name === "string" ? loc.name.trim() || null : null;
-  }
-  function tryJobPostingJsonLd() {
-    for (const node of collectJsonLdObjects()) {
-      if (!jsonLdTypeMatches(node["@type"], "JobPosting")) continue;
-      const title = typeof node.title === "string" ? node.title.trim() : "";
-      const company = orgNameFromJsonLd(node.hiringOrganization);
-      const location = formatJsonLdJobLocation(node.jobLocation);
-      let description;
-      if (typeof node.description === "string") {
-        const stripped = node.description.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-        if (stripped.length > 80) description = stripped.slice(0, 5e4);
-      }
-      const posted = typeof node.datePosted === "string" ? node.datePosted.trim() : "";
-      if (!title && !company && !location && !description) continue;
-      const out = {};
-      if (title) out.title = title;
-      if (company) out.company = company;
-      if (location) out.location = location;
-      if (description) out.description = description;
-      if (posted) out.posted_date = posted;
-      return out;
-    }
-    return null;
-  }
-  function pickH1JobTitle() {
-    const path = window.location.pathname;
-    const href = window.location.href;
-    if (!/\/job\b|\/jobs\/view\/|\/viewjob\b/i.test(`${path}${href}`)) return null;
-    return text(document.querySelector('[data-automation="job-detail-title"]')) || text(document.querySelector("article h1")) || text(document.querySelector("main h1")) || text(document.querySelector("h1"));
-  }
-  function pickTitle() {
-    const h1 = pickH1JobTitle();
-    if (h1 && h1.length < 280) return h1;
-    const og = document.querySelector('meta[property="og:title"]')?.getAttribute("content")?.trim();
-    if (og) return og;
-    const tw = document.querySelector('meta[name="twitter:title"]')?.getAttribute("content")?.trim();
-    if (tw) return tw;
-    const t2 = document.querySelector("title")?.textContent?.trim();
-    if (t2) return t2.split(/[|\-–]/)[0]?.trim() || t2;
-    return text(document.querySelector("h1"));
-  }
-  function pickCompany() {
-    const name = document.querySelector(
-      '[data-testid="jobsearch-CompanyName"], .jobs-unified-top-card__company-name, a[data-control-name="job_card_company_link"]'
-    );
-    const fromDom = text(name);
-    if (fromDom) return fromDom;
-    const og = document.querySelector('meta[property="og:site_name"]')?.getAttribute("content")?.trim();
-    if (og && !/seek/i.test(window.location.hostname)) return og;
-    return null;
-  }
-  function pickLocation() {
-    const loc = document.querySelector(
-      '[data-testid="job-location"], .jobs-unified-top-card__bullet, .jobs-unified-top-card__workplace-type'
-    );
-    return text(loc);
-  }
-  function pickDescription() {
-    const og = document.querySelector('meta[property="og:description"]')?.getAttribute("content")?.trim();
-    if (og && og.length > 80) return og;
-    const article = document.querySelector("article");
-    if (article && (article.textContent?.length ?? 0) > 200) return article.textContent.trim().slice(0, 2e4);
-    const desc = document.querySelector(
-      '#job-details, [data-testid="jobsearch-JobComponent-description"], .jobs-description-content__text, .description__text, .job-description'
-    );
-    const t2 = text(desc);
-    if (t2 && t2.length > 80) return t2.slice(0, 2e4);
-    const main = document.querySelector("main");
-    const mt = text(main);
-    if (mt && mt.length > 200) return mt.slice(0, 2e4);
-    return null;
-  }
-  function pickSalary() {
-    const el = document.querySelector('[data-testid="job-salary"], .salary-snippet, .compensation__text');
-    return text(el);
-  }
-  function pickPostedDate() {
-    const time = document.querySelector("time[datetime]")?.getAttribute("datetime")?.trim();
-    if (time) return time;
-    return null;
-  }
-  function hostnameSource() {
-    return window.location.hostname || "unknown";
-  }
-  function fallbackBodyText() {
-    const selection = window.getSelection()?.toString().trim();
-    if (selection && selection.length > 80) return selection.slice(0, 2e4);
-    const body = document.body?.innerText?.trim() ?? "";
-    return body.slice(0, 2e4);
-  }
-  function extractJobFromPage() {
-    let merged = genericExtract();
-    for (const ex of siteExtractors) {
-      const partial = ex.tryExtract();
-      if (!partial || !Object.keys(partial).length) continue;
-      merged = {
-        ...merged,
-        ...partial,
-        url: partial.url || merged.url,
-        title: partial.title || merged.title,
-        company: partial.company ?? merged.company,
-        location: partial.location ?? merged.location,
-        description: partial.description ?? merged.description,
-        salary: partial.salary ?? merged.salary,
-        posted_date: partial.posted_date ?? merged.posted_date,
-        source_website: partial.source_website ?? merged.source_website
-      };
-    }
-    return normalizePayload(merged);
-  }
-  function isSeekBrowseNotJobAd() {
-    return isSeekHost(window.location.hostname) && !/\/job\b/i.test(window.location.pathname);
-  }
-  function genericExtract() {
-    if (isSeekBrowseNotJobAd()) {
-      return {
-        title: "Open one SEEK job posting",
-        company: null,
-        location: null,
-        description: "This page is not a single job ad (search, home, recommended, or saved list). Click a job title until the URL contains /job/, then click Re-scan.",
-        salary: null,
-        url: window.location.href,
-        source_website: hostnameSource(),
-        posted_date: null,
-        status: "Saved"
-      };
-    }
-    const jd = tryJobPostingJsonLd();
-    const title = jd?.title || pickTitle() || "Untitled role";
-    const description = (jd?.description ?? pickDescription()) || fallbackBodyText();
-    return {
-      title,
-      company: jd?.company ?? pickCompany(),
-      location: jd?.location ?? pickLocation(),
-      description,
-      salary: pickSalary(),
-      url: window.location.href,
-      source_website: hostnameSource(),
-      posted_date: jd?.posted_date ?? pickPostedDate(),
-      status: "Saved"
-    };
-  }
-  function normalizePayload(p) {
-    return {
-      ...p,
-      title: (p.title || "Untitled role").trim().slice(0, 500),
-      url: p.url || window.location.href,
-      source_website: (p.source_website || hostnameSource()).slice(0, 200),
-      description: (p.description || "").slice(0, 5e4)
-    };
-  }
-
-  // src/seekNativeSave.ts
-  function isSeekJobDetailPath() {
-    return /\/job\b/i.test(window.location.pathname);
-  }
-  function isSeekJobSaveClickTarget(target) {
-    if (!target || !(target instanceof Element)) return false;
-    const btn = target.closest("button");
-    if (!btn) return false;
-    const da = (btn.getAttribute("data-automation") || "").toLowerCase();
-    if (da.includes("quick") || da.includes("apply")) return false;
-    if (da.includes("savejob") || da.includes("save-job") || da.includes("job-save") || da.includes("favouritejob")) {
-      return true;
-    }
-    const aria = (btn.getAttribute("aria-label") || "").toLowerCase();
-    if (aria.includes("save") && (aria.includes("job") || aria.includes("advert"))) return true;
-    const text2 = (btn.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
-    if (text2 === "save") {
-      const inMain = btn.closest("main, [role='main'], article");
-      return Boolean(inMain);
-    }
-    return false;
-  }
-  var lastSaveAt = 0;
-  var lastSaveUrl = "";
-  function showToast(message, ok) {
-    const id = "easyjob-native-save-toast";
-    document.getElementById(id)?.remove();
-    const div = document.createElement("div");
-    div.id = id;
-    const bg = ok ? "#ecfdf5" : "#fef2f2";
-    const fg = ok ? "#065f46" : "#991b1b";
-    const border = ok ? "#a7f3d0" : "#fecaca";
-    div.setAttribute(
-      "style",
-      `position:fixed;top:16px;right:16px;z-index:2147483646;max-width:320px;padding:12px 14px;border-radius:10px;
+(function(){"use strict";function f(t){return t.trim()}function M(t){const e=f(t).split(/\s+/).filter(Boolean);return e.length?e.length===1?{first:e[0],last:""}:{first:e[0],last:e.slice(1).join(" ")}:{first:"",last:""}}function P(t){if(!t.isConnected||t.closest("[hidden], [aria-hidden='true']"))return!1;const e=getComputedStyle(t);if(e.display==="none"||e.visibility==="hidden"||Number(e.opacity)===0)return!1;const n=t.getBoundingClientRect();return!(n.width<2&&n.height<2)}function h(t){return(t??"").toLowerCase().replace(/[_\s-]+/g,"")}function D(t){const e=h(t.id),n=h(t.getAttribute("name")),o=h(t.getAttribute("autocomplete")),i=h(t.getAttribute("placeholder"));let r="";if(t.id){const a=document.querySelector(`label[for="${CSS.escape(t.id)}"]`);a&&(r=h(a.textContent))}const s=h(t.getAttribute("aria-label"));return`${e} ${n} ${o} ${i} ${r} ${s}`}function m(t,e){const n=e.length>8e3?e.slice(0,8e3):e,o=t.getAttribute("maxlength");if(o&&/^\d+$/.test(o)){const i=parseInt(o,10);Number.isFinite(i)&&n.length>i?(t.focus(),t.value=n.slice(0,i)):(t.focus(),t.value=n)}else t.focus(),t.value=n;t.dispatchEvent(new Event("input",{bubbles:!0})),t.dispatchEvent(new Event("change",{bubbles:!0}))}function U(t,e){const n=f(e).toLowerCase();if(!n)return!1;const o=Array.from(t.options);let i=o.find(r=>r.value.toLowerCase()===n);return i||(i=o.find(r=>{var s;return((s=r.textContent)==null?void 0:s.trim().toLowerCase())===n})),i||(i=o.find(r=>{var s;return((s=r.textContent)==null?void 0:s.toLowerCase().includes(n))||r.value.toLowerCase().includes(n)})),i?(t.focus(),t.value=i.value,t.dispatchEvent(new Event("input",{bubbles:!0})),t.dispatchEvent(new Event("change",{bubbles:!0})),!0):!1}function R(t){const e=[],n=[],{first:o,last:i}=M(t.fullName),r=document.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="image"]):not([type="reset"]):not([type="file"]):not([type="password"]), textarea, select');for(const a of Array.from(r)){if(!(a instanceof HTMLInputElement)&&!(a instanceof HTMLTextAreaElement)&&!(a instanceof HTMLSelectElement)||!P(a)||a.disabled||(a instanceof HTMLInputElement||a instanceof HTMLTextAreaElement)&&a.readOnly)continue;const c=D(a);if(a instanceof HTMLSelectElement){if(f(t.country)&&(c.includes("country")||c.includes("nation"))){U(a,t.country)&&e.push("Country");continue}if(f(t.city)&&(c.includes("city")||c.includes("town"))){const d=f(t.city).toLowerCase(),p=Array.from(a.options).find(l=>{var y;return((y=l.textContent)==null?void 0:y.toLowerCase().includes(d))||l.value.toLowerCase().includes(d)});p&&(a.focus(),a.value=p.value,a.dispatchEvent(new Event("input",{bubbles:!0})),a.dispatchEvent(new Event("change",{bubbles:!0})),e.push("City"));continue}continue}if(a instanceof HTMLInputElement){const d=(a.type||"text").toLowerCase();if(d==="checkbox"||d==="radio")continue;if(d==="email"||c.includes("email")||a.getAttribute("autocomplete")==="email"){const l=f(t.email);if(!l){n.push("email");continue}m(a,l),e.push("Email");continue}if(d==="tel"||c.includes("phone")||c.includes("mobile")||c.includes("cell")||a.getAttribute("autocomplete")==="tel"){const l=f(t.phone);if(!l){n.push("phone");continue}m(a,l),e.push("Phone");continue}if(c.includes("linkedin")||c.includes("linked-in")){const l=f(t.linkedInUrl);if(!l){n.push("LinkedIn");continue}m(a,l),e.push("LinkedIn");continue}if(c.includes("portfolio")||c.includes("website")||c.includes("personalurl")||c.includes("github")){const l=f(t.portfolioUrl);if(!l){n.push("website");continue}m(a,l),e.push("Website");continue}if(d==="url"){const l=f(t.portfolioUrl),y=f(t.linkedInUrl);if(l){m(a,l),e.push("Website");continue}if(y){m(a,y),e.push("LinkedIn");continue}n.push("URL");continue}if(a.getAttribute("autocomplete")==="given-name"||c.includes("firstname")||c.includes("fname")){const l=o;if(!l){n.push("first name");continue}m(a,l),e.push("First name");continue}if(a.getAttribute("autocomplete")==="family-name"||c.includes("lastname")||c.includes("lname")||c.includes("surname")){const l=i||o;if(!l){n.push("last name");continue}m(a,l),e.push("Last name");continue}if(c.includes("city")&&!c.includes("companycity")){const l=f(t.city);if(!l)continue;m(a,l),e.push("City");continue}const g=a.getAttribute("autocomplete"),p=h(a.getAttribute("name"));if(d==="text"&&(g==="name"||p==="name"||p==="fullname"||p==="full_name"||p==="applicantname"||p==="candidate_name"||p.includes("yourname")&&!p.includes("company"))){const l=f(t.fullName);if(!l){n.push("full name");continue}m(a,l),e.push("Full name");continue}}a instanceof HTMLTextAreaElement&&(c.includes("cover")||c.includes("letter")||c.includes("message")||c.includes("additionalinfo"))}return{filled:[...new Set(e)],skippedEmpty:[...new Set(n)]}}function w(t){var n;const e=(n=t==null?void 0:t.textContent)==null?void 0:n.trim().replace(/\s+/g," ");return e&&e.length?e:null}function k(t){for(const e of t){const n=w(document.querySelector(e));if(n)return n}return null}function E(t,e){const n=t.toLowerCase();return/(^|\.)linkedin\.com$/i.test(n)?/\/jobs\/view\//i.test(e)||/\/jobs\/collections\//i.test(e):!1}function A(t){if(!t)return{};const e=t.split("|").map(r=>r.replace(/\s+/g," ").trim()).filter(Boolean);if(e.length<2)return{};const n=e[e.length-1];if(!/linkedin/i.test(n))return{};const o=e[0],i=e.length>=3?e[e.length-2]:void 0;return{title:o,company:i}}function F(){var n,o;const t=(o=(n=document.querySelector('meta[property="og:title"]'))==null?void 0:n.getAttribute("content"))==null?void 0:o.trim(),e=A(t);return e.title?e:A(document.title)}function z(){var t;return document.querySelector(".job-details-jobs-unified-top-card")||document.querySelector(".jobs-unified-top-card")||document.querySelector("[data-view-name='job-details-page-job-card']")||((t=document.querySelector("div[class*='jobs-unified-top-card__job-title']"))==null?void 0:t.closest("div.jobs-unified-top-card, article"))||null}function W(t){if(!t)return null;const e=["h1.job-details-jobs-unified-top-card__job-title",".job-details-jobs-unified-top-card__job-title",".jobs-unified-top-card__job-title","[data-testid='jobsearch-JobInfoHeader-title']"],n=[];for(const o of e)for(const i of Array.from(t.querySelectorAll(o))){const r=w(i);r&&r.length>=2&&r.length<400&&!/^linkedin$/i.test(r)&&n.push(r)}if(n.length)return n.reduce((o,i)=>o.length>=i.length?o:i);for(const o of Array.from(t.querySelectorAll("h1"))){const i=w(o);i&&i.length>=2&&i.length<400&&!/^linkedin$/i.test(i)&&n.push(i)}return n.length?n.reduce((o,i)=>o.length>=i.length?o:i):null}function V(t){const e=k([".job-details-jobs-unified-top-card__company-name a",".job-details-jobs-unified-top-card__company-name",".jobs-unified-top-card__company-name a",".jobs-unified-top-card__company-name","[data-testid='jobsearch-CompanyName']","a.job-details-jobs-unified-top-card__primary-description-link"])||null;if(e)return e;if(!t)return null;const n=t.querySelector('a[href*="/company/"]'),o=w(n);return o&&!/^\s*see\s+more\s*$/i.test(o)?o:null}function Y(t){const e=k([".job-details-jobs-unified-top-card__primary-description-container",".job-details-jobs-unified-top-card__tertiary-description-container",".job-details-jobs-unified-top-card__bullet",".jobs-unified-top-card__bullet","[data-testid='job-location']","[data-testid='job-workplace-types']"])||null;if(e)return e.replace(/\s*·\s*/g," · ").trim();if(!t)return null;const n=t.querySelector(".job-details-jobs-unified-top-card__primary-description-container")||t.querySelector(".job-details-jobs-unified-top-card__primary-description")||t.querySelector(".jobs-unified-top-card__primary-description");if(!n)return null;const o=n.querySelectorAll(".tvm__text, span[class*='text-body-small']"),i=Array.from(o).map(r=>{var s;return(s=r.textContent)==null?void 0:s.trim().replace(/\s+/g," ")}).filter(r=>!!(r&&r.length>0&&r.length<120));return i.length?[...new Set(i)].join(" · "):w(n)}function X(t,e){const n=(t||"").trim(),o=(e||"").trim();return o?!n||o.length>n.length&&o.startsWith(n)||o.includes(" - ")&&!n.includes(" - ")&&o.length>=n.length?o:n.length>o.length?n:o.length>=n.length?o:n:n||null}const G={id:"linkedin",tryExtract(){if(!E(window.location.hostname,window.location.pathname))return null;const t=z(),e=F(),n=W(t),o=X(n,e.title)||e.title||n,i=V(t)||e.company||null,r=Y(t);if(!o&&!i&&!r)return null;const s={};return o&&(s.title=o),i&&(s.company=i),r&&(s.location=r),s}};function u(t){var n;const e=(n=t==null?void 0:t.textContent)==null?void 0:n.trim();return e&&e.length?e:null}function _(t){const e=t.toLowerCase();return/\.seek\.co\.nz$/i.test(e)||/\.seek\.com\.au$/i.test(e)||/^[a-z0-9-]+\.seek\.com$/i.test(e)||e==="www.seek.com"}function K(){const t=document.querySelectorAll("main h1, article h1, [role='main'] h1, h1"),e=/SEEK|Indeed|LinkedIn|Glassdoor|Trade Me|Careers/i;for(const n of Array.from(t)){const o=u(n);if(!(!o||o.length<2||o.length>200)&&!e.test(o))return o}return null}const Q=[G,{id:"seek",tryExtract(){if(!_(window.location.hostname)||!/\/job\b/i.test(window.location.pathname))return null;const t=u(document.querySelector('[data-automation="job-detail-title"]'))||u(document.querySelector('[data-automation="jobDetailTitle"]'))||u(document.querySelector('[data-testid="job-detail-title"]'))||K()||u(document.querySelector("article h1"))||u(document.querySelector("main h1"))||null,e=u(document.querySelector('[data-automation="advertiser-name"]'))||u(document.querySelector('a[data-automation="advertiser-name"]'))||u(document.querySelector('[data-testid="advertiser-name"]'))||u(document.querySelector('[data-automation="job-ad-advertiser"]'))||null,n=u(document.querySelector('[data-automation="job-detail-location"]'))||u(document.querySelector('[data-automation="jobDetailLocation"]'))||u(document.querySelector('[data-automation="locationAndWorkArrangement"]'))||u(document.querySelector('[data-testid="job-detail-location"]'))||u(document.querySelector('[data-automation="job-ad-location"]'))||null;if(!t&&!e&&!n)return null;const o={};return t&&(o.title=t),e&&(o.company=e),n&&(o.location=n),o}}];function b(t){var n;const e=(n=t==null?void 0:t.textContent)==null?void 0:n.trim();return e&&e.length?e:null}function C(t,e){return t===e?!0:Array.isArray(t)?t.includes(e):!1}function v(t,e){if(t==null)return;if(Array.isArray(t)){for(const i of t)v(i,e);return}if(typeof t!="object")return;const n=t,o=n["@graph"];if(Array.isArray(o)){for(const i of o)v(i,e);return}e.push(n)}function Z(){var e;const t=[];for(const n of Array.from(document.querySelectorAll('script[type="application/ld+json"]')))try{const o=(e=n.textContent)==null?void 0:e.trim();if(!o)continue;v(JSON.parse(o),t)}catch{}return t}function L(t){if(t==null)return null;if(typeof t=="string")return t.trim()||null;if(Array.isArray(t))return L(t[0]);if(typeof t!="object")return null;const e=t;return typeof e.name=="string"&&e.name.trim()?e.name.trim():null}function q(t){if(t==null)return null;if(typeof t=="string")return t.trim()||null;if(typeof t!="object")return null;const e=t,n=typeof e.addressLocality=="string"?e.addressLocality.trim():"",o=typeof e.addressRegion=="string"?e.addressRegion.trim():"",i=[n,o].filter(Boolean);return i.length?i.join(", "):null}function T(t){if(t==null)return null;if(typeof t=="string")return t.trim()||null;if(Array.isArray(t)){const n=t.map(T).filter(o=>!!(o!=null&&o.trim()));return n.length?n.join(" · "):null}if(typeof t!="object")return null;const e=t;if(C(e["@type"],"Place")){const n=typeof e.name=="string"?e.name.trim():"",o=q(e.address);return n&&o?`${n} (${o})`:o||n||null}return e.address?q(e.address):typeof e.name=="string"&&e.name.trim()||null}function tt(){for(const t of Z()){if(!C(t["@type"],"JobPosting"))continue;const e=typeof t.title=="string"?t.title.trim():"",n=L(t.hiringOrganization),o=T(t.jobLocation);let i;if(typeof t.description=="string"){const a=t.description.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim();a.length>80&&(i=a.slice(0,5e4))}const r=typeof t.datePosted=="string"?t.datePosted.trim():"";if(!e&&!n&&!o&&!i)continue;const s={};return e&&(s.title=e),n&&(s.company=n),o&&(s.location=o),i&&(s.description=i),r&&(s.posted_date=r),s}return null}function et(){const t=window.location.pathname,e=window.location.href;return/\/job\b|\/jobs\/view\/|\/viewjob\b/i.test(`${t}${e}`)?b(document.querySelector('[data-automation="job-detail-title"]'))||b(document.querySelector("article h1"))||b(document.querySelector("main h1"))||b(document.querySelector("h1")):null}function nt(){var i,r,s,a,c,d,g;const t=et();if(t&&t.length<280)return t;const e=(r=(i=document.querySelector('meta[property="og:title"]'))==null?void 0:i.getAttribute("content"))==null?void 0:r.trim();if(e)return e;const n=(a=(s=document.querySelector('meta[name="twitter:title"]'))==null?void 0:s.getAttribute("content"))==null?void 0:a.trim();if(n)return n;const o=(d=(c=document.querySelector("title"))==null?void 0:c.textContent)==null?void 0:d.trim();return o?((g=o.split(/[|\-–]/)[0])==null?void 0:g.trim())||o:b(document.querySelector("h1"))}function ot(){var o,i;const t=document.querySelector('[data-testid="jobsearch-CompanyName"], .jobs-unified-top-card__company-name, .job-details-jobs-unified-top-card__company-name, a[data-control-name="job_card_company_link"]'),e=b(t);if(e)return e;const n=(i=(o=document.querySelector('meta[property="og:site_name"]'))==null?void 0:o.getAttribute("content"))==null?void 0:i.trim();return n&&!/seek/i.test(window.location.hostname)?E(window.location.hostname,window.location.pathname)&&/^linkedin$/i.test(n)?null:n:null}function it(){const t=document.querySelector('[data-testid="job-location"], .job-details-jobs-unified-top-card__primary-description-container, .job-details-jobs-unified-top-card__bullet, .jobs-unified-top-card__bullet, .jobs-unified-top-card__workplace-type'),e=b(t);return e?e.replace(/\s*·\s*/g," · ").trim():null}function rt(){var s,a,c;const t=(a=(s=document.querySelector('meta[property="og:description"]'))==null?void 0:s.getAttribute("content"))==null?void 0:a.trim();if(t&&t.length>80)return t;const e=document.querySelector("article");if(e&&(((c=e.textContent)==null?void 0:c.length)??0)>200)return e.textContent.trim().slice(0,2e4);const n=document.querySelector('#job-details, [data-testid="jobsearch-JobComponent-description"], .jobs-description-content__text, .description__text, .job-description'),o=b(n);if(o&&o.length>80)return o.slice(0,2e4);const i=document.querySelector("main"),r=b(i);return r&&r.length>200?r.slice(0,2e4):null}function at(){const t=document.querySelector('[data-testid="job-salary"], .salary-snippet, .compensation__text');return b(t)}function ct(){var e,n;const t=(n=(e=document.querySelector("time[datetime]"))==null?void 0:e.getAttribute("datetime"))==null?void 0:n.trim();return t||null}function x(){return window.location.hostname||"unknown"}function st(){var n,o,i;const t=(n=window.getSelection())==null?void 0:n.toString().trim();return t&&t.length>80?t.slice(0,2e4):(((i=(o=document.body)==null?void 0:o.innerText)==null?void 0:i.trim())??"").slice(0,2e4)}function J(){let t=ut();for(const e of Q){const n=e.tryExtract();!n||!Object.keys(n).length||(t={...t,...n,url:n.url||t.url,title:n.title||t.title,company:n.company??t.company,location:n.location??t.location,description:n.description??t.description,salary:n.salary??t.salary,posted_date:n.posted_date??t.posted_date,source_website:n.source_website??t.source_website})}return dt(t)}function lt(){return _(window.location.hostname)&&!/\/job\b/i.test(window.location.pathname)}function ut(){if(lt())return{title:"Open one SEEK job posting",company:null,location:null,description:"This page is not a single job ad (search, home, recommended, or saved list). Click a job title until the URL contains /job/, then click Re-scan.",salary:null,url:window.location.href,source_website:x(),posted_date:null,status:"Saved"};const t=tt(),e=(t==null?void 0:t.title)||nt()||"Untitled role",n=((t==null?void 0:t.description)??rt())||st();return{title:e,company:(t==null?void 0:t.company)??ot(),location:(t==null?void 0:t.location)??it(),description:n,salary:at(),url:window.location.href,source_website:x(),posted_date:(t==null?void 0:t.posted_date)??ct(),status:"Saved"}}function dt(t){return{...t,title:(t.title||"Untitled role").trim().slice(0,500),url:t.url||window.location.href,source_website:(t.source_website||x()).slice(0,200),description:(t.description||"").slice(0,5e4)}}const ft="EASYJOB_CLOSE_DRAWER",pt="easyjob-extension",$="easyjob-chrome-page-host",mt=`
+:host { all: initial; }
+.ej-root { font-family: system-ui, -apple-system, Segoe UI, sans-serif; }
+.ej-launcher {
+  position: fixed;
+  top: 38%;
+  right: 0;
+  z-index: 2147483646;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 112px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 10px 0 0 10px;
+  background: linear-gradient(180deg, #38bdf8 0%, #0ea5e9 100%);
+  box-shadow: -2px 4px 16px rgba(15, 23, 42, 0.18);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition: filter 0.15s ease, width 0.15s ease;
+}
+.ej-launcher:hover { filter: brightness(1.06); }
+.ej-launcher:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.ej-launcher svg { width: 22px; height: 22px; flex-shrink: 0; }
+.ej-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2147483640;
+  background: rgba(15, 23, 42, 0.18);
+}
+.ej-drawer-wrap.ej-open .ej-backdrop { display: block; }
+.ej-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2147483645;
+  width: min(400px, 100vw);
+  max-width: 100vw;
+  background: #fff;
+  box-shadow: -8px 0 32px rgba(15, 23, 42, 0.12);
+  transform: translateX(100%);
+  transition: transform 0.22s ease;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ej-drawer-wrap.ej-open .ej-drawer { transform: translateX(0); }
+.ej-frame {
+  border: none;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  display: block;
+  background: #f8fafc;
+}
+`;function bt(){return`<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M8 4 L14 20 M11 4 L17 20" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+  </svg>`}function O(){let t=document.getElementById($);if(t)return t;t=document.createElement("div"),t.id=$,t.setAttribute("data-easyjob-host",""),document.documentElement.appendChild(t);const e=t.attachShadow({mode:"open"}),n=document.createElement("style");n.textContent=mt;const o=document.createElement("div");o.className="ej-root";const i=document.createElement("button");i.type="button",i.className="ej-launcher",i.title="EasyJob",i.setAttribute("aria-label","Open EasyJob"),i.innerHTML=bt();const r=document.createElement("div");r.className="ej-drawer-wrap";const s=document.createElement("div");s.className="ej-backdrop";const a=document.createElement("aside");a.className="ej-drawer";const c=document.createElement("iframe");c.className="ej-frame",c.title="EasyJob",a.appendChild(c),r.appendChild(s),r.appendChild(a),o.appendChild(i),o.appendChild(r),e.append(n,o);let d=!1;function g(){d||(c.src=chrome.runtime.getURL("page-sidebar.html"),d=!0)}function p(){g(),r.classList.add("ej-open")}function l(){r.classList.remove("ej-open")}function y(){r.classList.contains("ej-open")?l():p()}return i.addEventListener("click",S=>{S.preventDefault(),S.stopPropagation(),y()}),s.addEventListener("click",()=>l()),window.addEventListener("message",S=>{var B,H;((B=S.data)==null?void 0:B.type)===ft&&((H=S.data)==null?void 0:H.source)===pt&&l()}),t.__ejToggle=y,t.__ejClose=l,t}function yt(){const t=window.location.protocol;t!=="http:"&&t!=="https:"||O()}function ht(){const t=window.location.protocol;if(t!=="http:"&&t!=="https:")return;const n=O().__ejToggle;n==null||n()}function gt(){return/\/job\b/i.test(window.location.pathname)}function wt(t){if(!t||!(t instanceof Element))return!1;const e=t.closest("button");if(!e)return!1;const n=(e.getAttribute("data-automation")||"").toLowerCase();if(n.includes("quick")||n.includes("apply"))return!1;if(n.includes("savejob")||n.includes("save-job")||n.includes("job-save")||n.includes("favouritejob"))return!0;const o=(e.getAttribute("aria-label")||"").toLowerCase();return o.includes("save")&&(o.includes("job")||o.includes("advert"))?!0:(e.textContent||"").replace(/\s+/g," ").trim().toLowerCase()==="save"?!!e.closest("main, [role='main'], article"):!1}let I=0,N="";function j(t,e){var a;const n="easyjob-native-save-toast";(a=document.getElementById(n))==null||a.remove();const o=document.createElement("div");o.id=n;const i=e?"#ecfdf5":"#fef2f2",r=e?"#065f46":"#991b1b",s=e?"#a7f3d0":"#fecaca";o.setAttribute("style",`position:fixed;top:16px;right:16px;z-index:2147483646;max-width:320px;padding:12px 14px;border-radius:10px;
     font:13px/1.35 system-ui,-apple-system,sans-serif;box-shadow:0 4px 24px rgba(0,0,0,.15);
-    background:${bg};color:${fg};border:1px solid ${border};`
-    );
-    div.textContent = message;
-    document.body.appendChild(div);
-    window.setTimeout(() => div.remove(), 5e3);
-  }
-  function initSeekNativeSaveOnClick() {
-    if (!isSeekHost(window.location.hostname)) return;
-    document.addEventListener(
-      "click",
-      (ev) => {
-        if (!isSeekJobDetailPath()) return;
-        if (!isSeekJobSaveClickTarget(ev.target)) return;
-        const urlKey = window.location.href.split("#")[0].split("?")[0];
-        const now = Date.now();
-        if (now - lastSaveAt < 1800 && urlKey === lastSaveUrl) return;
-        lastSaveAt = now;
-        lastSaveUrl = urlKey;
-        let payload;
-        try {
-          payload = extractJobFromPage();
-        } catch (e) {
-          showToast(`EasyJob: could not read job \u2014 ${e.message}`, false);
-          return;
-        }
-        const body = { ...payload, status: "Saved" };
-        chrome.runtime.sendMessage({ type: "SAVE_JOB", payload: body }, (resp) => {
-          const err = chrome.runtime.lastError;
-          if (err) {
-            showToast(`EasyJob: ${err.message}`, false);
-            return;
-          }
-          if (!resp) {
-            showToast("EasyJob: no response from extension.", false);
-            return;
-          }
-          if (!resp.ok) {
-            showToast(`EasyJob: ${resp.error}`, false);
-            return;
-          }
-          const id = resp.data?.id;
-          showToast(id != null ? `EasyJob: saved (application #${id}).` : "EasyJob: saved.", true);
-        });
-      },
-      false
-    );
-  }
-
-  // src/content.ts
-  initSeekNativeSaveOnClick();
-  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-    if (msg?.type === "EXTRACT_JOB") {
-      try {
-        const payload = extractJobFromPage();
-        sendResponse({ ok: true, data: payload });
-      } catch (e) {
-        sendResponse({ ok: false, error: e.message });
-      }
-      return true;
-    }
-    return false;
-  });
-})();
+    background:${i};color:${r};border:1px solid ${s};`),o.textContent=t,document.body.appendChild(o),window.setTimeout(()=>o.remove(),5e3)}function jt(){_(window.location.hostname)&&document.addEventListener("click",t=>{if(!gt()||!wt(t.target))return;const e=window.location.href.split("#")[0].split("?")[0],n=Date.now();if(n-I<1800&&e===N)return;I=n,N=e;let o;try{o=J()}catch(r){j(`EasyJob: could not read job — ${r.message}`,!1);return}const i={...o,status:"Saved"};chrome.runtime.sendMessage({type:"SAVE_JOB",payload:i},r=>{var c;const s=chrome.runtime.lastError;if(s){j(`EasyJob: ${s.message}`,!1);return}if(!r){j("EasyJob: no response from extension.",!1);return}if(!r.ok){j(`EasyJob: ${r.error}`,!1);return}const a=(c=r.data)==null?void 0:c.id;j(a!=null?`EasyJob: saved (application #${a}).`:"EasyJob: saved.",!0)})},!1)}jt(),yt(),chrome.runtime.onMessage.addListener((t,e,n)=>{if((t==null?void 0:t.type)==="EASYJOB_TOGGLE_UI")return ht(),!1;if((t==null?void 0:t.type)==="EXTRACT_JOB"){try{const o=J();n({ok:!0,data:o})}catch(o){n({ok:!1,error:o.message})}return!0}if((t==null?void 0:t.type)==="AUTOFILL_TAB"){try{const o=t.profile,i=R(o);n({ok:!0,data:i})}catch(o){n({ok:!1,error:o.message})}return!0}return!1})})();

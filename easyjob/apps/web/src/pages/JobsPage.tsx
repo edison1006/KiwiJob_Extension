@@ -5,7 +5,7 @@ import { APPLICATION_STATUSES, type ApplicationStatus } from "@easyjob/shared";
 import { DashboardHero } from "../components/DashboardHero";
 import { PageHeader } from "../components/PageHeader";
 import { StatusBadge } from "../components/StatusBadge";
-import { fetchJobs } from "../lib/api";
+import { deleteJob, fetchJobs } from "../lib/api";
 
 function fmtDate(iso: string) {
   try {
@@ -65,6 +65,8 @@ export default function JobsPage() {
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "">("");
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkFeedback, setBulkFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     fetchJobs()
@@ -110,6 +112,43 @@ export default function JobsPage() {
     const allOn = filtered.every((r) => selected.has(r.id));
     if (allOn) setSelected(new Set());
     else setSelected(new Set(filtered.map((r) => r.id)));
+  }
+
+  async function bulkDeleteSelected() {
+    if (selected.size === 0 || bulkBusy) return;
+    const ids = [...selected];
+    const n = ids.length;
+    if (!window.confirm(`Delete ${n} application${n === 1 ? "" : "s"}? This cannot be undone.`)) return;
+    setBulkBusy(true);
+    setBulkFeedback(null);
+    try {
+      const results = await Promise.allSettled(ids.map((id) => deleteJob(id)));
+      const failed: { id: number; message: string }[] = [];
+      results.forEach((r, i) => {
+        if (r.status === "rejected") failed.push({ id: ids[i], message: r.reason instanceof Error ? r.reason.message : String(r.reason) });
+      });
+      const okIds = ids.filter((_, i) => results[i].status === "fulfilled");
+      setSelected((prev) => {
+        const next = new Set(prev);
+        okIds.forEach((id) => next.delete(id));
+        return next;
+      });
+      const fresh = await fetchJobs();
+      setRows(fresh);
+      if (failed.length) {
+        setBulkFeedback(
+          `Removed ${okIds.length} of ${n}. Failed: ${failed.map((f) => `#${f.id} (${f.message})`).join("; ")}`,
+        );
+      } else {
+        setBulkFeedback(`Deleted ${n} application${n === 1 ? "" : "s"}.`);
+      }
+      window.setTimeout(() => setBulkFeedback(null), 8000);
+    } catch (e) {
+      setBulkFeedback(e instanceof Error ? e.message : "Bulk delete failed.");
+      window.setTimeout(() => setBulkFeedback(null), 8000);
+    } finally {
+      setBulkBusy(false);
+    }
   }
 
   const toolbar = (
@@ -160,15 +199,19 @@ export default function JobsPage() {
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        {bulkFeedback ? (
+          <div className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 sm:order-first sm:w-auto">{bulkFeedback}</div>
+        ) : null}
         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
           <span className="font-medium text-slate-800">{selected.size} selected</span>
           <button
             type="button"
-            disabled
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-400"
-            title="Bulk delete is not available in this MVP build. Open a job and delete from the detail page."
+            disabled={selected.size === 0 || bulkBusy}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
+            title="Delete selected rows from the server."
+            onClick={() => void bulkDeleteSelected()}
           >
-            🗑 Delete
+            {bulkBusy ? "Deleting…" : "🗑 Delete"}
           </button>
           <button
             type="button"

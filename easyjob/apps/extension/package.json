@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite build --watch",
     "icons": "python3 scripts/render_icons.py",
-    "build": "vite build && esbuild src/background.ts --bundle --platform=browser --outfile=dist/background.js --format=esm && esbuild src/content.ts --bundle --platform=browser --outfile=dist/content.js --format=iife",
+    "build": "vite build && node ./scripts/bundle-extension.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

@@ -1,4 +1,5 @@
 import type { JobSavePayload } from "@easyjob/shared";
+import { isLinkedInJobViewUrl } from "./linkedin";
 import { isSeekHost } from "./seek";
 import { siteExtractors } from "./registry";
 
@@ -134,20 +135,26 @@ function pickTitle(): string | null {
 
 function pickCompany(): string | null {
   const name = document.querySelector(
-    '[data-testid="jobsearch-CompanyName"], .jobs-unified-top-card__company-name, a[data-control-name="job_card_company_link"]',
+    '[data-testid="jobsearch-CompanyName"], .jobs-unified-top-card__company-name, .job-details-jobs-unified-top-card__company-name, a[data-control-name="job_card_company_link"]',
   );
   const fromDom = text(name);
   if (fromDom) return fromDom;
   const og = document.querySelector('meta[property="og:site_name"]')?.getAttribute("content")?.trim();
-  if (og && !/seek/i.test(window.location.hostname)) return og;
+  if (og && !/seek/i.test(window.location.hostname)) {
+    if (isLinkedInJobViewUrl(window.location.hostname, window.location.pathname) && /^linkedin$/i.test(og)) {
+      return null;
+    }
+    return og;
+  }
   return null;
 }
 
 function pickLocation(): string | null {
   const loc = document.querySelector(
-    '[data-testid="job-location"], .jobs-unified-top-card__bullet, .jobs-unified-top-card__workplace-type',
+    '[data-testid="job-location"], .job-details-jobs-unified-top-card__primary-description-container, .job-details-jobs-unified-top-card__bullet, .jobs-unified-top-card__bullet, .jobs-unified-top-card__workplace-type',
   );
-  return text(loc);
+  const s = text(loc);
+  return s ? s.replace(/\s*·\s*/g, " · ").trim() : null;
 }
 
 function pickDescription(): string | null {

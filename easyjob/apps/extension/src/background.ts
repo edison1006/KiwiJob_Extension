@@ -1,10 +1,121 @@
 import type { BgRequest, BgResponse } from "./messages";
+import type { ApplicantAutofillProfile } from "@easyjob/shared";
+import { EMPTY_APPLICANT_AUTOFILL_PROFILE } from "@easyjob/shared";
+import { mergeApplicantProfileWithCookies } from "./autofillMergeCookies";
 
 const DEFAULT_API = "http://localhost:8000";
 
-if (chrome.sidePanel?.setPanelBehavior) {
-  void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+function syncSidePanelEntry(): void {
+  if (!chrome.sidePanel?.setOptions) return;
+  void chrome.sidePanel.setOptions({ path: "page-sidebar.html" });
+  void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch(() => {});
 }
+
+syncSidePanelEntry();
+
+chrome.action.onClicked.addListener((tab) => {
+  if (tab.id != null) {
+    void chrome.tabs.sendMessage(tab.id, { type: "EASYJOB_TOGGLE_UI" }).catch(() => {});
+  }
+});
+
+const CTX_FILL = "easyjob-fill-application-form";
+
+function parseApplicantProfileJson(data: unknown): ApplicantAutofillProfile {
+  const e = EMPTY_APPLICANT_AUTOFILL_PROFILE;
+  if (!data || typeof data !== "object") return { ...e };
+  const o = data as Record<string, unknown>;
+  const s = (k: keyof ApplicantAutofillProfile) => (typeof o[k] === "string" ? o[k] : "") || "";
+  return {
+    fullName: s("fullName"),
+    email: s("email"),
+    phone: s("phone"),
+    linkedInUrl: s("linkedInUrl"),
+    portfolioUrl: s("portfolioUrl"),
+    city: s("city"),
+    country: s("country"),
+  };
+}
+
+async function buildAutofillProfileForTab(tabUrl: string): Promise<ApplicantAutofillProfile> {
+  const api = await getApiBase();
+  let apiProfile = { ...EMPTY_APPLICANT_AUTOFILL_PROFILE };
+  try {
+    const res = await fetch(`${api}/me/applicant-profile`, { method: "GET", headers: await mockUserIdHeaders() });
+    if (res.ok) {
+      apiProfile = parseApplicantProfileJson(await res.json());
+    }
+  } catch {
+    /* offline API — still try cookies */
+  }
+  let cookies: chrome.cookies.Cookie[] = [];
+  try {
+    cookies = await chrome.cookies.getAll({ url: tabUrl });
+  } catch {
+    cookies = [];
+  }
+  return mergeApplicantProfileWithCookies(apiProfile, cookies);
+}
+
+function isInjectableUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  if (url.startsWith("chrome://") || url.startsWith("edge://") || url.startsWith("about:") || url.startsWith("devtools:")) {
+    return false;
+  }
+  if (url.startsWith("chrome-extension://")) return false;
+  return url.startsWith("http://") || url.startsWith("https://");
+}
+
+async function runAutofillActiveTab(): Promise<void> {
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tab = tabs[0];
+  const tabId = tab?.id;
+  const url = tab?.url;
+  if (typeof tabId !== "number" || !url || !isInjectableUrl(url)) {
+    return;
+  }
+  const profile = await buildAutofillProfileForTab(url);
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: "AUTOFILL_TAB", profile });
+  } catch {
+    /* content script missing — user must reload tab */
+  }
+}
+
+function installContextMenu(): void {
+  if (!chrome.contextMenus) return;
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: CTX_FILL,
+      title: "Fill form with EasyJob profile",
+      contexts: ["page", "frame", "editable"],
+    });
+  });
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  installContextMenu();
+  syncSidePanelEntry();
+});
+
+chrome.contextMenus?.onClicked.addListener((info, tab) => {
+  if (info.menuItemId !== CTX_FILL || typeof tab?.id !== "number" || !tab.url) return;
+  if (!isInjectableUrl(tab.url)) return;
+  void (async () => {
+    const profile = await buildAutofillProfileForTab(tab.url!);
+    try {
+      await chrome.tabs.sendMessage(tab.id!, { type: "AUTOFILL_TAB", profile });
+    } catch {
+      /* ignore */
+    }
+  })();
+});
+
+chrome.commands?.onCommand.addListener((command) => {
+  if (command === "easyjob-autofill") {
+    void runAutofillActiveTab();
+  }
+});
 
 /** Turn FastAPI `{"detail": ...}` bodies into a short user-facing string. */
 async function formatApiError(res: Response): Promise<string> {
@@ -32,14 +143,18 @@ async function getApiBase(): Promise<string> {
   return typeof v.apiBase === "string" && v.apiBase.length ? v.apiBase.replace(/\/$/, "") : DEFAULT_API;
 }
 
-async function mockHeaders(): Promise<HeadersInit> {
+async function mockUserIdHeaders(): Promise<Record<string, string>> {
   const v = await chrome.storage.sync.get(["mockUserId"]);
-  const h: Record<string, string> = { "Content-Type": "application/json" };
+  const h: Record<string, string> = {};
   const raw = typeof v.mockUserId === "string" ? v.mockUserId.trim() : "";
   if (raw && !/https?:\/\//i.test(raw) && /^\d+$/.test(raw)) {
     h["X-Mock-User-Id"] = raw;
   }
   return h;
+}
+
+async function mockHeaders(): Promise<HeadersInit> {
+  return { "Content-Type": "application/json", ...(await mockUserIdHeaders()) };
 }
 
 chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse: (r: BgResponse) => void) => {

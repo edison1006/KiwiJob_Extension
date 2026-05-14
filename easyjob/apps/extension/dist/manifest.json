@@ -11,7 +11,7 @@
     "128": "icons/icon-128.png"
   },
   "action": {
-    "default_title": "EasyJob — open side panel",
+    "default_title": "EasyJob — toggle sidebar",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png",
@@ -19,10 +19,36 @@
       "128": "icons/icon-128.png"
     }
   },
+  "permissions": ["storage", "activeTab", "scripting", "sidePanel", "contextMenus", "cookies"],
   "side_panel": {
-    "default_path": "sidepanel.html"
+    "default_path": "page-sidebar.html"
   },
-  "permissions": ["storage", "activeTab", "scripting", "sidePanel"],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "page-sidebar.html",
+        "page-sidebar.js",
+        "sidepanel.html",
+        "assets/*",
+        "chunks/*",
+        "easyjob-logo.svg",
+        "icons/icon-16.png",
+        "icons/icon-32.png",
+        "icons/icon-48.png",
+        "icons/icon-128.png"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "commands": {
+    "easyjob-autofill": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "Fill application form with EasyJob profile"
+    }
+  },
   "host_permissions": ["http://*/*", "https://*/*"],
   "background": {
     "service_worker": "background.js",

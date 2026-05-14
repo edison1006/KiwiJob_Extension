@@ -9,6 +9,7 @@ class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     email: str = Field(default="demo@easyjob.local", index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    applicant_profile: Optional[dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
 
     applications: list["Application"] = Relationship(back_populates="user")
     resumes: list["Resume"] = Relationship(back_populates="user")

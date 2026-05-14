@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import path from "node:path";
 
 export default defineConfig({
+  base: "./",
   plugins: [react()],
   publicDir: "public",
   resolve: {
@@ -15,7 +16,7 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        sidepanel: path.resolve(__dirname, "sidepanel.html"),
+        "page-sidebar": path.resolve(__dirname, "page-sidebar.html"),
       },
       output: {
         entryFileNames: "[name].js",

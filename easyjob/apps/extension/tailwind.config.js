@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./sidepanel.html", "./src/**/*.{ts,tsx}"],
+  content: ["./page-sidebar.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {

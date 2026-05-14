@@ -131,6 +131,10 @@ export function UserMenu({ displayName, mockUserId, onSignOut, variant = "sideba
             <IconMenuUser />
             Profile
           </Link>
+          <Link className={menuRow} to="/settings#applicant-profile" role="menuitem" onClick={closeMenu}>
+            <IconMenuUser />
+            Application autofill
+          </Link>
 
           {issuesUrl ? (
             <a

@@ -12,3 +12,12 @@ export const APPLICATION_STATUSES = [
     "Offer",
     "Withdrawn",
 ];
+export const EMPTY_APPLICANT_AUTOFILL_PROFILE = {
+    fullName: "",
+    email: "",
+    phone: "",
+    linkedInUrl: "",
+    portfolioUrl: "",
+    city: "",
+    country: "",
+};
