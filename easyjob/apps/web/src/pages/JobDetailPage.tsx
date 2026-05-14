@@ -68,7 +68,7 @@ export default function JobDetailPage() {
     return (
       <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
         {error}{" "}
-        <Link className="font-medium text-brand-700 underline" to="/">
+        <Link className="font-medium text-brand-700 underline" to="/tracker">
           Back to list
         </Link>
       </div>

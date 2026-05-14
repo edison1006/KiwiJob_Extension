@@ -79,7 +79,7 @@ export default function MatchReportPage() {
             <Link className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50" to={`/jobs/${id}`}>
               Back to job
             </Link>
-            <Link className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50" to="/cv">
+            <Link className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50" to="/documents">
               CV upload
             </Link>
           </div>

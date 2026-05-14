@@ -1,13 +1,15 @@
 # EasyJob (MVP)
 
+All application code for this project lives under **`easyjob/`**. Clone the repo, then `cd easyjob` for installs, builds, and Docker Compose. **GitHub shows this file** (`README.md` at the repository root) on the repo home page.
+
 EasyJob is a **Chrome Extension** + **React dashboard** + **FastAPI API** for saving job postings, tracking application status, uploading a CV (PDF/DOCX), and running an **AI JD ↔ CV match** analysis.
 
-Monorepo layout:
+Monorepo layout (under `easyjob/`):
 
-- `apps/web` — Vite + React + TypeScript + Tailwind dashboard
-- `apps/extension` — Manifest V3 Chrome extension (content script + service worker + side panel)
-- `apps/api` — FastAPI + SQLModel + PostgreSQL API
-- `packages/shared` — Shared TypeScript contracts (`JobSavePayload`, statuses, DTO shapes)
+- `easyjob/apps/web` — Vite + React + TypeScript + Tailwind dashboard
+- `easyjob/apps/extension` — Manifest V3 Chrome extension (content script + service worker + side panel)
+- `easyjob/apps/api` — FastAPI + SQLModel + PostgreSQL API
+- `easyjob/packages/shared` — Shared TypeScript contracts (`JobSavePayload`, statuses, DTO shapes)
 
 ## Prerequisites
 
@@ -17,9 +19,9 @@ Monorepo layout:
 
 ## Release builds & CI
 
-- Checklist: [`docs/RELEASE.md`](docs/RELEASE.md) (production env, CORS, store listing; **1.0 product scope** is at the top of that file).
+- Checklist: [`easyjob/docs/RELEASE.md`](easyjob/docs/RELEASE.md) (production env, CORS, store listing; **1.0 product scope** is at the top of that file).
 - Local CI-style run from `easyjob/`: `npm run ci` (Node builds + API tests via `python3 -m pytest`; install Python deps first: `pip install -r apps/api/requirements.txt`, or use `apps/api/.venv`).
-- GitHub Actions: `.github/workflows/easyjob-ci.yml` (runs on pushes/PRs that touch `easyjob/**`). Root `postinstall` runs `easyjob/scripts/ensure-rollup-native.cjs` so Vite/Rollup works after `npm ci` on Linux and macOS (see `easyjob/docs/RELEASE.md` → CI).
+- GitHub Actions: `.github/workflows/easyjob-ci.yml` (runs on pushes/PRs that touch `easyjob/**`). Root `postinstall` runs `easyjob/scripts/ensure-rollup-native.cjs` so Vite/Rollup works after `npm ci` on Linux and macOS (see [`easyjob/docs/RELEASE.md`](easyjob/docs/RELEASE.md) → CI).
 
 ## Quick start (local)
 
@@ -33,7 +35,7 @@ For **PostgreSQL** instead, start a server (example with Docker — requires Doc
 docker run --name easyjob-pg -e POSTGRES_USER=easyjob -e POSTGRES_PASSWORD=easyjob -e POSTGRES_DB=easyjob -p 5432:5432 -d postgres:16-alpine
 ```
 
-Then set `DATABASE_URL` in `apps/api/.env` to the Postgres URL from `.env.example` (commented block).
+Then set `DATABASE_URL` in `easyjob/apps/api/.env` to the Postgres URL from `easyjob/.env.example` (commented block).
 
 ### Postgres user + database (local, one-time)
 
@@ -62,7 +64,7 @@ Manual option:
 psql -U postgres -d postgres -f easyjob/scripts/postgres-init.sql
 ```
 
-Then in `apps/api/.env` set:
+Then in `easyjob/apps/api/.env` set:
 
 `DATABASE_URL=postgresql+psycopg2://easyjob:easyjob@localhost:5432/easyjob`
 
@@ -105,7 +107,7 @@ cp ../../.env.example .env.local
 npm run dev
 ```
 
-Open `http://localhost:5173`.
+Open `http://localhost:5173`. Main areas: **Home** (`/`), **Job tracker** (`/tracker`), **Documents** (`/documents`; `/cv` redirects here), **Matches** (`/matches`). **Analytics** (`/analytics`) is linked from Home.
 
 ### 4) Chrome extension
 
@@ -121,8 +123,8 @@ Notes:
 - **Open the UI:** click the EasyJob toolbar icon — the **side panel** opens (no popup). You can dock it on the left or right with Chrome’s side panel controls.
 - **Where to use it:** open a normal **https** job posting first. On `chrome://extensions` or other built-in pages, capture is disabled by design — you will see a hint in the side panel.
 - **Service worker “inactive”** in `chrome://extensions` is normal until the extension wakes it (e.g. save/analyze).
-- **Toolbar icons:** `manifest.json` includes **PNG** placeholders in `apps/extension/public/icons/` (`icon-16.png` … `icon-128.png`). Regenerate artwork with `npm run icons -w @easyjob/extension` (or `python3 scripts/render_icons.py` from `apps/extension`) and rebuild.
-- **Privacy policy (Chrome Web Store):** see [`docs/PRIVACY.md`](docs/PRIVACY.md). Use a public raw GitHub URL to that file on your default branch in the listing (pattern in [`docs/RELEASE.md`](docs/RELEASE.md)).
+- **Toolbar icons:** `easyjob/apps/extension/public/manifest.json` references PNGs in `easyjob/apps/extension/public/icons/`. Regenerate with `npm run icons -w @easyjob/extension` (or `python3 scripts/render_icons.py` from `easyjob/apps/extension`) and rebuild.
+- **Privacy policy (Chrome Web Store):** see [`easyjob/docs/PRIVACY.md`](easyjob/docs/PRIVACY.md). Use a public raw GitHub URL to that file on your default branch in the listing (pattern in [`easyjob/docs/RELEASE.md`](easyjob/docs/RELEASE.md)).
 - Set **API base URL** in the side panel (defaults to `http://localhost:8000`).
 - Optional **Mock user id** header maps to `X-Mock-User-Id` (defaults to `1`).
 
@@ -157,11 +159,16 @@ If `OPENAI_API_KEY` is missing, match analysis uses a small deterministic **mock
 - `EmailEvent` and `Notification` tables exist as **stubs** for later Gmail ingestion + in-app alerts.
 - Extension `siteExtractors` registry is ready for SEEK / LinkedIn / Indeed / Trade Me / career-site parsers without changing the pipeline.
 
-## Scripts
+## Scripts (from `easyjob/`)
 
-- `npm run dev:web` — dashboard dev server
-- `npm run build:web` — dashboard production build
-- `npm run build:extension` — extension build output in `apps/extension/dist`
+```bash
+cd easyjob
+npm install          # workspaces; postinstall fixes Rollup native + builds shared
+npm run ci           # build shared + web + extension, then API pytest (needs Python deps in apps/api)
+npm run dev:web      # dashboard dev server
+npm run build:web
+npm run build:extension   # output: easyjob/apps/extension/dist
+```
 
 ## License
 

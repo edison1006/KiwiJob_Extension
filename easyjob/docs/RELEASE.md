@@ -35,6 +35,22 @@ Explicitly **out of scope for 1.0**: ATS one-click autofill, referral/network gr
   `https://raw.githubusercontent.com/<OWNER>/<REPO>/main/easyjob/docs/PRIVACY.md`  
   Replace `<OWNER>/<REPO>` and branch name if your default branch is not `main`.
 - Prepare the rest of the listing: single-purpose description, data usage (job URLs and content sent to **your** configured API only).
+- **Suggested listing copy** (edit to match your deployment; English is typical for the store):
+
+  **Name:** EasyJob — Job save & CV match
+
+  **Short description (132 chars max):** Save jobs from career sites, track status in a dashboard, and run JD↔CV match against your EasyJob API.
+
+  **Single purpose:** Help job seekers capture a job posting from the active tab, send it to their own EasyJob backend for tracking, and optionally request a match score between the job description and an uploaded CV.
+
+  **Permissions (plain language for reviewers):**
+  - `storage`: remember your API base URL and optional mock user id.
+  - `activeTab` + `scripting`: read the current tab’s URL and DOM only when you use the side panel / save actions on **http(s)** pages you opened (not on `chrome://` pages).
+  - `sidePanel`: show EasyJob in Chrome’s side panel (Chrome 114+).
+  - Broad `http://*/*` and `https://*/*`: lets the extension call **whatever API base URL you enter** (localhost or your hosted server) and work on common job boards. Data is sent only to that URL, not to the extension author by default.
+
+  **Host permissions / remote code:** You ship a fixed MV3 bundle; the extension does not fetch and execute arbitrary remote code. Network calls go to user-configured API endpoints.
+
 - Side panel requires **Chrome 114+** (`minimum_chrome_version` is set in the manifest).
 
 ## CI
