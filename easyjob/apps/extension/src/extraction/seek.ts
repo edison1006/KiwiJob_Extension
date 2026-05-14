@@ -34,6 +34,7 @@ export const seekSiteExtractor: SiteExtractor = {
   id: "seek",
   tryExtract(): Partial<JobSavePayload> | null {
     if (!isSeekHost(window.location.hostname)) return null;
+    if (!/\/job\b/i.test(window.location.pathname)) return null;
     const title =
       t(document.querySelector('[data-automation="job-detail-title"]')) ||
       t(document.querySelector('[data-automation="jobDetailTitle"]')) ||

@@ -1,0 +1,43 @@
+name: EasyJob CI
+
+on:
+  push:
+    paths:
+      - "easyjob/**"
+      - ".github/workflows/easyjob-ci.yml"
+  pull_request:
+    paths:
+      - "easyjob/**"
+      - ".github/workflows/easyjob-ci.yml"
+
+defaults:
+  run:
+    working-directory: easyjob
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: easyjob/package-lock.json
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build shared, web, extension
+        run: npm run build:shared && npm run build:web && npm run build:extension
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install API deps and run tests
+        working-directory: easyjob/apps/api
+        run: |
+          pip install -r requirements.txt
+          python -m pytest -q

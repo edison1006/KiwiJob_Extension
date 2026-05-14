@@ -6,7 +6,7 @@ import { fetchJobs } from "../lib/api";
 
 function fmtDate(iso: string) {
   try {
-    return new Date(iso).toLocaleString();
+    return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
   } catch {
     return iso;
   }
@@ -40,7 +40,8 @@ export default function JobsPage() {
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">📋</div>
         <h1 className="text-lg font-semibold text-slate-900">No saved jobs yet</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Use the EasyJob Chrome extension on a job posting page and click <span className="font-medium">Save Job</span>.
+          Save from a job posting using the <span className="font-medium">EasyJob Chrome extension</span> (side panel → Save job, or SEEK’s own Save on a{" "}
+          <span className="font-medium">/job/…</span> page). Then refresh this list.
         </p>
       </div>
     );

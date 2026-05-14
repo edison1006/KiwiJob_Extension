@@ -10,3 +10,4 @@ python-dotenv==1.0.1
 httpx==0.28.1
 pydantic-settings==2.6.1
 eval-type-backport==0.2.2
+pytest==8.3.4

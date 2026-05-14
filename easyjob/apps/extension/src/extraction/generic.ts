@@ -1,4 +1,5 @@
 import type { JobSavePayload } from "@easyjob/shared";
+import { isSeekHost } from "./seek";
 import { siteExtractors } from "./registry";
 
 function text(el: Element | null | undefined): string | null {
@@ -212,7 +213,25 @@ export function extractJobFromPage(): JobSavePayload {
   return normalizePayload(merged);
 }
 
+function isSeekBrowseNotJobAd(): boolean {
+  return isSeekHost(window.location.hostname) && !/\/job\b/i.test(window.location.pathname);
+}
+
 function genericExtract(): JobSavePayload {
+  if (isSeekBrowseNotJobAd()) {
+    return {
+      title: "Open one SEEK job posting",
+      company: null,
+      location: null,
+      description:
+        "This page is not a single job ad (search, home, recommended, or saved list). Click a job title until the URL contains /job/, then click Re-scan.",
+      salary: null,
+      url: window.location.href,
+      source_website: hostnameSource(),
+      posted_date: null,
+      status: "Saved",
+    };
+  }
   const jd = tryJobPostingJsonLd();
   const title = jd?.title || pickTitle() || "Untitled role";
   const description = (jd?.description ?? pickDescription()) || fallbackBodyText();

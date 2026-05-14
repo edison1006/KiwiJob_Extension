@@ -15,6 +15,12 @@ Monorepo layout:
 - Python **3.10+** recommended (Docker image uses **3.12**). The API pins `eval-type-backport` so **3.9** can still parse modern union annotations in many environments.
 - Docker Desktop (optional, for `docker-compose`)
 
+## Release builds & CI
+
+- Checklist: [`docs/RELEASE.md`](docs/RELEASE.md) (production env, CORS, store listing; **1.0 product scope** is at the top of that file).
+- Local CI-style run from `easyjob/`: `npm run ci` (Node builds + API tests via `python3 -m pytest`; install Python deps first: `pip install -r apps/api/requirements.txt`, or use `apps/api/.venv`).
+- GitHub Actions: `.github/workflows/easyjob-ci.yml` (runs on pushes/PRs that touch `easyjob/**`).
+
 ## Quick start (local)
 
 ### 1) Database (optional for quick local API)
@@ -115,7 +121,8 @@ Notes:
 - **Open the UI:** click the EasyJob toolbar icon — the **side panel** opens (no popup). You can dock it on the left or right with Chrome’s side panel controls.
 - **Where to use it:** open a normal **https** job posting first. On `chrome://extensions` or other built-in pages, capture is disabled by design — you will see a hint in the side panel.
 - **Service worker “inactive”** in `chrome://extensions` is normal until the extension wakes it (e.g. save/analyze).
-- **Toolbar / list icon (gray “E”):** Chrome needs **PNG** paths in `manifest.json`. This repo ships the logo in the side panel as **SVG**; for a branded toolbar icon, run `python3 scripts/render_icons.py` inside `apps/extension`, then add `"icons"` / `"action"."default_icon"` entries pointing at `public/icons/icon-*.png` and rebuild.
+- **Toolbar icons:** `manifest.json` includes **PNG** placeholders in `apps/extension/public/icons/` (`icon-16.png` … `icon-128.png`). Regenerate artwork with `npm run icons -w @easyjob/extension` (or `python3 scripts/render_icons.py` from `apps/extension`) and rebuild.
+- **Privacy policy (Chrome Web Store):** see [`docs/PRIVACY.md`](docs/PRIVACY.md). Use a public raw GitHub URL to that file on your default branch in the listing (pattern in [`docs/RELEASE.md`](docs/RELEASE.md)).
 - Set **API base URL** in the side panel (defaults to `http://localhost:8000`).
 - Optional **Mock user id** header maps to `X-Mock-User-Id` (defaults to `1`).
 

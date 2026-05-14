@@ -12,6 +12,7 @@
     "dev:extension": "npm run dev -w @easyjob/extension",
     "build:web": "npm run build -w @easyjob/web",
     "build:extension": "npm run build -w @easyjob/extension",
-    "build:shared": "npm run build -w @easyjob/shared"
+    "build:shared": "npm run build -w @easyjob/shared",
+    "ci": "npm run build:shared && npm run build:web && npm run build:extension && cd apps/api && python3 -m pytest -q"
   }
 }

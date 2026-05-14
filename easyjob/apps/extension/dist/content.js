@@ -24,6 +24,7 @@
     id: "seek",
     tryExtract() {
       if (!isSeekHost(window.location.hostname)) return null;
+      if (!/\/job\b/i.test(window.location.pathname)) return null;
       const title = t(document.querySelector('[data-automation="job-detail-title"]')) || t(document.querySelector('[data-automation="jobDetailTitle"]')) || t(document.querySelector('[data-testid="job-detail-title"]')) || pickShortH1AvoidingSiteChrome() || t(document.querySelector("article h1")) || t(document.querySelector("main h1")) || null;
       const company = t(document.querySelector('[data-automation="advertiser-name"]')) || t(document.querySelector('a[data-automation="advertiser-name"]')) || t(document.querySelector('[data-testid="advertiser-name"]')) || t(document.querySelector('[data-automation="job-ad-advertiser"]')) || null;
       const location = t(document.querySelector('[data-automation="job-detail-location"]')) || t(document.querySelector('[data-automation="jobDetailLocation"]')) || t(document.querySelector('[data-automation="locationAndWorkArrangement"]')) || t(document.querySelector('[data-testid="job-detail-location"]')) || t(document.querySelector('[data-automation="job-ad-location"]')) || null;
@@ -222,7 +223,23 @@
     }
     return normalizePayload(merged);
   }
+  function isSeekBrowseNotJobAd() {
+    return isSeekHost(window.location.hostname) && !/\/job\b/i.test(window.location.pathname);
+  }
   function genericExtract() {
+    if (isSeekBrowseNotJobAd()) {
+      return {
+        title: "Open one SEEK job posting",
+        company: null,
+        location: null,
+        description: "This page is not a single job ad (search, home, recommended, or saved list). Click a job title until the URL contains /job/, then click Re-scan.",
+        salary: null,
+        url: window.location.href,
+        source_website: hostnameSource(),
+        posted_date: null,
+        status: "Saved"
+      };
+    }
     const jd = tryJobPostingJsonLd();
     const title = jd?.title || pickTitle() || "Untitled role";
     const description = (jd?.description ?? pickDescription()) || fallbackBodyText();
