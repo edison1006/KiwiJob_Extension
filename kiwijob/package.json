@@ -1,0 +1,18 @@
+{
+  "name": "kiwijob",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "apps/extension",
+    "packages/shared"
+  ],
+  "scripts": {
+    "postinstall": "node scripts/ensure-rollup-native.cjs && npm run build -w @kiwijob/shared",
+    "dev:web": "npm run dev -w @kiwijob/web",
+    "dev:extension": "npm run dev -w @kiwijob/extension",
+    "build:web": "npm run build -w @kiwijob/web",
+    "build:extension": "npm run build -w @kiwijob/extension",
+    "build:shared": "npm run build -w @kiwijob/shared",
+    "ci": "npm run build:shared && npm run build:web && npm run build:extension && cd apps/api && python3 -m pytest -q"
+  }
+}
