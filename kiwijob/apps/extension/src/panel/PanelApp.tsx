@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { ApplicationStatus, CvProfileDTO, InsightsSummary, JobSavePayload, MatchAnalysis, ResumeDTO } from "@kiwijob/shared";
 import { APPLICATION_STATUSES } from "@kiwijob/shared";
 import type { ContentToPanelMessage } from "../messages";
@@ -19,7 +19,7 @@ type ExtractResp =
 
 type AnyResp = { ok: true; data?: unknown } | { ok: false; error: string };
 
-type TabId = "jobs" | "applications" | "match" | "profile" | "insights";
+type TabId = "jobs" | "applications" | "profile" | "insights";
 type AutofillFieldKey = keyof AutofillSettings["fields"];
 type InsightRange = "7" | "30" | "90" | "custom";
 
@@ -487,6 +487,7 @@ export function KiwiJobPanel() {
   const [selectedResumeId, setSelectedResumeId] = useState<number | null>(null);
   const [cvProfileLoading, setCvProfileLoading] = useState(false);
   const [cvProfileError, setCvProfileError] = useState<string | null>(null);
+  const autoMatchedJobKey = useRef("");
 
   useEffect(() => {
     void chrome.storage.sync.get(["apiBase", "mockUserId", "webAppUrl", "autofillSettings"]).then((v) => {
@@ -566,6 +567,9 @@ export function KiwiJobPanel() {
         return;
       }
       setDraft({ ...resp.data, status });
+      setLastId(null);
+      setMatchResult(null);
+      setMatchError(null);
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       setMsg(`Could not reach the page script. Reload this tab, then click Re-scan. (${detail})`);
@@ -583,6 +587,9 @@ export function KiwiJobPanel() {
       const payload = message.payload as JobSavePayload;
       if (!payload?.title || !payload?.url) return;
       setDraft({ ...payload, status });
+      setLastId(null);
+      setMatchResult(null);
+      setMatchError(null);
       setMsg(null);
     };
     chrome.runtime.onMessage.addListener(listener);
@@ -627,7 +634,7 @@ export function KiwiJobPanel() {
     void chrome.tabs.create({ url: url.toString() });
   }
 
-  async function onSave() {
+  async function onSave(openTracker = true) {
     if (!draft) return;
     setBusy(true);
     setMsg(null);
@@ -643,14 +650,52 @@ export function KiwiJobPanel() {
       }
       const data = resp.data as { id: number };
       setLastId(data.id);
-      setMsg(`Saved (application #${data.id}). Opening tracker…`);
-      openSavedJobInDashboard(data.id);
+      setMsg(openTracker ? `Saved (application #${data.id}). Opening tracker…` : `Saved (application #${data.id}).`);
+      if (openTracker) openSavedJobInDashboard(data.id);
     } catch (e) {
       setMsg((e as Error).message);
     } finally {
       setBusy(false);
     }
   }
+
+  async function onPreviewMatch(auto = false) {
+    if (!draft) return;
+    setBusy(true);
+    setMsg(auto ? "Detected job. Calculating match…" : null);
+    setMatchError(null);
+    try {
+      await persistSettings(apiBase, mockUserId);
+      const matchResp = await sendRuntimeMessage({
+        type: "PREVIEW_MATCH",
+        payload: { ...draft, status },
+      });
+      if (!matchResp.ok) {
+        setMsg(matchResp.error);
+        setMatchError(matchResp.error);
+        return;
+      }
+      setMatchResult(matchResp.data as MatchAnalysis);
+      setMsg("Match analysis complete. Save manually if you want to track this job.");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setMsg(message);
+      setMatchError(message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!draft?.url || !draft.title) return;
+    if (/open one seek job posting/i.test(draft.title)) return;
+    const key = `${draft.url}::${draft.title}`;
+    if (autoMatchedJobKey.current === key) return;
+    autoMatchedJobKey.current = key;
+    const timer = window.setTimeout(() => void onPreviewMatch(true), 600);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.url, draft?.title]);
 
   async function onAnalyze() {
     const id = lastId;
@@ -795,11 +840,6 @@ export function KiwiJobPanel() {
   }, [tab, insightRange, customStart, customEnd]);
 
   useEffect(() => {
-    if (tab === "match" && lastId) void loadLatestMatch(lastId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, lastId]);
-
-  useEffect(() => {
     if (tab === "profile") void loadCvProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
@@ -807,7 +847,6 @@ export function KiwiJobPanel() {
   const tabs: { id: TabId; label: string; description: string }[] = [
     { id: "jobs", label: "Jobs", description: "职位列表、实时抓取" },
     { id: "applications", label: "Applications", description: "已申请职位追踪" },
-    { id: "match", label: "Match", description: "AI Match / Resume Optimization" },
     { id: "profile", label: "Profile", description: "CV、技能、签证、偏好" },
     { id: "insights", label: "Insights", description: "数据分析（成功率、市场趋势）" },
   ];
@@ -892,11 +931,48 @@ export function KiwiJobPanel() {
               <button
                 type="button"
                 disabled={busy || !draft}
-                onClick={() => void onSave()}
+                onClick={() => void onSave(false)}
                 className="flex w-full items-center justify-center rounded-lg bg-brand-600 px-3 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
               >
-                Save to job tracker
+                {busy ? "Saving…" : "Save to job tracker"}
               </button>
+
+              <button
+                type="button"
+                disabled={busy || !draft}
+                onClick={() => void onPreviewMatch(false)}
+                className="flex w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+              >
+                {busy ? "Matching…" : matchResult ? "Refresh match" : "Run match now"}
+              </button>
+
+              <div className="space-y-3">
+                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-700">
+                  <div className="font-semibold text-slate-800">AI Match / Resume Optimization</div>
+                  <p className="mt-2 leading-relaxed">
+                    Match runs automatically when a job is detected. Saving to your tracker stays manual.
+                  </p>
+                  {matchError ? <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-900">{matchError}</div> : null}
+                </div>
+
+                {matchResult ? (
+                  <MatchSummary data={matchResult} />
+                ) : (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-center text-xs text-slate-600">
+                    {busy ? "Calculating match for this job…" : "Open a job page to automatically show your match score here."}
+                  </div>
+                )}
+
+                {lastId ? (
+                  <button
+                    type="button"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
+                    onClick={() => void loadLatestMatch(lastId)}
+                  >
+                    Refresh match
+                  </button>
+                ) : null}
+              </div>
 
               <button
                 type="button"
@@ -1006,48 +1082,6 @@ export function KiwiJobPanel() {
                 onRefresh={() => void loadCvProfile()}
                 onEdit={() => void chrome.tabs.create({ url: `${normalizeWebAppUrl(webAppUrl)}/documents` })}
               />
-            </div>
-          ) : null}
-
-          {tab === "match" ? (
-            <div className="space-y-3">
-              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-700">
-                <div className="font-semibold text-slate-800">AI Match / Resume Optimization</div>
-                <p className="mt-2 leading-relaxed">
-                  Save this job first, then match the saved job description against your uploaded CV.
-                </p>
-                {matchError ? <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-900">{matchError}</div> : null}
-              </div>
-
-              {matchResult ? (
-                <MatchSummary data={matchResult} />
-              ) : (
-                <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-center text-xs text-slate-600">
-                  Run match analysis to see score, JD requirement coverage, and CV strengths / weak spots.
-                </div>
-              )}
-
-              <button
-                type="button"
-                disabled={busy || !lastId}
-                onClick={() => void onAnalyze()}
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50 disabled:opacity-50"
-              >
-                {busy ? "Running match…" : matchResult ? "Refresh match analysis" : "Run match analysis"}
-              </button>
-              <button
-                type="button"
-                className="mt-2 w-full rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-700"
-                onClick={() => {
-                  const target = lastId ? `${normalizeWebAppUrl(webAppUrl)}/match/${lastId}` : `${normalizeWebAppUrl(webAppUrl)}/matches`;
-                  void chrome.tabs.create({ url: target });
-                }}
-              >
-                Open match report
-              </button>
-              <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
-                Real scoring uses your uploaded CV and <code className="rounded bg-slate-100 px-0.5">OPENAI_API_KEY</code>.
-              </p>
             </div>
           ) : null}
 

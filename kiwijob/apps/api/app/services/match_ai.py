@@ -59,15 +59,20 @@ def analyze_cv_vs_jd(cv_text: str, jd_text: str) -> MatchAnalysisOut:
     )
     user = f"CV:\n{cv_text[:12000]}\n\n---\n\nJOB DESCRIPTION:\n{jd_text[:12000]}"
 
-    resp = client.chat.completions.create(
-        model=settings.openai_model,
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        temperature=0.2,
-    )
-    content = resp.choices[0].message.content or "{}"
-    data = json.loads(content)
-    return MatchAnalysisOut.model_validate(data)
+    try:
+        resp = client.chat.completions.create(
+            model=settings.openai_model,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            temperature=0.2,
+        )
+        content = resp.choices[0].message.content or "{}"
+        data = json.loads(content)
+        return MatchAnalysisOut.model_validate(data)
+    except Exception:  # noqa: BLE001
+        raw = _mock_match(cv_text, jd_text)
+        raw["risk_flags"] = [*raw.get("risk_flags", []), "AI scoring unavailable — using local heuristic fallback."]
+        return MatchAnalysisOut.model_validate(raw)

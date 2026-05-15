@@ -14,7 +14,7 @@ const y = {
   skills: "",
   summary: "",
   coverLetter: ""
-}, d = {
+}, m = {
   aiUniqueQuestions: !0,
   continuous: !1,
   fields: {
@@ -40,46 +40,46 @@ function b(t) {
 function T(t) {
   return t.toLowerCase().replace(/[-_]/g, "");
 }
-function U(t, c) {
+function $(t, c) {
   const e = { ...t };
-  let o = "", i = "";
-  for (const n of c) {
-    const a = b(n.value || "");
-    if (!a) continue;
-    const r = T(n.name);
+  let n = "", a = "";
+  for (const o of c) {
+    const i = b(o.value || "");
+    if (!i) continue;
+    const r = T(o.name);
     if (!e.email && (r === "email" || r.endsWith("email") || r === "useremail")) {
-      a.includes("@") && (e.email = a);
+      i.includes("@") && (e.email = i);
       continue;
     }
     if (!e.phone && (r.includes("phone") || r.includes("mobile") || r.includes("cell") || r === "tel")) {
-      e.phone = a;
+      e.phone = i;
       continue;
     }
     if (!e.linkedInUrl && (r.includes("linkedin") || r === "inurl")) {
-      (a.includes("linkedin") || a.startsWith("http")) && (e.linkedInUrl = a);
+      (i.includes("linkedin") || i.startsWith("http")) && (e.linkedInUrl = i);
       continue;
     }
     if (!e.portfolioUrl && (r.includes("website") || r.includes("portfolio") || r === "url" || r === "homepage")) {
-      a.startsWith("http") && (e.portfolioUrl = a);
+      i.startsWith("http") && (e.portfolioUrl = i);
       continue;
     }
     if (!e.city && r.includes("city") && !r.includes("company")) {
-      e.city = a;
+      e.city = i;
       continue;
     }
     if (!e.country && (r.includes("country") || r === "nation")) {
-      e.country = a;
+      e.country = i;
       continue;
     }
     if (!e.fullName && (r === "name" || r === "fullname" || r === "displayname")) {
-      e.fullName = a;
+      e.fullName = i;
       continue;
     }
-    (r === "firstname" || r === "fname" || r === "givenname") && (o = a), (r === "lastname" || r === "lname" || r === "surname" || r === "familyname") && (i = a);
+    (r === "firstname" || r === "fname" || r === "givenname") && (n = i), (r === "lastname" || r === "lname" || r === "surname" || r === "familyname") && (a = i);
   }
-  return !e.fullName.trim() && (o || i) && (e.fullName = [o, i].filter(Boolean).join(" ").trim()), e;
+  return !e.fullName.trim() && (n || a) && (e.fullName = [n, a].filter(Boolean).join(" ").trim()), e;
 }
-const $ = "http://localhost:8000";
+const P = "http://localhost:8000";
 function w() {
   var t;
   (t = chrome.sidePanel) != null && t.setOptions && (chrome.sidePanel.setOptions({ path: "page-sidebar.html" }), chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: !1 }).catch(() => {
@@ -91,26 +91,26 @@ chrome.action.onClicked.addListener((t) => {
   });
 });
 const g = "kiwijob-fill-application-form";
-function P(t) {
+function U(t) {
   const c = y;
   if (!t || typeof t != "object") return { ...c };
-  const e = t, o = (i) => (typeof e[i] == "string" ? e[i] : "") || "";
+  const e = t, n = (a) => (typeof e[a] == "string" ? e[a] : "") || "";
   return {
-    fullName: o("fullName"),
-    email: o("email"),
-    phone: o("phone"),
-    linkedInUrl: o("linkedInUrl"),
-    portfolioUrl: o("portfolioUrl"),
-    githubUrl: o("githubUrl"),
-    city: o("city"),
-    country: o("country"),
-    workAuthorization: o("workAuthorization"),
-    sponsorship: o("sponsorship"),
-    salaryExpectation: o("salaryExpectation"),
-    noticePeriod: o("noticePeriod"),
-    skills: o("skills"),
-    summary: o("summary"),
-    coverLetter: o("coverLetter")
+    fullName: n("fullName"),
+    email: n("email"),
+    phone: n("phone"),
+    linkedInUrl: n("linkedInUrl"),
+    portfolioUrl: n("portfolioUrl"),
+    githubUrl: n("githubUrl"),
+    city: n("city"),
+    country: n("country"),
+    workAuthorization: n("workAuthorization"),
+    sponsorship: n("sponsorship"),
+    salaryExpectation: n("salaryExpectation"),
+    noticePeriod: n("noticePeriod"),
+    skills: n("skills"),
+    summary: n("summary"),
+    coverLetter: n("coverLetter")
   };
 }
 function L(t) {
@@ -120,9 +120,9 @@ function L(t) {
     email: t.email || "",
     phone: t.phone || "",
     skills: t.skills.join(", "),
-    linkedInUrl: t.links.find((o) => /linkedin/i.test(o)) || "",
-    portfolioUrl: t.links.find((o) => !/linkedin|github/i.test(o)) || "",
-    githubUrl: t.links.find((o) => /github/i.test(o)) || "",
+    linkedInUrl: t.links.find((n) => /linkedin/i.test(n)) || "",
+    portfolioUrl: t.links.find((n) => !/linkedin|github/i.test(n)) || "",
+    githubUrl: t.links.find((n) => /github/i.test(n)) || "",
     summary: [
       (c = t.experience[0]) != null && c.title ? `Most recent role: ${t.experience[0].title}` : "",
       (e = t.education[0]) != null && e.school ? `Education: ${t.education[0].school}` : ""
@@ -131,51 +131,51 @@ function L(t) {
   } : {};
 }
 function _(t) {
-  if (!t || typeof t != "object") return d;
+  if (!t || typeof t != "object") return m;
   const c = t;
   return {
-    ...d,
+    ...m,
     ...c,
-    fields: { ...d.fields, ...c.fields || {} }
+    fields: { ...m.fields, ...c.fields || {} }
   };
 }
-async function I() {
+async function E() {
   const t = await chrome.storage.sync.get(["autofillSettings"]);
   return _(t.autofillSettings);
 }
-async function A(t) {
+async function I(t) {
   const c = await l();
   let e = { ...y };
   try {
-    const i = await fetch(`${c}/me/applicant-profile`, { method: "GET", headers: await u() });
-    i.ok && (e = P(await i.json()));
+    const a = await fetch(`${c}/me/applicant-profile`, { method: "GET", headers: await u() });
+    a.ok && (e = U(await a.json()));
   } catch {
   }
   try {
-    const i = await chrome.storage.local.get(["selectedResumeId"]), n = typeof i.selectedResumeId == "number" ? i.selectedResumeId : void 0, a = n ? `/resumes/${n}/profile` : "/resumes/profile", r = await fetch(`${c}${a}`, { method: "GET", headers: await u() });
+    const a = await chrome.storage.local.get(["selectedResumeId"]), o = typeof a.selectedResumeId == "number" ? a.selectedResumeId : void 0, i = o ? `/resumes/${o}/profile` : "/resumes/profile", r = await fetch(`${c}${i}`, { method: "GET", headers: await u() });
     r.ok && (e = { ...e, ...L(await r.json()) });
   } catch {
   }
-  let o = [];
+  let n = [];
   try {
-    o = await chrome.cookies.getAll({ url: t });
+    n = await chrome.cookies.getAll({ url: t });
   } catch {
-    o = [];
+    n = [];
   }
-  return U(e, o);
+  return $(e, n);
 }
-function E(t) {
+function A(t) {
   return !t || t.startsWith("chrome://") || t.startsWith("edge://") || t.startsWith("about:") || t.startsWith("devtools:") || t.startsWith("chrome-extension://") ? !1 : t.startsWith("http://") || t.startsWith("https://");
 }
 async function S() {
-  const c = (await chrome.tabs.query({ active: !0, currentWindow: !0 }))[0], e = c == null ? void 0 : c.id, o = c == null ? void 0 : c.url;
-  if (typeof e != "number" || !o || !E(o))
+  const c = (await chrome.tabs.query({ active: !0, currentWindow: !0 }))[0], e = c == null ? void 0 : c.id, n = c == null ? void 0 : c.url;
+  if (typeof e != "number" || !n || !A(n))
     return { filled: [], skippedEmpty: ["active tab"] };
-  const i = await A(o), n = await I();
+  const a = await I(n), o = await E();
   try {
-    return await chrome.tabs.sendMessage(e, { type: "AUTOFILL_TAB", profile: i, settings: n });
-  } catch (a) {
-    const r = a instanceof Error ? a.message : String(a);
+    return await chrome.tabs.sendMessage(e, { type: "AUTOFILL_TAB", profile: a, settings: o });
+  } catch (i) {
+    const r = i instanceof Error ? i.message : String(i);
     return { filled: [], skippedEmpty: [`page script: ${r || "not reachable"}`] };
   }
 }
@@ -193,10 +193,10 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 var p;
 (p = chrome.contextMenus) == null || p.onClicked.addListener((t, c) => {
-  t.menuItemId !== g || typeof (c == null ? void 0 : c.id) != "number" || !c.url || E(c.url) && (async () => {
-    const e = await A(c.url), o = await I();
+  t.menuItemId !== g || typeof (c == null ? void 0 : c.id) != "number" || !c.url || A(c.url) && (async () => {
+    const e = await I(c.url), n = await E();
     try {
-      await chrome.tabs.sendMessage(c.id, { type: "AUTOFILL_TAB", profile: e, settings: o });
+      await chrome.tabs.sendMessage(c.id, { type: "AUTOFILL_TAB", profile: e, settings: n });
     } catch {
     }
   })();
@@ -208,27 +208,27 @@ var k;
 async function f(t) {
   const c = await t.text();
   try {
-    const o = JSON.parse(c).detail;
-    if (typeof o == "string") return o;
-    if (Array.isArray(o))
-      return o.map((i) => i && typeof i == "object" && "msg" in i ? String(i.msg) : String(i)).join("; ");
+    const n = JSON.parse(c).detail;
+    if (typeof n == "string") return n;
+    if (Array.isArray(n))
+      return n.map((a) => a && typeof a == "object" && "msg" in a ? String(a.msg) : String(a)).join("; ");
   } catch {
   }
   return c.slice(0, 800);
 }
 async function l() {
   const t = await chrome.storage.sync.get(["apiBase"]);
-  return typeof t.apiBase == "string" && t.apiBase.length ? t.apiBase.replace(/\/$/, "") : $;
+  return typeof t.apiBase == "string" && t.apiBase.length ? t.apiBase.replace(/\/$/, "") : P;
 }
 async function u() {
   const t = await chrome.storage.sync.get(["mockUserId"]), c = {}, e = typeof t.mockUserId == "string" ? t.mockUserId.trim() : "";
   return e && !/https?:\/\//i.test(e) && /^\d+$/.test(e) && (c["X-Mock-User-Id"] = e), c;
 }
-async function m() {
+async function h() {
   return { "Content-Type": "application/json", ...await u() };
 }
 chrome.runtime.onMessage.addListener((t, c, e) => ((async () => {
-  var o;
+  var n;
   try {
     if (t.type === "GET_API_BASE") {
       e({ ok: !0, data: await l() });
@@ -243,85 +243,109 @@ chrome.runtime.onMessage.addListener((t, c, e) => ((async () => {
       return;
     }
     if (t.type === "SAVE_JOB") {
-      const i = await l();
-      let n;
+      const a = await l();
+      let o;
       try {
-        n = await fetch(`${i}/jobs/save`, {
+        o = await fetch(`${a}/jobs/save`, {
           method: "POST",
-          headers: await m(),
+          headers: await h(),
           body: JSON.stringify(t.payload)
         });
       } catch (r) {
         const s = r instanceof Error ? r.message : String(r);
         e({
           ok: !1,
-          error: s.includes("Failed to fetch") || s.includes("NetworkError") ? `Cannot reach API at ${i}. Start the backend (uvicorn) and open ${i}/health in a tab to verify.` : s
+          error: s.includes("Failed to fetch") || s.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend (uvicorn) and open ${a}/health in a tab to verify.` : s
         });
         return;
       }
-      if (!n.ok) {
-        e({ ok: !1, error: await f(n) });
+      if (!o.ok) {
+        e({ ok: !1, error: await f(o) });
         return;
       }
-      const a = await n.json();
-      await chrome.storage.local.set({ lastApplicationId: a.id }), e({ ok: !0, data: a });
+      const i = await o.json();
+      await chrome.storage.local.set({ lastApplicationId: i.id }), e({ ok: !0, data: i });
       return;
     }
     if (t.type === "TRACK_EVENT") {
-      const i = await l();
-      let n;
+      const a = await l();
+      let o;
       try {
-        n = await fetch(`${i}/events/track`, {
+        o = await fetch(`${a}/events/track`, {
           method: "POST",
-          headers: await m(),
+          headers: await h(),
           body: JSON.stringify(t.payload)
         });
       } catch (s) {
-        const h = s instanceof Error ? s.message : String(s);
+        const d = s instanceof Error ? s.message : String(s);
         e({
           ok: !1,
-          error: h.includes("Failed to fetch") || h.includes("NetworkError") ? `Cannot reach API at ${i}. Start the backend and check ${i}/health.` : h
+          error: d.includes("Failed to fetch") || d.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : d
         });
         return;
       }
-      if (!n.ok) {
-        e({ ok: !1, error: await f(n) });
+      if (!o.ok) {
+        e({ ok: !1, error: await f(o) });
         return;
       }
-      const a = await n.json(), r = (o = a.application) == null ? void 0 : o.id;
-      typeof r == "number" && await chrome.storage.local.set({ lastApplicationId: r }), e({ ok: !0, data: a });
+      const i = await o.json(), r = (n = i.application) == null ? void 0 : n.id;
+      typeof r == "number" && await chrome.storage.local.set({ lastApplicationId: r }), e({ ok: !0, data: i });
+      return;
+    }
+    if (t.type === "PREVIEW_MATCH") {
+      const a = await l();
+      let o;
+      try {
+        o = await fetch(`${a}/match/preview`, {
+          method: "POST",
+          headers: await h(),
+          body: JSON.stringify(t.payload)
+        });
+      } catch (i) {
+        const r = i instanceof Error ? i.message : String(i);
+        e({
+          ok: !1,
+          error: r.includes("Failed to fetch") || r.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : r
+        });
+        return;
+      }
+      if (!o.ok) {
+        e({ ok: !1, error: await f(o) });
+        return;
+      }
+      e({ ok: !0, data: await o.json() });
       return;
     }
     if (t.type === "ANALYZE_MATCH") {
-      const i = await l();
-      let n;
+      const a = await l();
+      let o;
       try {
-        n = await fetch(`${i}/match/analyze`, {
+        o = await fetch(`${a}/match/analyze`, {
           method: "POST",
-          headers: await m(),
+          headers: await h(),
           body: JSON.stringify({ job_id: t.jobId })
         });
       } catch (r) {
         const s = r instanceof Error ? r.message : String(r);
         e({
           ok: !1,
-          error: s.includes("Failed to fetch") || s.includes("NetworkError") ? `Cannot reach API at ${i}. Start the backend and check ${i}/health.` : s
+          error: s.includes("Failed to fetch") || s.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : s
         });
         return;
       }
-      if (!n.ok) {
-        e({ ok: !1, error: await f(n) });
+      if (!o.ok) {
+        e({ ok: !1, error: await f(o) });
         return;
       }
-      const a = await n.json();
-      e({ ok: !0, data: a });
+      const i = await o.json();
+      e({ ok: !0, data: i });
       return;
     }
     if (t.type === "GET_MATCH") {
-      const i = await l();
-      let n;
+      const a = await l();
+      let o;
       try {
-        n = await fetch(`${i}/match/${t.jobId}`, {
+        o = await fetch(`${a}/match/${t.jobId}`, {
           method: "GET",
           headers: await u()
         });
@@ -329,91 +353,91 @@ chrome.runtime.onMessage.addListener((t, c, e) => ((async () => {
         const s = r instanceof Error ? r.message : String(r);
         e({
           ok: !1,
-          error: s.includes("Failed to fetch") || s.includes("NetworkError") ? `Cannot reach API at ${i}. Start the backend and check ${i}/health.` : s
+          error: s.includes("Failed to fetch") || s.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : s
         });
         return;
       }
-      if (!n.ok) {
-        e({ ok: !1, error: await f(n) });
+      if (!o.ok) {
+        e({ ok: !1, error: await f(o) });
         return;
       }
-      const a = await n.json();
-      e({ ok: !0, data: a });
+      const i = await o.json();
+      e({ ok: !0, data: i });
       return;
     }
     if (t.type === "GET_INSIGHTS") {
-      const i = await l();
-      let n;
+      const a = await l();
+      let o;
       try {
-        const a = Math.max(1, Math.min(365, Number(t.days) || 7)), r = new URLSearchParams({ days: String(a) });
-        t.start && r.set("start", t.start), t.end && r.set("end", t.end), n = await fetch(`${i}/analytics/insights?${r.toString()}`, {
+        const i = Math.max(1, Math.min(365, Number(t.days) || 7)), r = new URLSearchParams({ days: String(i) });
+        t.start && r.set("start", t.start), t.end && r.set("end", t.end), o = await fetch(`${a}/analytics/insights?${r.toString()}`, {
           method: "GET",
           headers: await u()
         });
-      } catch (a) {
-        const r = a instanceof Error ? a.message : String(a);
+      } catch (i) {
+        const r = i instanceof Error ? i.message : String(i);
         e({
           ok: !1,
-          error: r.includes("Failed to fetch") || r.includes("NetworkError") ? `Cannot reach API at ${i}. Start the backend and check ${i}/health.` : r
+          error: r.includes("Failed to fetch") || r.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : r
         });
         return;
       }
-      if (!n.ok) {
-        e({ ok: !1, error: await f(n) });
+      if (!o.ok) {
+        e({ ok: !1, error: await f(o) });
         return;
       }
-      e({ ok: !0, data: await n.json() });
+      e({ ok: !0, data: await o.json() });
       return;
     }
     if (t.type === "GET_CV_PROFILE") {
-      const i = await l();
-      let n;
+      const a = await l();
+      let o;
       try {
-        const a = typeof t.resumeId == "number" ? `/resumes/${t.resumeId}/profile` : "/resumes/profile";
-        n = await fetch(`${i}${a}`, {
+        const i = typeof t.resumeId == "number" ? `/resumes/${t.resumeId}/profile` : "/resumes/profile";
+        o = await fetch(`${a}${i}`, {
           method: "GET",
           headers: await u()
         });
-      } catch (a) {
-        const r = a instanceof Error ? a.message : String(a);
+      } catch (i) {
+        const r = i instanceof Error ? i.message : String(i);
         e({
           ok: !1,
-          error: r.includes("Failed to fetch") || r.includes("NetworkError") ? `Cannot reach API at ${i}. Start the backend and check ${i}/health.` : r
+          error: r.includes("Failed to fetch") || r.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : r
         });
         return;
       }
-      if (!n.ok) {
-        e({ ok: !1, error: await f(n) });
+      if (!o.ok) {
+        e({ ok: !1, error: await f(o) });
         return;
       }
-      e({ ok: !0, data: await n.json() });
+      e({ ok: !0, data: await o.json() });
       return;
     }
     if (t.type === "GET_RESUMES") {
-      const i = await l();
-      let n;
+      const a = await l();
+      let o;
       try {
-        n = await fetch(`${i}/resumes`, {
+        o = await fetch(`${a}/resumes`, {
           method: "GET",
           headers: await u()
         });
-      } catch (a) {
-        const r = a instanceof Error ? a.message : String(a);
+      } catch (i) {
+        const r = i instanceof Error ? i.message : String(i);
         e({
           ok: !1,
-          error: r.includes("Failed to fetch") || r.includes("NetworkError") ? `Cannot reach API at ${i}. Start the backend and check ${i}/health.` : r
+          error: r.includes("Failed to fetch") || r.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : r
         });
         return;
       }
-      if (!n.ok) {
-        e({ ok: !1, error: await f(n) });
+      if (!o.ok) {
+        e({ ok: !1, error: await f(o) });
         return;
       }
-      e({ ok: !0, data: await n.json() });
+      e({ ok: !0, data: await o.json() });
       return;
     }
     e({ ok: !1, error: "Unknown message" });
-  } catch (i) {
-    e({ ok: !1, error: i.message });
+  } catch (a) {
+    e({ ok: !1, error: a.message });
   }
 })(), !0));

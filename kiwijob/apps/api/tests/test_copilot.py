@@ -2,8 +2,8 @@ from fastapi.testclient import TestClient
 
 from app.db.session import get_engine
 from app.main import app
-from app.models import Resume
-from sqlmodel import Session
+from app.models import Application, Resume
+from sqlmodel import Session, select
 
 
 def test_copilot_answer_uses_profile_fallback() -> None:
@@ -130,3 +130,29 @@ def test_resume_delete_removes_selected_cv() -> None:
     assert delete.status_code == 204
     assert after.status_code == 200
     assert all(item["id"] != resume_id for item in after.json())
+
+
+def test_match_preview_does_not_create_application() -> None:
+    user_id = 883
+    with Session(get_engine()) as session:
+        session.add(Resume(user_id=user_id, filename="preview.pdf", stored_path="/tmp/preview.pdf", extracted_text="Python SQL AWS"))
+        session.commit()
+
+    headers = {"X-Mock-User-Id": str(user_id)}
+    with TestClient(app) as client:
+        res = client.post(
+            "/match/preview",
+            headers=headers,
+            json={
+                "title": "Data Analyst",
+                "description": "Python SQL dashboard role",
+                "url": "https://example.com/jobs/preview",
+                "source_website": "example.com",
+                "status": "Saved",
+            },
+        )
+
+    assert res.status_code == 200
+    with Session(get_engine()) as session:
+        rows = session.exec(select(Application).where(Application.user_id == user_id)).all()
+    assert rows == []

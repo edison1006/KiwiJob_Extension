@@ -10,7 +10,7 @@ from app.core.config import get_settings
 from app.deps import ensure_demo_user, get_mock_user_id
 from app.db.session import get_session
 from app.models import Application, MatchResult, Resume
-from app.schemas import MatchAnalysisOut, MatchAnalyzeIn
+from app.schemas import JobSaveIn, MatchAnalysisOut, MatchAnalyzeIn
 from app.services.match_ai import analyze_cv_vs_jd
 
 router = APIRouter(prefix="/match", tags=["match"])
@@ -23,6 +23,30 @@ def _latest_resume(session: Session, user_id: int) -> Resume | None:
 def _openai_configured() -> bool:
     key = get_settings().openai_api_key
     return bool(key and str(key).strip())
+
+
+def _cv_text_for_user(session: Session, user_id: int) -> str:
+    resume = _latest_resume(session, user_id)
+    return (resume.extracted_text or "").strip() if resume else ""
+
+
+@router.post("/preview", response_model=MatchAnalysisOut)
+def preview_match(
+    body: JobSaveIn,
+    session: Session = Depends(get_session),
+    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+):
+    """Analyze a page job against the latest CV without saving it to the tracker."""
+    ensure_demo_user(session)
+    uid = get_mock_user_id(x_mock_user_id)
+    cv_text = _cv_text_for_user(session, uid)
+    if not cv_text and _openai_configured():
+        raise HTTPException(
+            status_code=400,
+            detail="Upload a CV first (required when OPENAI_API_KEY is set).",
+        )
+    jd = body.description or body.title or ""
+    return analyze_cv_vs_jd(cv_text, jd)
 
 
 @router.post("/analyze", response_model=MatchAnalysisOut)
@@ -43,8 +67,7 @@ def analyze_match(
         raise HTTPException(status_code=404, detail="Application not found")
     assert app_row.job_post is not None
 
-    resume = _latest_resume(session, uid)
-    cv_text = (resume.extracted_text or "").strip() if resume else ""
+    cv_text = _cv_text_for_user(session, uid)
     if not cv_text and _openai_configured():
         raise HTTPException(
             status_code=400,
