@@ -65,6 +65,14 @@ export function IconServices({ className = "h-5 w-5 shrink-0" }: { className?: s
   );
 }
 
+export function IconMembership({ className = "h-5 w-5 shrink-0" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden>
+      <path {...fill} d="M4 5h16a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2zm2 4h12V7H6v2zm0 4h5v2H6v-2zm7 0h5v2h-5v-2z" />
+    </svg>
+  );
+}
+
 /** Soft disk + bold $ — works on white (idle) and blue pill (active). */
 export function IconRefer({ className = "h-5 w-5 shrink-0" }: { className?: string }) {
   return (

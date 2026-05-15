@@ -114,6 +114,11 @@ export async function uploadResume(file: File): Promise<ResumeDTO> {
   return parseJson(res);
 }
 
+export async function deleteResume(id: number): Promise<void> {
+  const res = await fetch(`${API_URL}/resumes/${id}`, { method: "DELETE", headers: headers() });
+  if (!res.ok) throw new Error(formatErrorBody(await res.text()));
+}
+
 export async function fetchAnalytics(): Promise<AnalyticsSummary> {
   const res = await fetch(`${API_URL}/analytics/summary`, { headers: headers() });
   return parseJson(res);

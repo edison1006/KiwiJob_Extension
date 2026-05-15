@@ -1,5 +1,5 @@
 import type { BgRequest, BgResponse } from "./messages";
-import type { ApplicantAutofillProfile } from "@kiwijob/shared";
+import type { ApplicantAutofillProfile, CvProfileDTO } from "@kiwijob/shared";
 import { EMPTY_APPLICANT_AUTOFILL_PROFILE } from "@kiwijob/shared";
 import type { AutofillSettings, AutofillResult } from "./autofill";
 import { DEFAULT_AUTOFILL_SETTINGS } from "./autofill";
@@ -47,6 +47,25 @@ function parseApplicantProfileJson(data: unknown): ApplicantAutofillProfile {
   };
 }
 
+function profileFromCv(data: CvProfileDTO | null): Partial<ApplicantAutofillProfile> {
+  if (!data?.upload) return {};
+  return {
+    fullName: data.full_name || "",
+    email: data.email || "",
+    phone: data.phone || "",
+    skills: data.skills.join(", "),
+    linkedInUrl: data.links.find((x) => /linkedin/i.test(x)) || "",
+    portfolioUrl: data.links.find((x) => !/linkedin|github/i.test(x)) || "",
+    githubUrl: data.links.find((x) => /github/i.test(x)) || "",
+    summary: [
+      data.experience[0]?.title ? `Most recent role: ${data.experience[0].title}` : "",
+      data.education[0]?.school ? `Education: ${data.education[0].school}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  };
+}
+
 function mergeAutofillSettings(raw: unknown): AutofillSettings {
   if (!raw || typeof raw !== "object") return DEFAULT_AUTOFILL_SETTINGS;
   const o = raw as Partial<AutofillSettings>;
@@ -72,6 +91,17 @@ async function buildAutofillProfileForTab(tabUrl: string): Promise<ApplicantAuto
     }
   } catch {
     /* offline API — still try cookies */
+  }
+  try {
+    const local = await chrome.storage.local.get(["selectedResumeId"]);
+    const resumeId = typeof local.selectedResumeId === "number" ? local.selectedResumeId : undefined;
+    const path = resumeId ? `/resumes/${resumeId}/profile` : "/resumes/profile";
+    const res = await fetch(`${api}${path}`, { method: "GET", headers: await mockUserIdHeaders() });
+    if (res.ok) {
+      apiProfile = { ...apiProfile, ...profileFromCv((await res.json()) as CvProfileDTO) };
+    }
+  } catch {
+    /* CV profile is best-effort; manual applicant profile remains valid. */
   }
   let cookies: chrome.cookies.Cookie[] = [];
   try {
@@ -103,8 +133,9 @@ async function runAutofillActiveTab(): Promise<AutofillResult> {
   const settings = await getAutofillSettings();
   try {
     return (await chrome.tabs.sendMessage(tabId, { type: "AUTOFILL_TAB", profile, settings })) as AutofillResult;
-  } catch {
-    return { filled: [], skippedEmpty: ["page script"] };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { filled: [], skippedEmpty: [`page script: ${message || "not reachable"}`] };
   }
 }
 
@@ -289,6 +320,33 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         sendResponse({ ok: true, data });
         return;
       }
+      if (request.type === "GET_MATCH") {
+        const api = await getApiBase();
+        let res: Response;
+        try {
+          res = await fetch(`${api}/match/${request.jobId}`, {
+            method: "GET",
+            headers: await mockUserIdHeaders(),
+          });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          sendResponse({
+            ok: false,
+            error:
+              msg.includes("Failed to fetch") || msg.includes("NetworkError")
+                ? `Cannot reach API at ${api}. Start the backend and check ${api}/health.`
+                : msg,
+          });
+          return;
+        }
+        if (!res.ok) {
+          sendResponse({ ok: false, error: await formatApiError(res) });
+          return;
+        }
+        const data = await res.json();
+        sendResponse({ ok: true, data });
+        return;
+      }
       if (request.type === "GET_INSIGHTS") {
         const api = await getApiBase();
         let res: Response;
@@ -298,6 +356,59 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
           if (request.start) params.set("start", request.start);
           if (request.end) params.set("end", request.end);
           res = await fetch(`${api}/analytics/insights?${params.toString()}`, {
+            method: "GET",
+            headers: await mockUserIdHeaders(),
+          });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          sendResponse({
+            ok: false,
+            error:
+              msg.includes("Failed to fetch") || msg.includes("NetworkError")
+                ? `Cannot reach API at ${api}. Start the backend and check ${api}/health.`
+                : msg,
+          });
+          return;
+        }
+        if (!res.ok) {
+          sendResponse({ ok: false, error: await formatApiError(res) });
+          return;
+        }
+        sendResponse({ ok: true, data: await res.json() });
+        return;
+      }
+      if (request.type === "GET_CV_PROFILE") {
+        const api = await getApiBase();
+        let res: Response;
+        try {
+          const path = typeof request.resumeId === "number" ? `/resumes/${request.resumeId}/profile` : "/resumes/profile";
+          res = await fetch(`${api}${path}`, {
+            method: "GET",
+            headers: await mockUserIdHeaders(),
+          });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          sendResponse({
+            ok: false,
+            error:
+              msg.includes("Failed to fetch") || msg.includes("NetworkError")
+                ? `Cannot reach API at ${api}. Start the backend and check ${api}/health.`
+                : msg,
+          });
+          return;
+        }
+        if (!res.ok) {
+          sendResponse({ ok: false, error: await formatApiError(res) });
+          return;
+        }
+        sendResponse({ ok: true, data: await res.json() });
+        return;
+      }
+      if (request.type === "GET_RESUMES") {
+        const api = await getApiBase();
+        let res: Response;
+        try {
+          res = await fetch(`${api}/resumes`, {
             method: "GET",
             headers: await mockUserIdHeaders(),
           });

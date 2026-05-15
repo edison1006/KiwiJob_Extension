@@ -28,6 +28,9 @@ const SHADOW_CSS = `
   color: #fff;
   transition: filter 0.15s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
+.ej-root.ej-open .ej-launcher {
+  z-index: 2147483644;
+}
 .ej-launcher:hover {
   filter: brightness(1.06);
   transform: translate(0, -50%);
@@ -126,10 +129,12 @@ function ensureHost(): HTMLElement {
   function openDrawer(): void {
     loadFrame();
     wrap.classList.add("ej-open");
+    root.classList.add("ej-open");
   }
 
   function closeDrawer(): void {
     wrap.classList.remove("ej-open");
+    root.classList.remove("ej-open");
   }
 
   function toggleDrawer(): void {

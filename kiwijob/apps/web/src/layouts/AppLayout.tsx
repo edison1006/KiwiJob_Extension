@@ -3,12 +3,12 @@ import { NavLink, Outlet } from "react-router-dom";
 import {
   IconBell,
   IconBriefcase,
-  IconChevronDown,
   IconDocument,
   IconHeart,
   IconHelp,
   IconHome,
   IconJobTracker,
+  IconMembership,
   IconMegaphone,
   IconRefer,
   IconServices,
@@ -18,21 +18,20 @@ import { UserMenu, KIWIJOB_PREFS_EVENT, readDisplayName, writeDisplayName } from
 const LS_SIDEBAR_COLLAPSED = "kiwijob_sidebar_collapsed";
 
 const linkClass = ({ isActive, collapsed }: { isActive: boolean; collapsed: boolean }) =>
-  `flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+  `flex items-center rounded-lg px-3 py-2.5 text-base font-medium transition ${
     collapsed ? "gap-3 lg:justify-center lg:gap-0" : "gap-3"
   } ${
-    isActive ? "bg-brand-600 text-white shadow-sm ring-1 ring-brand-600/20" : "text-slate-700 hover:bg-slate-100"
-  }`;
-
-/** Same footprint as an inactive nav row (for Interview Assistant disclosure trigger). */
-const referSummaryClass = (collapsed: boolean) =>
-  `flex cursor-pointer list-none items-center rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition marker:hidden hover:bg-slate-100 [&::-webkit-details-marker]:hidden ${
-    collapsed ? "gap-3 lg:justify-center lg:gap-0" : "gap-3"
+    isActive
+      ? "border border-white/60 bg-white/45 text-slate-900 shadow-[0_8px_28px_-16px_rgba(37,99,235,0.75)] ring-1 ring-brand-500/15 backdrop-blur-xl"
+      : "border border-transparent text-slate-700 hover:bg-slate-100"
   }`;
 
 function navIconClass(isActive: boolean, collapsed: boolean) {
-  return `${isActive ? "text-white" : "text-slate-500"} ${collapsed ? "" : "lg:hidden"}`.trim();
+  return `${isActive ? "text-brand-700" : "text-slate-500"} ${collapsed ? "" : "lg:hidden"}`.trim();
 }
+
+const premiumGradientClass =
+  "animate-[premium-gradient_3s_ease_infinite] bg-[linear-gradient(90deg,#7c3aed,#c026d3,#8b5cf6,#7c3aed)] bg-[length:220%_100%] bg-clip-text text-transparent";
 
 export function AppLayout() {
   const [mockUserId, setMockUserId] = useState(() => localStorage.getItem("kiwijob_mock_user_id") ?? "");
@@ -101,7 +100,7 @@ export function AppLayout() {
           </div>
         </div>
 
-        <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 pb-1 pt-2" aria-label="Primary">
+        <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-1 pt-2" aria-label="Primary">
           <NavLink to="/" end className={({ isActive }) => `${linkClass({ isActive, collapsed: sidebarCollapsed })}`} title="Home">
             {({ isActive }) => (
               <>
@@ -163,18 +162,26 @@ export function AppLayout() {
             )}
           </NavLink>
 
-          <details className="group/refer">
-            <summary className={referSummaryClass(sidebarCollapsed)} title="Interview Assistant">
-              <span className={`text-slate-500 ${sidebarCollapsed ? "" : "lg:hidden"}`.trim()}>
-                <IconRefer />
-              </span>
-              <span className={`min-w-0 flex-1 text-left ${sidebarCollapsed ? "lg:hidden" : ""}`}>Interview Assistant</span>
-              <IconChevronDown className={`transition group-open/refer:rotate-180 ${sidebarCollapsed ? "lg:hidden" : ""}`} />
-            </summary>
-            <div className={`border-l border-slate-200 py-1.5 pl-3 pr-1 text-[11px] leading-relaxed text-slate-600 ${sidebarCollapsed ? "lg:hidden" : ""}`}>
-              Interview question prep and mock interview notes are planned for the next assistant workflow.
-            </div>
-          </details>
+          <NavLink to="/interview-assistant" className={({ isActive }) => `${linkClass({ isActive, collapsed: sidebarCollapsed })}`} title="Interview Assistant">
+            {({ isActive }) => (
+              <>
+                <span className={navIconClass(isActive, sidebarCollapsed)}>
+                  <IconRefer />
+                </span>
+                <span className={sidebarCollapsed ? "lg:hidden" : ""}>Interview Assistant</span>
+              </>
+            )}
+          </NavLink>
+          <NavLink to="/premium" className={({ isActive }) => `${linkClass({ isActive, collapsed: sidebarCollapsed })}`} title="Premium">
+            {() => (
+              <>
+                <span className={`${premiumGradientClass} ${sidebarCollapsed ? "" : "lg:hidden"}`}>
+                  <IconMembership />
+                </span>
+                <span className={`${premiumGradientClass} ${sidebarCollapsed ? "lg:hidden" : ""}`}>Premium</span>
+              </>
+            )}
+          </NavLink>
         </nav>
 
         <div className={`sticky bottom-0 z-20 mt-auto flex shrink-0 items-center gap-1 border-t border-slate-100 bg-white px-2 py-2 shadow-[0_-6px_18px_-14px_rgba(15,23,42,0.4)] ${sidebarCollapsed ? "lg:w-full lg:flex-col lg:px-2" : ""}`}>

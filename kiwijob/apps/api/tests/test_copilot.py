@@ -1,6 +1,9 @@
 from fastapi.testclient import TestClient
 
+from app.db.session import get_engine
 from app.main import app
+from app.models import Resume
+from sqlmodel import Session
 
 
 def test_copilot_answer_uses_profile_fallback() -> None:
@@ -78,3 +81,52 @@ def test_copilot_cover_letter_fallback() -> None:
     body = res.json()
     assert "I enjoy building useful data products." in body["cover_letter"]
     assert body["source"] in {"fallback", "ai"}
+
+
+def test_latest_resume_profile_returns_uploaded_cv_fields() -> None:
+    user_id = 881
+    text = (
+        "Edison Zhang\n"
+        "edison@example.com\n\n"
+        "Education\n"
+        "York College\n"
+        "Master's, Software Engineering\n"
+        "2025 - 2026\n\n"
+        "Skills\n"
+        "Python SQL Power BI AWS\n\n"
+        "Languages\n"
+        "English\n"
+    )
+    with Session(get_engine()) as session:
+        session.add(Resume(user_id=user_id, filename="resume.pdf", stored_path="/tmp/resume.pdf", extracted_text=text))
+        session.commit()
+
+    with TestClient(app) as client:
+        res = client.get("/resumes/profile", headers={"X-Mock-User-Id": str(user_id)})
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["email"] == "edison@example.com"
+    assert "Python" in body["skills"]
+    assert body["upload"]["filename"] == "resume.pdf"
+    assert isinstance(body["upload"]["id"], int)
+
+
+def test_resume_delete_removes_selected_cv() -> None:
+    user_id = 882
+    with Session(get_engine()) as session:
+        row = Resume(user_id=user_id, filename="delete-me.pdf", stored_path="/tmp/kiwijob-delete-me.pdf", extracted_text="Delete Me\nme@example.com")
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        resume_id = row.id
+
+    assert resume_id is not None
+    headers = {"X-Mock-User-Id": str(user_id)}
+    with TestClient(app) as client:
+        delete = client.delete(f"/resumes/{resume_id}", headers=headers)
+        after = client.get("/resumes", headers=headers)
+
+    assert delete.status_code == 204
+    assert after.status_code == 200
+    assert all(item["id"] != resume_id for item in after.json())

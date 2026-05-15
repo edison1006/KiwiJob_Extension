@@ -155,6 +155,37 @@ class ResumeOut(BaseModel):
         from_attributes = True
 
 
+class CvProfileEducationOut(BaseModel):
+    school: str = ""
+    degree: str = ""
+    years: str = ""
+
+
+class CvProfileExperienceOut(BaseModel):
+    title: str = ""
+    company: str = ""
+    years: str = ""
+
+
+class CvProfileUploadOut(BaseModel):
+    id: int
+    filename: str
+    created_at: datetime
+
+
+class CvProfileOut(BaseModel):
+    full_name: str = ""
+    initials: str = ""
+    email: str = ""
+    phone: str = ""
+    education: list[CvProfileEducationOut] = Field(default_factory=list)
+    experience: list[CvProfileExperienceOut] = Field(default_factory=list)
+    skills: list[str] = Field(default_factory=list)
+    languages: list[str] = Field(default_factory=list)
+    links: list[str] = Field(default_factory=list)
+    upload: Optional[CvProfileUploadOut] = None
+
+
 class ApplicantAutofillOut(BaseModel):
     fullName: str = ""
     email: str = ""

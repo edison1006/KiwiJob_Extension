@@ -139,6 +139,67 @@ function pickSeekSalaryFallback(scope: Element | Document): string | null {
   return m ? m[0].replace(/\s+/g, " ").trim().slice(0, 120) : null;
 }
 
+function formattedText(el: Element | null | undefined): string {
+  if (!el) return "";
+  const rendered = "innerText" in el ? (el as HTMLElement).innerText : "";
+  return rendered || el.textContent || "";
+}
+
+function cleanDescription(raw: string): string | null {
+  const withBreaks = raw
+    .replace(/\r\n?/g, "\n")
+    .replace(/([a-z.)])(?=(Responsibilities|Requirements|Desirable|What we offer|About the role|About you|Benefits)\b)/g, "$1\n\n")
+    .replace(/([a-z.)])(?=Must have\b)/g, "$1\n")
+    .replace(/([a-z.)])(?=Please note\b)/g, "$1\n\n");
+  const lines = withBreaks
+    .split("\n")
+    .map((line) => line.replace(/[ \t]+/g, " ").trim())
+    .filter((line) => line && !/^(show more|show less|apply now|quick apply|save)$/i.test(line));
+  const s = lines
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (s.length < 160) return null;
+  return s.slice(0, 50000);
+}
+
+function pickSeekDescription(scope: Element | Document): string | null {
+  const selectors = [
+    '[data-automation="jobAdDetails"]',
+    '[data-automation="job-ad-details"]',
+    '[data-automation="jobAdDescription"]',
+    '[data-automation="job-ad-description"]',
+    '[data-automation="jobDescription"]',
+    '[data-automation="job-description"]',
+    '[data-automation="job-detail-description"]',
+    '[data-testid="job-description"]',
+    '[data-testid="job-detail-description"]',
+    '[data-testid="jobAdDetails"]',
+    '[class*="job-description" i]',
+    '[class*="jobDescription" i]',
+  ];
+
+  for (const sel of selectors) {
+    const hit = scope.querySelector(sel);
+    const cleaned = cleanDescription(formattedText(hit));
+    if (cleaned) return cleaned;
+  }
+
+  const headingRegex =
+    /about the role|about you|what you('|’)ll be doing|responsibilities|requirements|skills and experience|the successful candidate|job description|key duties/i;
+  const blocks = Array.from(scope.querySelectorAll("section, article, div"))
+    .map((el) => ({ el, text: cleanDescription(formattedText(el)) }))
+    .filter((item): item is { el: Element; text: string } => Boolean(item.text));
+  const headingMatch = blocks.find(({ el, text }) => {
+    const heading = el.querySelector("h2, h3, h4")?.textContent ?? "";
+    return headingRegex.test(`${heading} ${text}`);
+  });
+  if (headingMatch) return headingMatch.text;
+
+  const longest = blocks.sort((a, b) => b.text.length - a.text.length)[0]?.text;
+  return longest && longest.length > 260 ? longest : null;
+}
+
 function seekJobDetailRoot(): Element | null {
   const titleSel =
     '[data-automation="job-detail-title"], [data-automation="jobDetailTitle"], [data-testid="job-detail-title"]';
@@ -221,13 +282,15 @@ export const seekSiteExtractor: SiteExtractor = {
       '[data-automation="search-serp-job-salary"]',
     ]);
     if (!salary) salary = pickSeekSalaryFallback(scope);
+    const description = pickSeekDescription(scope);
 
-    if (!title && !company && !location && !salary) return null;
+    if (!title && !company && !location && !salary && !description) return null;
     const out: Partial<JobSavePayload> = {};
     if (title) out.title = title;
     if (company) out.company = company;
     if (location) out.location = location;
     if (salary) out.salary = salary;
+    if (description) out.description = description;
     return out;
   },
 };

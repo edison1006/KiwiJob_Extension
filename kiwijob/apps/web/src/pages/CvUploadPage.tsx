@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ResumeDTO } from "@kiwijob/shared";
-import { fetchResumes, uploadResume } from "../lib/api";
+import { deleteResume, fetchResumes, uploadResume } from "../lib/api";
 
 type DocTab = "resumes" | "cover" | "templates";
 
@@ -158,6 +158,48 @@ export default function CvUploadPage() {
     else setSelected(new Set(filtered.map((r) => r.id)));
   }
 
+  async function deleteSelected() {
+    const ids = Array.from(selected);
+    if (!ids.length) return;
+    if (!window.confirm(`Delete ${ids.length} resume${ids.length === 1 ? "" : "s"}?`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await Promise.all(ids.map((id) => deleteResume(id)));
+      setSelected(new Set());
+      await refresh();
+    } catch (e) {
+      const message = (e as Error).message;
+      await refresh().catch(() => {});
+      setSelected(new Set());
+      setError(message === "Not Found" ? "Resume delete endpoint not found. Restart the API server, then try again." : message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteOne(id: number, filename: string) {
+    if (!window.confirm(`Delete ${filename}?`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteResume(id);
+      setSelected((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      await refresh();
+    } catch (e) {
+      const message = (e as Error).message;
+      await refresh().catch(() => {});
+      setSelected(new Set());
+      setError(message === "Not Found" ? "Resume delete endpoint not found. Restart the API server, then try again." : message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function tabBtn(id: DocTab, label: string, icon: ReactNode) {
     return (
       <button
@@ -243,9 +285,10 @@ export default function CvUploadPage() {
                 </span>
                 <button
                   type="button"
-                  disabled
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-400"
-                  title="Bulk delete is not available in this build."
+                  disabled={busy || selected.size === 0}
+                  onClick={() => void deleteSelected()}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
+                  title={selected.size ? "Delete selected resumes" : "Select resumes to delete"}
                 >
                   <span aria-hidden>🗑</span> Delete
                 </button>
@@ -364,6 +407,14 @@ export default function CvUploadPage() {
                                   <div className="absolute right-0 z-20 mt-1 min-w-[10rem] rounded-lg border border-slate-200 bg-white py-1 text-left text-sm shadow-lg">
                                     <button type="button" disabled className="block w-full px-3 py-2 text-left text-slate-400">
                                       Download
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={busy}
+                                      className="block w-full px-3 py-2 text-left font-semibold text-rose-700 hover:bg-rose-50 disabled:text-slate-400"
+                                      onClick={() => void deleteOne(r.id, r.filename)}
+                                    >
+                                      Delete
                                     </button>
                                   </div>
                                 </details>

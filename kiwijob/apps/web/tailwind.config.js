@@ -13,6 +13,12 @@ export default {
           900: "#1e3a8a",
         },
       },
+      keyframes: {
+        "premium-gradient": {
+          "0%, 100%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+        },
+      },
     },
   },
   plugins: [],

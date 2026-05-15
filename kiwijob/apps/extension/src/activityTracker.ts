@@ -103,12 +103,43 @@ function sendEvent(type: TrackEventType, metadata: Record<string, unknown> = {})
 }
 
 function isApplyLikeElement(el: Element): boolean {
-  const text = `${el.textContent || ""} ${el.getAttribute("aria-label") || ""} ${el.getAttribute("title") || ""} ${
-    el.getAttribute("data-automation") || ""
-  }`
+  const signal = [
+    el.textContent || "",
+    el.getAttribute("aria-label") || "",
+    el.getAttribute("title") || "",
+    el.getAttribute("value") || "",
+    el.getAttribute("name") || "",
+    el.getAttribute("id") || "",
+    el.getAttribute("href") || "",
+    el.getAttribute("data-automation") || "",
+    el.getAttribute("data-testid") || "",
+    el.getAttribute("data-test") || "",
+    el.getAttribute("data-qa") || "",
+    el.getAttribute("data-cy") || "",
+  ]
+    .join(" ")
     .replace(/\s+/g, " ")
     .toLowerCase();
-  return /\b(quick apply|apply now|apply|submit application|submit|send application)\b/.test(text);
+
+  if (/\b(save|saved|bookmark|favourite|favorite|share)\b/.test(signal)) return false;
+  return /\b(quick apply|easy apply|apply now|apply for this job|apply on company site|apply|submit application|submit|send application)\b/.test(signal);
+}
+
+function formLooksLikeApplicationSubmit(form: HTMLFormElement): boolean {
+  const signal = [
+    form.textContent || "",
+    form.getAttribute("aria-label") || "",
+    form.getAttribute("name") || "",
+    form.getAttribute("id") || "",
+    ...Array.from(form.querySelectorAll("button, input[type='submit'], [role='button']")).map(
+      (el) => `${el.textContent || ""} ${el.getAttribute("aria-label") || ""} ${el.getAttribute("value") || ""}`,
+    ),
+  ]
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+
+  return /\b(application|apply|submit application|send application)\b/.test(signal);
 }
 
 function detectOutcomeFromText(text: string): TrackEventType | null {
@@ -149,7 +180,18 @@ export function initApplicationActivityTracker(): void {
       const clickable = target.closest("button, a, input[type='submit'], [role='button']");
       if (!clickable || !isApplyLikeElement(clickable)) return;
       const label = (clickable.textContent || clickable.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
-      sendEvent("application_started", { detector: "click", label });
+      sendEvent("application_submitted", { detector: "apply_click", label });
+      window.setTimeout(scanForOutcome, 2500);
+    },
+    true,
+  );
+
+  document.addEventListener(
+    "submit",
+    (ev) => {
+      const form = ev.target;
+      if (!(form instanceof HTMLFormElement) || !formLooksLikeApplicationSubmit(form)) return;
+      sendEvent("application_submitted", { detector: "form_submit" });
       window.setTimeout(scanForOutcome, 2500);
     },
     true,

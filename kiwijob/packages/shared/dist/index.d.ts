@@ -87,6 +87,33 @@ export interface ResumeDTO {
     created_at: string;
     text_preview: string;
 }
+export interface CvProfileEducation {
+    school: string;
+    degree: string;
+    years: string;
+}
+export interface CvProfileExperience {
+    title: string;
+    company: string;
+    years: string;
+}
+export interface CvProfileUpload {
+    id: number;
+    filename: string;
+    created_at: string;
+}
+export interface CvProfileDTO {
+    full_name: string;
+    initials: string;
+    email: string;
+    phone: string;
+    education: CvProfileEducation[];
+    experience: CvProfileExperience[];
+    skills: string[];
+    languages: string[];
+    links: string[];
+    upload: CvProfileUpload | null;
+}
 /** Stored per user (API + web Settings) and used by the extension to fill ATS / career-site forms. */
 export interface ApplicantAutofillProfile {
     fullName: string;

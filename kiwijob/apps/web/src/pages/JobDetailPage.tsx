@@ -101,7 +101,7 @@ export default function JobDetailPage() {
             Open original posting
           </a>
           <Link
-            className="inline-flex items-center justify-center rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-700"
+            className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50"
             to={`/match/${row.id}`}
           >
             View match report
@@ -110,7 +110,7 @@ export default function JobDetailPage() {
             type="button"
             disabled={busy}
             onClick={onAnalyze}
-            className="inline-flex items-center justify-center rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-900 hover:bg-brand-100 disabled:opacity-50"
+            className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-50"
           >
             Run / refresh match
           </button>

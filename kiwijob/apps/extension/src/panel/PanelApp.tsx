@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import type { ApplicationStatus, InsightsSummary, JobSavePayload } from "@kiwijob/shared";
+import type { ApplicationStatus, CvProfileDTO, InsightsSummary, JobSavePayload, MatchAnalysis, ResumeDTO } from "@kiwijob/shared";
 import { APPLICATION_STATUSES } from "@kiwijob/shared";
 import type { ContentToPanelMessage } from "../messages";
 import type { AutofillResult, AutofillSettings } from "../autofill";
@@ -22,6 +22,13 @@ type AnyResp = { ok: true; data?: unknown } | { ok: false; error: string };
 type TabId = "jobs" | "applications" | "match" | "profile" | "insights";
 type AutofillFieldKey = keyof AutofillSettings["fields"];
 type InsightRange = "7" | "30" | "90" | "custom";
+
+type RequirementMatch = {
+  label: string;
+  matched: number;
+  total: number;
+  note: string;
+};
 
 /** Positive integer only. Job URLs / text are ignored so the API falls back to the default user. */
 function sanitizeMockUserIdInput(raw: string): string {
@@ -110,6 +117,312 @@ function requestCloseEmbed(): void {
   window.top?.postMessage({ type: KIWIJOB_CLOSE_DRAWER, source: KIWIJOB_EXTENSION_SOURCE }, "*");
 }
 
+function percent(matched: number, total: number): number {
+  if (!total) return 100;
+  return Math.round((matched / total) * 100);
+}
+
+function matchRequirements(data: MatchAnalysis): RequirementMatch[] {
+  const skillTotal = data.matched_skills.length + data.missing_skills.length;
+  const experienceTotal = data.matched_experience.length + data.missing_experience.length;
+  return [
+    {
+      label: "Skills",
+      matched: data.matched_skills.length,
+      total: skillTotal,
+      note: data.missing_skills.length ? `${data.missing_skills.length} skill gap(s)` : "Core skills covered",
+    },
+    {
+      label: "Experience",
+      matched: data.matched_experience.length,
+      total: experienceTotal,
+      note: data.missing_experience.length ? `${data.missing_experience.length} experience gap(s)` : "Experience aligned",
+    },
+    {
+      label: "ATS keywords",
+      matched: Math.max(0, 8 - data.ats_keywords.length),
+      total: Math.max(8, data.ats_keywords.length),
+      note: data.ats_keywords.length ? `${data.ats_keywords.length} keyword(s) to add` : "Keyword coverage looks strong",
+    },
+    {
+      label: "Risk flags",
+      matched: data.risk_flags.length ? 0 : 1,
+      total: 1,
+      note: data.risk_flags.length ? `${data.risk_flags.length} risk flag(s)` : "No major risks found",
+    },
+  ];
+}
+
+function ChipList({ items, tone }: { items: string[]; tone: "strong" | "weak" | "neutral" }) {
+  const toneClass =
+    tone === "strong"
+      ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
+      : tone === "weak"
+        ? "bg-amber-50 text-amber-900 ring-amber-200"
+        : "bg-slate-100 text-slate-700 ring-slate-200";
+
+  if (!items.length) return <div className="text-[11px] text-slate-500">None detected.</div>;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {items.slice(0, 8).map((item) => (
+        <span key={item} className={`rounded-full px-2 py-1 text-[10px] font-semibold ring-1 ${toneClass}`}>
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function MatchSummary({ data }: { data: MatchAnalysis }) {
+  const strengths = [...data.matched_skills, ...data.matched_experience];
+  const weakSpots = [...data.missing_skills, ...data.missing_experience, ...data.risk_flags];
+
+  return (
+    <div className="space-y-3">
+      <section className="rounded-xl border border-brand-100 bg-gradient-to-br from-brand-600 to-sky-600 p-3 text-white shadow-sm">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-white/75">Match score</div>
+        <div className="mt-1 flex items-end gap-1">
+          <span className="text-4xl font-bold leading-none">{Math.round(data.score)}</span>
+          <span className="pb-1 text-sm font-semibold text-white/80">/ 100</span>
+        </div>
+        <p className="mt-2 text-[11px] leading-relaxed text-white/80">Compared against the uploaded CV and the saved job description.</p>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="text-xs font-semibold text-slate-800">JD requirement match</div>
+        <div className="mt-3 space-y-2.5">
+          {matchRequirements(data).map((row) => {
+            const p = percent(row.matched, row.total);
+            return (
+              <div key={row.label}>
+                <div className="flex items-center justify-between gap-2 text-[11px]">
+                  <span className="font-semibold text-slate-700">{row.label}</span>
+                  <span className="font-bold text-slate-900">{p}%</span>
+                </div>
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full bg-brand-600" style={{ width: `${p}%` }} />
+                </div>
+                <div className="mt-1 text-[10px] text-slate-500">{row.note}</div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="text-xs font-semibold text-slate-800">Uploaded CV match</div>
+        <div className="mt-3 space-y-3">
+          <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-2">
+            <div className="mb-2 text-[11px] font-bold text-emerald-800">Strengths</div>
+            <ChipList items={strengths} tone="strong" />
+          </div>
+          <div className="rounded-lg border border-amber-100 bg-amber-50/70 p-2">
+            <div className="mb-2 text-[11px] font-bold text-amber-900">Weak spots</div>
+            <ChipList items={weakSpots} tone="weak" />
+          </div>
+          {data.ats_keywords.length ? (
+            <div>
+              <div className="mb-2 text-[11px] font-semibold text-slate-700">Keywords to add</div>
+              <ChipList items={data.ats_keywords} tone="neutral" />
+            </div>
+          ) : null}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function formatDateTime(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString();
+  } catch {
+    return iso;
+  }
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="border-t border-slate-200 pt-4">
+      <h3 className="text-lg font-bold text-slate-950">{title}</h3>
+      <div className="mt-3">{children}</div>
+    </section>
+  );
+}
+
+function EmptyLine({ children }: { children: React.ReactNode }) {
+  return <div className="text-sm text-slate-500">{children}</div>;
+}
+
+function SkillChips({ items }: { items: string[] }) {
+  if (!items.length) return <EmptyLine>No skills provided</EmptyLine>;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((item) => (
+        <span key={item} className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-900">
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function CvProfileView({
+  profile,
+  resumes,
+  selectedResumeId,
+  loading,
+  error,
+  onSelectResume,
+  onRefresh,
+  onEdit,
+}: {
+  profile: CvProfileDTO | null;
+  resumes: ResumeDTO[];
+  selectedResumeId: number | null;
+  loading: boolean;
+  error: string | null;
+  onSelectResume: (id: number) => void;
+  onRefresh: () => void;
+  onEdit: () => void;
+}) {
+  if (loading && !profile) return <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">Loading CV profile…</div>;
+  if (!profile?.upload) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-600">
+        <div>Upload a CV in Documents first, then refresh this profile.</div>
+        <div className="mt-2 text-xs leading-relaxed text-slate-500">
+          If you already uploaded one, restart the API, reload the extension, and make sure the extension mock user id matches the web app.
+        </div>
+        <button type="button" className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm" onClick={onRefresh}>
+          Refresh profile
+        </button>
+        {error ? <div className="mt-2 text-amber-800">{error}</div> : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 text-slate-900">
+      {resumes.length > 1 ? (
+        <label className="block rounded-xl border border-slate-200 bg-white p-3 text-xs font-semibold text-slate-700 shadow-sm">
+          Choose CV
+          <select
+            className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900"
+            value={selectedResumeId ?? ""}
+            onChange={(e) => onSelectResume(Number(e.target.value))}
+          >
+            {resumes.map((resume) => (
+              <option key={resume.id} value={resume.id}>
+                {resume.filename}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+
+      <div className="rounded-xl bg-slate-50 p-3 text-sm">
+        <div className="font-bold text-slate-900">Click any block of text below to copy it!</div>
+        <p className="mt-1 text-slate-600">Reference your profile to fill out your application</p>
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="min-w-0 truncate text-xl font-bold text-slate-950">{profile.full_name || "KiwiJob Profile"}</h2>
+        <div className="flex shrink-0 gap-2 text-sm font-semibold text-teal-700">
+          <button type="button" onClick={onRefresh} className="hover:underline">
+            Refresh
+          </button>
+          <button type="button" onClick={onEdit} className="hover:underline">
+            Edit
+          </button>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className="flex w-full items-center gap-4 rounded-lg text-left"
+        onClick={() => void navigator.clipboard?.writeText([profile.full_name, profile.email, profile.phone].filter(Boolean).join("\n"))}
+      >
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-cyan-400 text-xl font-bold text-white">
+          {profile.initials || "KJ"}
+        </div>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-slate-900">{profile.email || "No email provided"}</div>
+          {profile.phone ? <div className="mt-1 text-xs text-slate-500">{profile.phone}</div> : null}
+        </div>
+      </button>
+
+      <Section title="Education">
+        {profile.education.length ? (
+          <div className="space-y-4">
+            {profile.education.map((item) => (
+              <button
+                key={`${item.school}-${item.degree}-${item.years}`}
+                type="button"
+                className="flex w-full gap-3 text-left"
+                onClick={() => void navigator.clipboard?.writeText([item.school, item.degree, item.years].filter(Boolean).join("\n"))}
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-700">ED</div>
+                <div className="min-w-0">
+                  <div className="font-bold text-slate-950">{item.school}</div>
+                  <div className="text-sm text-slate-600">{item.degree || "Degree not detected"}</div>
+                  <div className="text-sm text-slate-600">{item.years || "Dates not detected"}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <EmptyLine>No education provided</EmptyLine>
+        )}
+      </Section>
+
+      <Section title="Experience">
+        {profile.experience.length ? (
+          <div className="space-y-3">
+            {profile.experience.map((item) => (
+              <button
+                key={`${item.title}-${item.company}-${item.years}`}
+                type="button"
+                className="block w-full text-left"
+                onClick={() => void navigator.clipboard?.writeText([item.title, item.company, item.years].filter(Boolean).join("\n"))}
+              >
+                <div className="font-bold text-slate-950">{item.title}</div>
+                <div className="text-sm text-slate-600">{[item.company, item.years].filter(Boolean).join(" · ")}</div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <EmptyLine>No experience provided</EmptyLine>
+        )}
+      </Section>
+
+      <Section title="Uploads">
+        <div className="flex gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-sm font-bold text-white">CV</div>
+          <div>
+            <div className="font-bold text-slate-950">Resume</div>
+            <div className="text-sm text-slate-600">Uploaded: {formatDateTime(profile.upload.created_at)}</div>
+            <div className="text-sm font-semibold text-teal-700">{profile.upload.filename}</div>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Links">
+        {profile.links.length ? <SkillChips items={profile.links} /> : <EmptyLine>No urls provided</EmptyLine>}
+      </Section>
+
+      <Section title="Skills">
+        <SkillChips items={profile.skills} />
+      </Section>
+
+      <Section title="Languages">
+        <SkillChips items={profile.languages} />
+      </Section>
+
+      {error ? <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">{error}</div> : null}
+    </div>
+  );
+}
+
 function mergeAutofillSettings(raw: unknown): AutofillSettings {
   if (!raw || typeof raw !== "object") return DEFAULT_AUTOFILL_SETTINGS;
   const o = raw as Partial<AutofillSettings>;
@@ -138,6 +451,13 @@ export function KiwiJobPanel() {
   const [customEnd, setCustomEnd] = useState(() => isoDate(0));
   const [insights, setInsights] = useState<InsightsSummary | null>(null);
   const [insightsError, setInsightsError] = useState<string | null>(null);
+  const [matchResult, setMatchResult] = useState<MatchAnalysis | null>(null);
+  const [matchError, setMatchError] = useState<string | null>(null);
+  const [cvProfile, setCvProfile] = useState<CvProfileDTO | null>(null);
+  const [resumes, setResumes] = useState<ResumeDTO[]>([]);
+  const [selectedResumeId, setSelectedResumeId] = useState<number | null>(null);
+  const [cvProfileLoading, setCvProfileLoading] = useState(false);
+  const [cvProfileError, setCvProfileError] = useState<string | null>(null);
 
   useEffect(() => {
     void chrome.storage.sync.get(["apiBase", "mockUserId", "webAppUrl", "autofillSettings"]).then((v) => {
@@ -313,19 +633,79 @@ export function KiwiJobPanel() {
     }
     setBusy(true);
     setMsg(null);
+    setMatchError(null);
     try {
       await persistSettings(apiBase, mockUserId);
       const resp = (await chrome.runtime.sendMessage({ type: "ANALYZE_MATCH", jobId: id })) as AnyResp;
       if (!resp.ok) {
         setMsg(resp.error);
+        setMatchError(resp.error);
         return;
       }
-      setMsg("Match analysis complete. Open the web dashboard to see the score and full breakdown.");
+      setMatchResult(resp.data as MatchAnalysis);
+      setMsg("Match analysis complete.");
     } catch (e) {
-      setMsg((e as Error).message);
+      const message = (e as Error).message;
+      setMsg(message);
+      setMatchError(message);
     } finally {
       setBusy(false);
     }
+  }
+
+  async function loadLatestMatch(applicationId: number) {
+    setMatchError(null);
+    try {
+      const resp = (await chrome.runtime.sendMessage({ type: "GET_MATCH", jobId: applicationId })) as AnyResp;
+      if (!resp.ok) {
+        setMatchResult(null);
+        if (!resp.error.toLowerCase().includes("no match analysis")) setMatchError(resp.error);
+        return;
+      }
+      setMatchResult(resp.data as MatchAnalysis);
+    } catch (e) {
+      setMatchError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function loadResumes(): Promise<ResumeDTO[]> {
+    const resp = (await chrome.runtime.sendMessage({ type: "GET_RESUMES" })) as AnyResp;
+    if (!resp.ok) throw new Error(resp.error);
+    const list = (resp.data as ResumeDTO[]) || [];
+    setResumes(list);
+    return list;
+  }
+
+  async function loadCvProfile(resumeId = selectedResumeId) {
+    setCvProfileLoading(true);
+    setCvProfileError(null);
+    try {
+      const list = await loadResumes();
+      const requestedId = resumeId ?? selectedResumeId;
+      const id = requestedId && list.some((resume) => resume.id === requestedId) ? requestedId : (list[0]?.id ?? null);
+      setSelectedResumeId(id);
+      if (id) void chrome.storage.local.set({ selectedResumeId: id });
+      if (!id) {
+        setCvProfile(null);
+        return;
+      }
+      const resp = (await chrome.runtime.sendMessage({ type: "GET_CV_PROFILE", resumeId: id })) as AnyResp;
+      if (!resp.ok) {
+        setCvProfileError(resp.error);
+        return;
+      }
+      setCvProfile(resp.data as CvProfileDTO);
+    } catch (e) {
+      setCvProfileError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setCvProfileLoading(false);
+    }
+  }
+
+  function selectResume(id: number) {
+    setSelectedResumeId(id);
+    void chrome.storage.local.set({ selectedResumeId: id });
+    void loadCvProfile(id);
   }
 
   async function onAutofillActiveTab() {
@@ -376,6 +756,16 @@ export function KiwiJobPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, insightRange, customStart, customEnd]);
 
+  useEffect(() => {
+    if (tab === "match" && lastId) void loadLatestMatch(lastId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, lastId]);
+
+  useEffect(() => {
+    if (tab === "profile") void loadCvProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
   const tabs: { id: TabId; label: string; description: string }[] = [
     { id: "jobs", label: "Jobs", description: "职位列表、实时抓取" },
     { id: "applications", label: "Applications", description: "已申请职位追踪" },
@@ -387,6 +777,23 @@ export function KiwiJobPanel() {
   return (
     <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-white">
       <div className="sticky top-0 z-10 shrink-0 border-b border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold tracking-tight text-slate-900">KiwiJob</div>
+            <div className="truncate text-[11px] text-slate-500">Job search assistant</div>
+          </div>
+          <button
+            type="button"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+            title="Close panel"
+            aria-label="Close panel"
+            onClick={() => requestCloseEmbed()}
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
         <nav className="flex gap-0 px-1" aria-label="Panel sections">
           {tabs.map((t) => (
             <button
@@ -514,83 +921,81 @@ export function KiwiJobPanel() {
           ) : null}
 
           {tab === "profile" ? (
-            <div className="space-y-3">
-              <div className="rounded-xl border border-sky-100 bg-sky-50/90 p-3 text-xs leading-relaxed text-sky-950">
-                <div className="font-semibold text-sky-900">Profile</div>
-                <p className="mt-2 text-sky-900/90">
-                  Manage CV, skills, visa/work authorization, salary expectations, and application preferences in the web dashboard.
-                </p>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  disabled={busy}
-                  className="mt-3 w-full rounded-lg bg-sky-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-800 disabled:opacity-50"
-                  onClick={() => void onAutofillActiveTab()}
+                  className="rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm hover:bg-slate-50"
+                  onClick={() => void chrome.tabs.create({ url: `${normalizeWebAppUrl(webAppUrl)}/matches` })}
                 >
-                  {busy ? "Autofilling…" : "Autofill this page"}
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 text-sm font-bold text-orange-700">JM</div>
+                  <div className="mt-2 text-sm font-bold text-slate-900">Job Matches</div>
+                  <div className="mt-1 text-xs text-slate-500">Fill out preferences</div>
                 </button>
                 <button
                   type="button"
-                  className="mt-2 w-full rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-900 shadow-sm hover:bg-sky-50"
-                  onClick={() => void chrome.tabs.create({ url: `${normalizeWebAppUrl(webAppUrl)}/settings#applicant-profile` })}
+                  className="rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm hover:bg-slate-50"
+                  onClick={() => void chrome.tabs.create({ url: `${normalizeWebAppUrl(webAppUrl)}/tracker` })}
                 >
-                  Edit profile
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-pink-100 text-sm font-bold text-pink-700">JT</div>
+                  <div className="mt-2 text-sm font-bold text-slate-900">Job Tracker</div>
+                  <div className="mt-1 text-xs text-slate-500">Track saved jobs</div>
                 </button>
-                {autofillResult ? (
-                  <div className="mt-3 rounded-lg bg-white/80 p-2 text-[11px] text-sky-950">
-                    <div className="font-semibold">Filled: {autofillResult.filled.length ? autofillResult.filled.join(", ") : "—"}</div>
-                    {autofillResult.skippedEmpty.length ? <div className="mt-1">Missing profile data: {autofillResult.skippedEmpty.join(", ")}</div> : null}
-                  </div>
-                ) : null}
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700">
-                <div className="font-semibold text-slate-900">Copilot settings</div>
-                <label className="mt-3 flex items-center justify-between gap-3">
-                  <span>Answer unique questions from profile</span>
-                  <input type="checkbox" checked={autofillSettings.aiUniqueQuestions} onChange={(e) => updateAutofillFlag("aiUniqueQuestions", e.target.checked)} />
-                </label>
-                <label className="mt-2 flex items-center justify-between gap-3">
-                  <span>Continuous multipage autofill</span>
-                  <input type="checkbox" checked={autofillSettings.continuous} onChange={(e) => updateAutofillFlag("continuous", e.target.checked)} />
-                </label>
-              </div>
+              <button
+                type="button"
+                disabled={busy}
+                className="w-full rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
+                onClick={() => void onAutofillActiveTab()}
+              >
+                {busy ? "Autofilling…" : "Autofill this page"}
+              </button>
+              {autofillResult ? (
+                <div className="rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-800">
+                  <div className="font-semibold">Filled: {autofillResult.filled.length ? autofillResult.filled.join(", ") : "—"}</div>
+                  {autofillResult.skippedEmpty.length ? <div className="mt-1">Missing profile data: {autofillResult.skippedEmpty.join(", ")}</div> : null}
+                </div>
+              ) : null}
 
-              <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700">
-                <div className="font-semibold text-slate-900">Fields to autofill</div>
-                {(
-                  [
-                    ["basic", "Name"],
-                    ["contact", "Email / phone"],
-                    ["links", "LinkedIn / website / GitHub"],
-                    ["location", "Location"],
-                    ["workAuthorization", "Work authorization"],
-                    ["salary", "Salary"],
-                    ["skills", "Skills"],
-                    ["coverLetter", "Cover letter / long answers"],
-                  ] as [AutofillFieldKey, string][]
-                ).map(([key, label]) => (
-                  <label key={key} className="mt-2 flex items-center justify-between gap-3">
-                    <span>{label}</span>
-                    <input type="checkbox" checked={autofillSettings.fields[key]} onChange={(e) => updateAutofillField(key, e.target.checked)} />
-                  </label>
-                ))}
-              </div>
+              <CvProfileView
+                profile={cvProfile}
+                resumes={resumes}
+                selectedResumeId={selectedResumeId}
+                loading={cvProfileLoading}
+                error={cvProfileError}
+                onSelectResume={selectResume}
+                onRefresh={() => void loadCvProfile()}
+                onEdit={() => void chrome.tabs.create({ url: `${normalizeWebAppUrl(webAppUrl)}/documents` })}
+              />
             </div>
           ) : null}
 
           {tab === "match" ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-700">
-              <div className="font-semibold text-slate-800">AI Match / Resume Optimization</div>
-              <p className="mt-2 leading-relaxed">
-                Save this job first, then run AI match analysis for score, keyword gaps, resume suggestions, and cover letter draft.
-              </p>
+            <div className="space-y-3">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-700">
+                <div className="font-semibold text-slate-800">AI Match / Resume Optimization</div>
+                <p className="mt-2 leading-relaxed">
+                  Save this job first, then match the saved job description against your uploaded CV.
+                </p>
+                {matchError ? <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-900">{matchError}</div> : null}
+              </div>
+
+              {matchResult ? (
+                <MatchSummary data={matchResult} />
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-center text-xs text-slate-600">
+                  Run match analysis to see score, JD requirement coverage, and CV strengths / weak spots.
+                </div>
+              )}
+
               <button
                 type="button"
                 disabled={busy || !lastId}
                 onClick={() => void onAnalyze()}
-                className="mt-3 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50 disabled:opacity-50"
               >
-                Run match analysis
+                {busy ? "Running match…" : matchResult ? "Refresh match analysis" : "Run match analysis"}
               </button>
               <button
                 type="button"
@@ -803,17 +1208,6 @@ export function KiwiJobPanel() {
             onClick={() => openWebDashboard()}
           >
             Dashboard
-          </button>
-          <button
-            type="button"
-            className="rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-            title="Close"
-            aria-label="Close"
-            onClick={() => requestCloseEmbed()}
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-            </svg>
           </button>
         </div>
       </footer>

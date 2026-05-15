@@ -2,7 +2,10 @@ export type BgRequest =
   | { type: "SAVE_JOB"; payload: unknown }
   | { type: "TRACK_EVENT"; payload: unknown }
   | { type: "ANALYZE_MATCH"; jobId: number }
+  | { type: "GET_MATCH"; jobId: number }
   | { type: "GET_INSIGHTS"; days: number; start?: string; end?: string }
+  | { type: "GET_RESUMES" }
+  | { type: "GET_CV_PROFILE"; resumeId?: number }
   | { type: "AUTOFILL_ACTIVE_TAB" }
   | { type: "GET_API_BASE" }
   | { type: "SET_API_BASE"; apiBase: string };

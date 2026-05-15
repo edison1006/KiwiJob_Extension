@@ -6,6 +6,10 @@ interface ImportMetaEnv {
   readonly VITE_ISSUES_URL?: string;
   /** Public privacy policy URL (e.g. raw GitHub link to PRIVACY.md) */
   readonly VITE_PRIVACY_URL?: string;
+  /** Hosted checkout/payment link for the Pro plan. */
+  readonly VITE_PRO_CHECKOUT_URL?: string;
+  /** Hosted checkout/payment link for the Premium plan. */
+  readonly VITE_PREMIUM_CHECKOUT_URL?: string;
 }
 
 interface ImportMeta {
