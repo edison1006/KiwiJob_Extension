@@ -48,6 +48,10 @@ class Application(SQLModel, table=True):
         back_populates="application",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
+    events: list["ApplicationEvent"] = Relationship(
+        back_populates="application",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
 
 
 class Resume(SQLModel, table=True):
@@ -69,6 +73,21 @@ class MatchResult(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     application: Application = Relationship(back_populates="match_results")
+
+
+class ApplicationEvent(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    application_id: Optional[int] = Field(default=None, foreign_key="application.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    event_type: str = Field(index=True)
+    source: str = Field(default="extension", index=True)
+    page_url: Optional[str] = Field(default=None, max_length=4096)
+    status_after: Optional[str] = Field(default=None, index=True)
+    occurred_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    payload: dict[str, Any] = Field(sa_column=Column(JSON), default_factory=dict)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    application: Optional[Application] = Relationship(back_populates="events")
 
 
 # Stubs for future Gmail / Calendar / monitoring — tables exist but are unused in MVP.

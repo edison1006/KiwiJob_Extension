@@ -1,9 +1,11 @@
 import { applyAutofillToPage, type AutofillProfile } from "./autofill";
+import { initApplicationActivityTracker } from "./activityTracker";
 import { extractJobFromPage } from "./extraction/generic";
 import { initKiwiJobPageHost, toggleKiwiJobPageHost } from "./pageHost/inject";
 import { initSeekNativeSaveOnClick } from "./seekNativeSave";
 
 initSeekNativeSaveOnClick();
+initApplicationActivityTracker();
 initKiwiJobPageHost();
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {

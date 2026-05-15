@@ -67,6 +67,55 @@ class ApplicationDetailOut(ApplicationListOut):
     latest_match: Optional[dict[str, Any]] = None
 
 
+class ApplicationEventIn(BaseModel):
+    event_type: str = Field(..., min_length=1, max_length=100)
+    source: str = Field(default="extension", max_length=100)
+    page_url: Optional[str] = Field(default=None, max_length=4096)
+    occurred_at: Optional[datetime] = None
+    status: Optional[str] = None
+    job: Optional[JobSaveIn] = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    def normalized_status(self) -> Optional[str]:
+        if self.status:
+            s = self.status.strip()
+            if s in APPLICATION_STATUSES:
+                return s
+        mapped = {
+            "job_viewed": "Viewed",
+            "application_started": "Applied",
+            "application_submitted": "Applied",
+            "assessment_detected": "Assessment",
+            "interview_detected": "Interview",
+            "offer_detected": "Offer",
+            "rejection_detected": "Rejected",
+            "withdrawn_detected": "Withdrawn",
+            "email_interview": "Interview",
+            "email_offer": "Offer",
+            "email_rejection": "Rejected",
+        }
+        return mapped.get(self.event_type.strip().lower())
+
+
+class ApplicationEventOut(BaseModel):
+    id: int
+    application_id: Optional[int]
+    event_type: str
+    source: str
+    page_url: Optional[str]
+    status_after: Optional[str]
+    occurred_at: datetime
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ApplicationEventTrackOut(BaseModel):
+    event: ApplicationEventOut
+    application: Optional[ApplicationListOut] = None
+
+
 class ApplicationUpdateIn(BaseModel):
     status: Optional[str] = None
 

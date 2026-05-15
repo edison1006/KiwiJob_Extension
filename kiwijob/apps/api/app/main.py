@@ -10,7 +10,7 @@ from app.core.config import get_settings
 from app.cors_util import parse_cors_allow_origins, warn_insecure_cors_if_needed
 from app.db.session import get_engine, init_db
 from app.deps import ensure_demo_user
-from app.routers import analytics, copilot, jobs, match, profile, resumes
+from app.routers import analytics, copilot, events, jobs, match, profile, resumes
 
 
 @asynccontextmanager
@@ -39,6 +39,7 @@ def create_app() -> FastAPI:
     app.include_router(profile.router)
     app.include_router(copilot.router)
     app.include_router(jobs.router)
+    app.include_router(events.router)
     app.include_router(resumes.router)
     app.include_router(match.router)
     app.include_router(analytics.router)

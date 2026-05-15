@@ -229,6 +229,38 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         sendResponse({ ok: true, data });
         return;
       }
+      if (request.type === "TRACK_EVENT") {
+        const api = await getApiBase();
+        let res: Response;
+        try {
+          res = await fetch(`${api}/events/track`, {
+            method: "POST",
+            headers: await mockHeaders(),
+            body: JSON.stringify(request.payload),
+          });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          sendResponse({
+            ok: false,
+            error:
+              msg.includes("Failed to fetch") || msg.includes("NetworkError")
+                ? `Cannot reach API at ${api}. Start the backend and check ${api}/health.`
+                : msg,
+          });
+          return;
+        }
+        if (!res.ok) {
+          sendResponse({ ok: false, error: await formatApiError(res) });
+          return;
+        }
+        const data = await res.json();
+        const id = (data as { application?: { id?: unknown } }).application?.id;
+        if (typeof id === "number") {
+          await chrome.storage.local.set({ lastApplicationId: id });
+        }
+        sendResponse({ ok: true, data });
+        return;
+      }
       if (request.type === "ANALYZE_MATCH") {
         const api = await getApiBase();
         let res: Response;

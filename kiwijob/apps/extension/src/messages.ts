@@ -1,5 +1,6 @@
 export type BgRequest =
   | { type: "SAVE_JOB"; payload: unknown }
+  | { type: "TRACK_EVENT"; payload: unknown }
   | { type: "ANALYZE_MATCH"; jobId: number }
   | { type: "AUTOFILL_ACTIVE_TAB" }
   | { type: "GET_API_BASE" }

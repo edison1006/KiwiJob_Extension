@@ -80,7 +80,7 @@ export function UserMenu({ displayName, mockUserId, onSignOut, variant = "sideba
           isHeader
             ? "flex w-full items-center gap-2 rounded-lg border border-white/30 bg-white/15 px-2.5 py-1.5 text-sm font-semibold text-white shadow-sm backdrop-blur hover:bg-white/25"
             : isSidebarCompact
-              ? "flex items-center gap-1 rounded-lg p-2 text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              ? "flex min-w-0 items-center justify-center gap-1 rounded-lg px-1 py-2 text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30 lg:w-full"
               : "flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
         }
         aria-expanded={open}
@@ -104,9 +104,16 @@ export function UserMenu({ displayName, mockUserId, onSignOut, variant = "sideba
           {initialsFromPrefs(displayName, mockUserId)}
         </span>
         {isSidebarCompact ? (
-          <IconChevronDown
-            className={`!text-slate-600 !opacity-100 transition duration-200 ${open ? "-rotate-180" : ""}`.trim()}
-          />
+          <svg
+            className={`h-3 w-3 shrink-0 text-slate-600 transition duration-200 ${open ? "translate-x-0.5" : ""}`.trim()}
+            viewBox="0 0 24 24"
+            aria-hidden
+          >
+            <path
+              fill="currentColor"
+              d="M9.3 5.3a1 1 0 011.4 0l6 6a1 1 0 010 1.4l-6 6-1.4-1.4 5.3-5.3-5.3-5.3a1 1 0 010-1.4z"
+            />
+          </svg>
         ) : null}
         {isSidebarCompact ? null : (
           <>
@@ -120,7 +127,7 @@ export function UserMenu({ displayName, mockUserId, onSignOut, variant = "sideba
         <div
           className={`absolute z-[100] w-[min(100%,18rem)] rounded-xl border border-slate-200 bg-white py-1.5 text-sm shadow-lg sm:w-56 ${
             isSidebarCompact
-              ? "bottom-full right-0 left-auto mb-1"
+              ? "bottom-0 left-full ml-2 w-56"
               : isHeader
                 ? "right-0 left-auto mt-1"
                 : "left-0 mt-1"
