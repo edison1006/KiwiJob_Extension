@@ -117,6 +117,35 @@ function requestCloseEmbed(): void {
   window.top?.postMessage({ type: KIWIJOB_CLOSE_DRAWER, source: KIWIJOB_EXTENSION_SOURCE }, "*");
 }
 
+function extensionContextError(): string | null {
+  if (typeof chrome === "undefined" || !chrome.runtime?.id) {
+    return "Extension context expired. Refresh this page, then reopen KiwiJob.";
+  }
+  return null;
+}
+
+async function sendRuntimeMessage(message: unknown): Promise<AnyResp> {
+  const expired = extensionContextError();
+  if (expired) return { ok: false, error: expired };
+  try {
+    return (await chrome.runtime.sendMessage(message)) as AnyResp;
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+async function setSyncStorage(value: Record<string, unknown>): Promise<void> {
+  const expired = extensionContextError();
+  if (expired) throw new Error(expired);
+  await chrome.storage.sync.set(value);
+}
+
+async function setLocalStorage(value: Record<string, unknown>): Promise<void> {
+  const expired = extensionContextError();
+  if (expired) return;
+  await chrome.storage.local.set(value);
+}
+
 function percent(matched: number, total: number): number {
   if (!total) return 100;
   return Math.round((matched / total) * 100);
@@ -467,9 +496,7 @@ export function KiwiJobPanel() {
       if (typeof v.mockUserId === "string") {
         const s = sanitizeMockUserIdInput(v.mockUserId);
         setMockUserId(s);
-        if (s !== v.mockUserId.trim()) {
-          void chrome.storage.sync.set({ mockUserId: s });
-        }
+        if (s !== v.mockUserId.trim()) void setSyncStorage({ mockUserId: s }).catch(() => {});
       }
     });
     void chrome.storage.local.get(["lastApplicationId"]).then((v) => {
@@ -566,7 +593,7 @@ export function KiwiJobPanel() {
     const clean = sanitizeMockUserIdInput(nextMock);
     const web = normalizeWebAppUrl(webAppUrl);
     setWebAppUrl(web);
-    await chrome.storage.sync.set({
+    await setSyncStorage({
       apiBase: nextApi,
       mockUserId: clean,
       webAppUrl: web,
@@ -576,7 +603,7 @@ export function KiwiJobPanel() {
 
   async function persistAutofillSettings(next: AutofillSettings) {
     setAutofillSettings(next);
-    await chrome.storage.sync.set({ autofillSettings: next });
+    await setSyncStorage({ autofillSettings: next });
   }
 
   function updateAutofillFlag(key: "aiUniqueQuestions" | "continuous", value: boolean) {
@@ -669,9 +696,11 @@ export function KiwiJobPanel() {
   }
 
   async function loadResumes(): Promise<ResumeDTO[]> {
-    const resp = (await chrome.runtime.sendMessage({ type: "GET_RESUMES" })) as AnyResp;
-    if (!resp.ok) throw new Error(resp.error);
-    const list = (resp.data as ResumeDTO[]) || [];
+    const cleanMockUserId = sanitizeMockUserIdInput(mockUserId);
+    const headers: HeadersInit = cleanMockUserId ? { "X-Mock-User-Id": cleanMockUserId } : {};
+    const res = await fetch(`${normalizeApiBase(apiBase)}/resumes`, { headers });
+    if (!res.ok) throw new Error(await res.text() || res.statusText);
+    const list = (await res.json()) as ResumeDTO[];
     setResumes(list);
     return list;
   }
@@ -684,17 +713,19 @@ export function KiwiJobPanel() {
       const requestedId = resumeId ?? selectedResumeId;
       const id = requestedId && list.some((resume) => resume.id === requestedId) ? requestedId : (list[0]?.id ?? null);
       setSelectedResumeId(id);
-      if (id) void chrome.storage.local.set({ selectedResumeId: id });
+      if (id) void setLocalStorage({ selectedResumeId: id });
       if (!id) {
         setCvProfile(null);
         return;
       }
-      const resp = (await chrome.runtime.sendMessage({ type: "GET_CV_PROFILE", resumeId: id })) as AnyResp;
-      if (!resp.ok) {
-        setCvProfileError(resp.error);
+      const cleanMockUserId = sanitizeMockUserIdInput(mockUserId);
+      const headers: HeadersInit = cleanMockUserId ? { "X-Mock-User-Id": cleanMockUserId } : {};
+      const res = await fetch(`${normalizeApiBase(apiBase)}/resumes/${id}/profile`, { headers });
+      if (!res.ok) {
+        setCvProfileError(await res.text() || res.statusText);
         return;
       }
-      setCvProfile(resp.data as CvProfileDTO);
+      setCvProfile((await res.json()) as CvProfileDTO);
     } catch (e) {
       setCvProfileError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -704,7 +735,7 @@ export function KiwiJobPanel() {
 
   function selectResume(id: number) {
     setSelectedResumeId(id);
-    void chrome.storage.local.set({ selectedResumeId: id });
+    void setLocalStorage({ selectedResumeId: id });
     void loadCvProfile(id);
   }
 
@@ -713,11 +744,18 @@ export function KiwiJobPanel() {
     setMsg(null);
     setAutofillResult(null);
     try {
+      const expired = extensionContextError();
+      if (expired) {
+        setMsg(expired);
+        setAutofillResult({ filled: [], skippedEmpty: [expired] });
+        return;
+      }
       await persistSettings(apiBase, mockUserId);
       await persistAutofillSettings(autofillSettings);
-      const resp = (await chrome.runtime.sendMessage({ type: "AUTOFILL_ACTIVE_TAB" })) as AnyResp;
+      const resp = await sendRuntimeMessage({ type: "AUTOFILL_ACTIVE_TAB" });
       if (!resp.ok) {
         setMsg(resp.error);
+        setAutofillResult({ filled: [], skippedEmpty: [resp.error] });
         return;
       }
       const result = resp.data as AutofillResult;
