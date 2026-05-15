@@ -70,6 +70,21 @@ function topCardVisibleArea(card: Element): number {
   return r.width * r.height;
 }
 
+function visibleRect(el: Element): DOMRect | null {
+  const r = el.getBoundingClientRect();
+  if (r.width < 4 || r.height < 4) return null;
+  const style = window.getComputedStyle(el);
+  if (style.visibility === "hidden" || style.display === "none" || Number(style.opacity) === 0) return null;
+  return r;
+}
+
+function isRightDetailElement(el: Element): boolean {
+  if (linkedInLeftRailAncestor(el)) return false;
+  const r = visibleRect(el);
+  if (!r) return false;
+  return r.left > window.innerWidth * 0.36 && r.top < window.innerHeight * 0.86;
+}
+
 export function isLinkedInJobViewUrl(hostname: string, pathname: string): boolean {
   const h = hostname.toLowerCase();
   if (!/(^|\.)linkedin\.com$/i.test(h)) return false;
@@ -131,6 +146,30 @@ function jobTopCardRoot(): Element | null {
   );
 }
 
+function rightDetailRootFromGeometry(): Element | null {
+  const selectors = [
+    ".job-details-jobs-unified-top-card",
+    ".jobs-unified-top-card",
+    "[data-view-name='job-details-page-job-card']",
+    ".jobs-details__main-content",
+    ".scaffold-layout__detail",
+  ];
+  let best: Element | null = null;
+  let bestArea = 0;
+  for (const sel of selectors) {
+    for (const el of Array.from(document.querySelectorAll(sel))) {
+      if (!isRightDetailElement(el)) continue;
+      const r = visibleRect(el);
+      const area = (r?.width || 0) * (r?.height || 0);
+      if (area > bestArea) {
+        best = el;
+        bestArea = area;
+      }
+    }
+  }
+  return best;
+}
+
 /** Prefer the longest plausible job title inside the top card (avoids truncated first h1). */
 function pickTitleFromTopCard(root: Element | null): string | null {
   if (!root) return null;
@@ -156,6 +195,30 @@ function pickTitleFromTopCard(root: Element | null): string | null {
   return candidates.reduce((a, b) => (a.length >= b.length ? a : b));
 }
 
+function pickVisibleRightDetailTitle(): string | null {
+  const selectors = [
+    "h1",
+    ".job-details-jobs-unified-top-card__job-title",
+    ".jobs-unified-top-card__job-title",
+    "[class*='job-title']",
+    ".t-24",
+  ];
+  const candidates: { text: string; y: number; size: number }[] = [];
+  for (const sel of selectors) {
+    for (const el of Array.from(document.querySelectorAll(sel))) {
+      if (!isRightDetailElement(el)) continue;
+      const s = t(el);
+      if (!s || s.length < 3 || s.length > 300 || isLinkedInListChromeTitle(s)) continue;
+      const r = el.getBoundingClientRect();
+      const size = Number.parseFloat(window.getComputedStyle(el).fontSize || "0") || 0;
+      candidates.push({ text: s, y: r.top, size });
+    }
+  }
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => b.size - a.size || a.y - b.y || b.text.length - a.text.length);
+  return candidates[0].text;
+}
+
 function pickCompanyFromTopCard(root: Element | null): string | null {
   const direct =
     firstTextIn(root, [
@@ -171,6 +234,25 @@ function pickCompanyFromTopCard(root: Element | null): string | null {
   const companyLink = root.querySelector('a[href*="/company/"]');
   const fromLink = t(companyLink);
   if (fromLink && !/^\s*see\s+more\s*$/i.test(fromLink)) return fromLink;
+  return null;
+}
+
+function pickVisibleRightCompany(): string | null {
+  const selectors = [
+    ".job-details-jobs-unified-top-card__company-name a",
+    ".job-details-jobs-unified-top-card__company-name",
+    ".jobs-unified-top-card__company-name a",
+    ".jobs-unified-top-card__company-name",
+    "a[href*='/company/']",
+    "a[href*='/school/']",
+  ];
+  for (const sel of selectors) {
+    for (const el of Array.from(document.querySelectorAll(sel))) {
+      if (!isRightDetailElement(el)) continue;
+      const s = t(el);
+      if (s && s.length > 1 && s.length < 160 && !/linkedin|view all jobs/i.test(s)) return s;
+    }
+  }
   return null;
 }
 
@@ -200,6 +282,47 @@ function pickLocationLine(root: Element | null): string | null {
     .filter((s): s is string => Boolean(s && s.length > 0 && s.length < 120));
   if (!bits.length) return t(chipRoot);
   return [...new Set(bits)].join(" · ");
+}
+
+function pickVisibleRightLocation(): string | null {
+  const selectors = [
+    ".job-details-jobs-unified-top-card__primary-description-container",
+    ".job-details-jobs-unified-top-card__tertiary-description-container",
+    ".jobs-unified-top-card__primary-description-container",
+    ".jobs-unified-top-card__bullet",
+  ];
+  for (const sel of selectors) {
+    for (const el of Array.from(document.querySelectorAll(sel))) {
+      if (!isRightDetailElement(el)) continue;
+      const s = t(el);
+      if (!s || s.length < 3 || s.length > 280) continue;
+      const parts = s
+        .split("·")
+        .map((p) => p.trim())
+        .filter(Boolean);
+      const locationPart = parts.find((p) => /remote|hybrid|on-site|new zealand|auckland|wellington|christchurch|hamilton|dunedin|tauranga/i.test(p));
+      return (locationPart || parts[0] || s).replace(/\s*·\s*/g, " · ");
+    }
+  }
+  return null;
+}
+
+function pickVisibleRightDescription(): string | null {
+  const selectors = [
+    "#job-details",
+    ".jobs-description__content",
+    ".jobs-box__html-content",
+    ".jobs-description-content__text",
+    ".jobs-description",
+  ];
+  for (const sel of selectors) {
+    for (const el of Array.from(document.querySelectorAll(sel))) {
+      if (!isRightDetailElement(el)) continue;
+      const s = t(el);
+      if (s && s.length > 80) return s.slice(0, 20000);
+    }
+  }
+  return null;
 }
 
 function preferRicherTitle(domTitle: string | null, metaTitle: string | undefined): string | null {
@@ -233,18 +356,22 @@ export const linkedInSiteExtractor: SiteExtractor = {
     if (!isLinkedInJobViewUrl(window.location.hostname, window.location.pathname)) return null;
 
     const root = jobTopCardRoot();
+    const geometryRoot = root || rightDetailRootFromGeometry();
     const meta = metaTitleCompany();
-    const domTitle = pickTitleFromTopCard(root);
+    const domTitle = pickTitleFromTopCard(geometryRoot) || pickVisibleRightDetailTitle();
     const title = resolveLinkedInJobTitle(domTitle, meta.title);
 
-    const company = pickCompanyFromTopCard(root) || meta.company || null;
-    const location = pickLocationLine(root);
+    const company = pickCompanyFromTopCard(geometryRoot) || pickVisibleRightCompany() || meta.company || null;
+    const location = pickLocationLine(geometryRoot) || pickVisibleRightLocation();
+    const description = pickVisibleRightDescription();
 
     if (!title && !company && !location) return null;
     const out: Partial<JobSavePayload> = {};
     if (title) out.title = title;
     if (company) out.company = company;
     if (location) out.location = location;
+    if (description) out.description = description;
+    out.source_website = "linkedin.com";
     return out;
   },
 };

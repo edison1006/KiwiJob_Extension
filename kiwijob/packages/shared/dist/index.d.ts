@@ -63,6 +63,24 @@ export interface AnalyticsSummary {
     by_source: Record<string, number>;
     by_status: Record<string, number>;
 }
+export interface InsightTitleCount {
+    title: string;
+    count: number;
+}
+export interface InsightsSummary {
+    days: number;
+    start_date: string;
+    end_date: string;
+    applications: number;
+    replies: number;
+    interviews: number;
+    offers: number;
+    rejections: number;
+    response_rate: number;
+    interview_rate: number;
+    top_titles: InsightTitleCount[];
+    by_status: Record<string, number>;
+}
 export interface ResumeDTO {
     id: number;
     filename: string;

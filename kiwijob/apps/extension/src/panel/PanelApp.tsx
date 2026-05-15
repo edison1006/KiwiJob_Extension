@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import type { ApplicationStatus, JobSavePayload } from "@kiwijob/shared";
+import type { ApplicationStatus, InsightsSummary, JobSavePayload } from "@kiwijob/shared";
 import { APPLICATION_STATUSES } from "@kiwijob/shared";
+import type { ContentToPanelMessage } from "../messages";
 import type { AutofillResult, AutofillSettings } from "../autofill";
 import { DEFAULT_AUTOFILL_SETTINGS } from "../autofill";
 import { KIWIJOB_CLOSE_DRAWER, KIWIJOB_EXTENSION_SOURCE } from "../pageHost/messages";
@@ -18,8 +19,9 @@ type ExtractResp =
 
 type AnyResp = { ok: true; data?: unknown } | { ok: false; error: string };
 
-type TabId = "job" | "autofill" | "score" | "settings";
+type TabId = "jobs" | "applications" | "match" | "profile" | "insights";
 type AutofillFieldKey = keyof AutofillSettings["fields"];
+type InsightRange = "7" | "30" | "90" | "custom";
 
 /** Positive integer only. Job URLs / text are ignored so the API falls back to the default user. */
 function sanitizeMockUserIdInput(raw: string): string {
@@ -72,6 +74,24 @@ function normalizeWebAppUrl(raw: string): string {
   return t;
 }
 
+function sourceLabel(raw: string): string {
+  const s = raw.trim().toLowerCase().replace(/^www\./, "");
+  if (!s) return "";
+  if (s.includes("seek")) return "SEEK";
+  if (s.includes("linkedin")) return "LinkedIn";
+  if (s.includes("trademe")) return "Trade Me";
+  if (s.includes("indeed")) return "Indeed";
+  if (s.includes("jora")) return "Jora";
+  if (s.includes("jobs.govt.nz")) return "NZ Govt Jobs";
+  return raw.replace(/^www\./i, "").split(".")[0] || raw;
+}
+
+function isoDate(daysAgo: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().slice(0, 10);
+}
+
 async function probeApiHealth(base: string): Promise<boolean> {
   const root = normalizeApiBase(base);
   const ctrl = new AbortController();
@@ -101,7 +121,7 @@ function mergeAutofillSettings(raw: unknown): AutofillSettings {
 }
 
 export function KiwiJobPanel() {
-  const [tab, setTab] = useState<TabId>("job");
+  const [tab, setTab] = useState<TabId>("jobs");
   const [apiBase, setApiBase] = useState("http://localhost:8000");
   const [webAppUrl, setWebAppUrl] = useState(DEFAULT_WEB_APP_URL);
   const [mockUserId, setMockUserId] = useState("");
@@ -113,6 +133,11 @@ export function KiwiJobPanel() {
   const [apiHealth, setApiHealth] = useState<"idle" | "checking" | "ok" | "offline">("idle");
   const [autofillSettings, setAutofillSettings] = useState<AutofillSettings>(DEFAULT_AUTOFILL_SETTINGS);
   const [autofillResult, setAutofillResult] = useState<AutofillResult | null>(null);
+  const [insightRange, setInsightRange] = useState<InsightRange>("7");
+  const [customStart, setCustomStart] = useState(() => isoDate(30));
+  const [customEnd, setCustomEnd] = useState(() => isoDate(0));
+  const [insights, setInsights] = useState<InsightsSummary | null>(null);
+  const [insightsError, setInsightsError] = useState<string | null>(null);
 
   useEffect(() => {
     void chrome.storage.sync.get(["apiBase", "mockUserId", "webAppUrl", "autofillSettings"]).then((v) => {
@@ -162,9 +187,9 @@ export function KiwiJobPanel() {
   const detectedSecondary = useMemo(() => {
     if (!draft) return "";
     try {
-      return new URL(draft.url).hostname;
+      return sourceLabel(draft.source_website || new URL(draft.url).hostname);
     } catch {
-      return draft.source_website || "";
+      return sourceLabel(draft.source_website || "");
     }
   }, [draft]);
 
@@ -204,6 +229,18 @@ export function KiwiJobPanel() {
     void refreshExtract();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const listener = (message: ContentToPanelMessage) => {
+      if (message?.type !== "KIWIJOB_JOB_CHANGED") return;
+      const payload = message.payload as JobSavePayload;
+      if (!payload?.title || !payload?.url) return;
+      setDraft({ ...payload, status });
+      setMsg(null);
+    };
+    chrome.runtime.onMessage.addListener(listener);
+    return () => chrome.runtime.onMessage.removeListener(listener);
+  }, [status]);
 
   async function persistSettings(nextApi: string, nextMock: string) {
     const clean = sanitizeMockUserIdInput(nextMock);
@@ -313,11 +350,38 @@ export function KiwiJobPanel() {
     }
   }
 
-  const tabs: { id: TabId; label: string }[] = [
-    { id: "job", label: "Job" },
-    { id: "autofill", label: "Autofill" },
-    { id: "score", label: "Score" },
-    { id: "settings", label: "Settings" },
+  async function loadInsights(range = insightRange) {
+    setInsightsError(null);
+    try {
+      await persistSettings(apiBase, mockUserId);
+      const days = range === "custom" ? 30 : Number(range);
+      const resp = (await chrome.runtime.sendMessage({
+        type: "GET_INSIGHTS",
+        days,
+        start: range === "custom" ? customStart : undefined,
+        end: range === "custom" ? customEnd : undefined,
+      })) as AnyResp;
+      if (!resp.ok) {
+        setInsightsError(resp.error);
+        return;
+      }
+      setInsights(resp.data as InsightsSummary);
+    } catch (e) {
+      setInsightsError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  useEffect(() => {
+    if (tab === "insights") void loadInsights(insightRange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, insightRange, customStart, customEnd]);
+
+  const tabs: { id: TabId; label: string; description: string }[] = [
+    { id: "jobs", label: "Jobs", description: "职位列表、实时抓取" },
+    { id: "applications", label: "Applications", description: "已申请职位追踪" },
+    { id: "match", label: "Match", description: "AI Match / Resume Optimization" },
+    { id: "profile", label: "Profile", description: "CV、技能、签证、偏好" },
+    { id: "insights", label: "Insights", description: "数据分析（成功率、市场趋势）" },
   ];
 
   return (
@@ -346,7 +410,7 @@ export function KiwiJobPanel() {
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
         <div className="px-3 py-3 pb-6">
-          {tab === "job" ? (
+          {tab === "jobs" ? (
             <div className="space-y-4">
               <div className="rounded-xl border border-slate-200 bg-slate-50/90 p-3">
                 <div className="text-xs font-semibold text-slate-600">Detected</div>
@@ -369,34 +433,15 @@ export function KiwiJobPanel() {
                   </div>
                 </dl>
                 {detectedSecondary ? (
-                  <div className="mt-2 line-clamp-2 text-[11px] text-slate-600">{detectedSecondary}</div>
+                  <div className="mt-2 line-clamp-2 text-[11px] text-slate-600">数据来源：{detectedSecondary}</div>
                 ) : null}
                 <button
                   type="button"
                   className="mt-3 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
                   onClick={() => void refreshExtract()}
                 >
-                  Re-scan page
+                  Refresh detection
                 </button>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-600">Application status</label>
-                <select
-                  className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
-                  value={status}
-                  onChange={(e) => {
-                    const s = e.target.value as ApplicationStatus;
-                    setStatus(s);
-                    setDraft((d) => (d ? { ...d, status: s } : d));
-                  }}
-                >
-                  {APPLICATION_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               <button
@@ -410,26 +455,70 @@ export function KiwiJobPanel() {
 
               <button
                 type="button"
-                disabled={busy}
-                onClick={() => void onAnalyze()}
-                className="flex w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+                className="flex w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+                onClick={() => {
+                  const url = new URL(`${normalizeWebAppUrl(webAppUrl)}/browse`);
+                  void chrome.tabs.create({ url: url.toString() });
+                }}
               >
-                Analyze match
+                Open NZ job search
               </button>
-
-              <p className="text-[11px] leading-relaxed text-slate-500">
-                Without <code className="rounded bg-slate-100 px-0.5">OPENAI_API_KEY</code>, Analyze match uses a JD-only mock scorer. Upload a CV
-                on the web dashboard first when using real scoring.
-              </p>
             </div>
           ) : null}
 
-          {tab === "autofill" ? (
+          {tab === "applications" ? (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+                <div className="text-xs font-semibold text-slate-800">Application tracking</div>
+                <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                  Save jobs from the Jobs tab, then track application status, interviews, offers, and outcomes in the dashboard.
+                </p>
+                <div className="mt-3">
+                  <label className="text-xs font-semibold text-slate-600">Current status</label>
+                  <select
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
+                    value={status}
+                    onChange={(e) => {
+                      const s = e.target.value as ApplicationStatus;
+                      setStatus(s);
+                      setDraft((d) => (d ? { ...d, status: s } : d));
+                    }}
+                  >
+                    {APPLICATION_STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  disabled={busy || !draft}
+                  onClick={() => void onSave()}
+                  className="mt-3 flex w-full items-center justify-center rounded-lg bg-brand-600 px-3 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
+                >
+                  Save / update application
+                </button>
+                <button
+                  type="button"
+                  className="mt-2 flex w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+                  onClick={() => {
+                    if (lastId) openSavedJobInDashboard(lastId);
+                    else void chrome.tabs.create({ url: `${normalizeWebAppUrl(webAppUrl)}/tracker` });
+                  }}
+                >
+                  Open applications dashboard
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {tab === "profile" ? (
             <div className="space-y-3">
               <div className="rounded-xl border border-sky-100 bg-sky-50/90 p-3 text-xs leading-relaxed text-sky-950">
-                <div className="font-semibold text-sky-900">Autofill</div>
+                <div className="font-semibold text-sky-900">Profile</div>
                 <p className="mt-2 text-sky-900/90">
-                  Save your applicant profile in the web app under <span className="font-medium">Settings → Application profile</span>.
+                  Manage CV, skills, visa/work authorization, salary expectations, and application preferences in the web dashboard.
                 </p>
                 <button
                   type="button"
@@ -438,6 +527,13 @@ export function KiwiJobPanel() {
                   onClick={() => void onAutofillActiveTab()}
                 >
                   {busy ? "Autofilling…" : "Autofill this page"}
+                </button>
+                <button
+                  type="button"
+                  className="mt-2 w-full rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-900 shadow-sm hover:bg-sky-50"
+                  onClick={() => void chrome.tabs.create({ url: `${normalizeWebAppUrl(webAppUrl)}/settings#applicant-profile` })}
+                >
+                  Edit profile
                 </button>
                 {autofillResult ? (
                   <div className="mt-3 rounded-lg bg-white/80 p-2 text-[11px] text-sky-950">
@@ -482,11 +578,11 @@ export function KiwiJobPanel() {
             </div>
           ) : null}
 
-          {tab === "score" ? (
+          {tab === "match" ? (
             <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-700">
-              <div className="font-semibold text-slate-800">Match score</div>
+              <div className="font-semibold text-slate-800">AI Match / Resume Optimization</div>
               <p className="mt-2 leading-relaxed">
-                Save this job from the Job tab, then run match analysis. Open the web dashboard for the full keyword breakdown and suggestions.
+                Save this job first, then run AI match analysis for score, keyword gaps, resume suggestions, and cover letter draft.
               </p>
               <button
                 type="button"
@@ -496,11 +592,125 @@ export function KiwiJobPanel() {
               >
                 Run match analysis
               </button>
+              <button
+                type="button"
+                className="mt-2 w-full rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-700"
+                onClick={() => {
+                  const target = lastId ? `${normalizeWebAppUrl(webAppUrl)}/match/${lastId}` : `${normalizeWebAppUrl(webAppUrl)}/matches`;
+                  void chrome.tabs.create({ url: target });
+                }}
+              >
+                Open match report
+              </button>
+              <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+                Real scoring uses your uploaded CV and <code className="rounded bg-slate-100 px-0.5">OPENAI_API_KEY</code>.
+              </p>
             </div>
           ) : null}
 
-          {tab === "settings" ? (
+          {tab === "insights" ? (
             <div className="space-y-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-700">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="font-semibold text-slate-800">Insights dashboard</div>
+                    <p className="mt-1 text-[11px] text-slate-500">Applications, replies, interviews, and title trends.</p>
+                  </div>
+                  <select
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
+                    value={insightRange}
+                    onChange={(e) => setInsightRange(e.target.value as InsightRange)}
+                  >
+                    <option value="7">1 week</option>
+                    <option value="30">1 month</option>
+                    <option value="90">3 month</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </div>
+
+                {insightRange === "custom" ? (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <label className="text-[11px] font-semibold text-slate-600">
+                      Start
+                      <input
+                        type="date"
+                        value={customStart}
+                        onChange={(e) => setCustomStart(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-800"
+                      />
+                    </label>
+                    <label className="text-[11px] font-semibold text-slate-600">
+                      End
+                      <input
+                        type="date"
+                        value={customEnd}
+                        onChange={(e) => setCustomEnd(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-800"
+                      />
+                    </label>
+                  </div>
+                ) : null}
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {[
+                    ["Applied", insights?.applications ?? 0],
+                    ["Replies", insights?.replies ?? 0],
+                    ["Interviews", insights?.interviews ?? 0],
+                    ["Offers", insights?.offers ?? 0],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-lg border border-slate-200 bg-white p-2">
+                      <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+                      <div className="mt-1 text-xl font-bold text-slate-900">{value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-brand-50 p-2 text-brand-900">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide">Response rate</div>
+                    <div className="mt-1 text-lg font-bold">{insights?.response_rate ?? 0}%</div>
+                  </div>
+                  <div className="rounded-lg bg-sky-50 p-2 text-sky-900">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide">Interview rate</div>
+                    <div className="mt-1 text-lg font-bold">{insights?.interview_rate ?? 0}%</div>
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-lg border border-slate-200 bg-white p-2">
+                  <div className="text-[11px] font-semibold text-slate-700">Top job titles</div>
+                  <div className="mt-2 space-y-1.5">
+                    {insights?.top_titles?.length ? (
+                      insights.top_titles.map((item) => (
+                        <div key={item.title} className="flex items-center justify-between gap-2 text-[11px]">
+                          <span className="min-w-0 truncate text-slate-700">{item.title}</span>
+                          <span className="rounded bg-slate-100 px-1.5 py-0.5 font-semibold text-slate-700">{item.count}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-[11px] text-slate-500">No applications in this period yet.</div>
+                    )}
+                  </div>
+                </div>
+
+                {insightsError ? <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-900">{insightsError}</div> : null}
+
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+                    onClick={() => void loadInsights(insightRange)}
+                  >
+                    Refresh
+                  </button>
+                  <button
+                    type="button"
+                    className="flex-1 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-brand-700"
+                    onClick={() => void chrome.tabs.create({ url: `${normalizeWebAppUrl(webAppUrl)}/analytics` })}
+                  >
+                    Full dashboard
+                  </button>
+                </div>
+              </div>
               <div>
                 <label className="text-xs font-semibold text-slate-600">API base URL</label>
                 <input
@@ -567,9 +777,9 @@ export function KiwiJobPanel() {
       </div>
 
       <footer className="z-10 shrink-0 border-t border-slate-200 bg-white shadow-[0_-4px_14px_-6px_rgba(15,23,42,0.12)]">
-        {(tab === "job" || msg || apiHealth === "offline") && (
+        {(tab === "jobs" || msg || apiHealth === "offline") && (
           <div className="space-y-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
-            {tab === "job" ? (
+            {tab === "jobs" ? (
               <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
                 <span className="rounded bg-slate-200/80 px-1.5 py-0.5 text-[10px] font-medium text-slate-800">{saveLabel}</span>
               </div>

@@ -251,3 +251,23 @@ class AnalyticsSummaryOut(BaseModel):
     average_match_score: Optional[float]
     by_source: dict[str, int]
     by_status: dict[str, int]
+
+
+class InsightTitleCountOut(BaseModel):
+    title: str
+    count: int
+
+
+class InsightsSummaryOut(BaseModel):
+    days: int
+    start_date: datetime
+    end_date: datetime
+    applications: int
+    replies: int
+    interviews: int
+    offers: int
+    rejections: int
+    response_rate: float
+    interview_rate: float
+    top_titles: list[InsightTitleCountOut] = Field(default_factory=list)
+    by_status: dict[str, int]

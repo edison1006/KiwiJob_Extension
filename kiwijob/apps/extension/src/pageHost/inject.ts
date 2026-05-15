@@ -12,13 +12,13 @@ const SHADOW_CSS = `
   top: 38%;
   right: 0;
   z-index: 2147483646;
-  transform: translateY(-50%);
-  width: 44px;
-  height: 112px;
+  transform: translate(14px, -50%);
+  width: 56px;
+  height: 56px;
   padding: 0;
   margin: 0;
   border: none;
-  border-radius: 10px 0 0 10px;
+  border-radius: 14px 0 0 14px;
   background: linear-gradient(180deg, #38bdf8 0%, #0ea5e9 100%);
   box-shadow: -2px 4px 16px rgba(15, 23, 42, 0.18);
   cursor: pointer;
@@ -26,9 +26,13 @@ const SHADOW_CSS = `
   align-items: center;
   justify-content: center;
   color: #fff;
-  transition: filter 0.15s ease, width 0.15s ease;
+  transition: filter 0.15s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
-.ej-launcher:hover { filter: brightness(1.06); }
+.ej-launcher:hover {
+  filter: brightness(1.06);
+  transform: translate(0, -50%);
+  box-shadow: -6px 8px 22px rgba(15, 23, 42, 0.2);
+}
 .ej-launcher:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .ej-launcher svg { width: 22px; height: 22px; flex-shrink: 0; }
 .ej-backdrop {

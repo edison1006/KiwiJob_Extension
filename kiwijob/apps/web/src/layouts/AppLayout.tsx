@@ -19,19 +19,19 @@ const LS_SIDEBAR_COLLAPSED = "kiwijob_sidebar_collapsed";
 
 const linkClass = ({ isActive, collapsed }: { isActive: boolean; collapsed: boolean }) =>
   `flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-    collapsed ? "justify-center gap-0" : "gap-3"
+    collapsed ? "gap-3 lg:justify-center lg:gap-0" : "gap-3"
   } ${
     isActive ? "bg-brand-600 text-white shadow-sm ring-1 ring-brand-600/20" : "text-slate-700 hover:bg-slate-100"
   }`;
 
-/** Same footprint as an inactive nav row (for Refer disclosure trigger). */
+/** Same footprint as an inactive nav row (for Interview Assistant disclosure trigger). */
 const referSummaryClass = (collapsed: boolean) =>
   `flex cursor-pointer list-none items-center rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition marker:hidden hover:bg-slate-100 [&::-webkit-details-marker]:hidden ${
-    collapsed ? "justify-center gap-0" : "gap-3"
+    collapsed ? "gap-3 lg:justify-center lg:gap-0" : "gap-3"
   }`;
 
-function navIconClass(isActive: boolean) {
-  return isActive ? "text-white" : "text-slate-500";
+function navIconClass(isActive: boolean, collapsed: boolean) {
+  return `${isActive ? "text-white" : "text-slate-500"} ${collapsed ? "" : "lg:hidden"}`.trim();
 }
 
 export function AppLayout() {
@@ -101,11 +101,11 @@ export function AppLayout() {
           </div>
         </div>
 
-        <nav className="shrink-0 space-y-0.5 px-2 pb-1 pt-2" aria-label="Primary">
+        <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 pb-1 pt-2" aria-label="Primary">
           <NavLink to="/" end className={({ isActive }) => `${linkClass({ isActive, collapsed: sidebarCollapsed })}`} title="Home">
             {({ isActive }) => (
               <>
-                <span className={navIconClass(isActive)}>
+                <span className={navIconClass(isActive, sidebarCollapsed)}>
                   <IconHome />
                 </span>
                 <span className={sidebarCollapsed ? "lg:hidden" : ""}>Home</span>
@@ -115,7 +115,7 @@ export function AppLayout() {
           <NavLink to="/matches" className={({ isActive }) => `${linkClass({ isActive, collapsed: sidebarCollapsed })}`} title="Matches">
             {({ isActive }) => (
               <>
-                <span className={navIconClass(isActive)}>
+                <span className={navIconClass(isActive, sidebarCollapsed)}>
                   <IconHeart />
                 </span>
                 <span className={sidebarCollapsed ? "lg:hidden" : ""}>Matches</span>
@@ -125,7 +125,7 @@ export function AppLayout() {
           <NavLink to="/browse" className={({ isActive }) => `${linkClass({ isActive, collapsed: sidebarCollapsed })}`} title="Jobs">
             {({ isActive }) => (
               <>
-                <span className={navIconClass(isActive)}>
+                <span className={navIconClass(isActive, sidebarCollapsed)}>
                   <IconBriefcase />
                 </span>
                 <span className={sidebarCollapsed ? "lg:hidden" : ""}>Jobs</span>
@@ -135,7 +135,7 @@ export function AppLayout() {
           <NavLink to="/tracker" className={({ isActive }) => `${linkClass({ isActive, collapsed: sidebarCollapsed })}`} title="Job tracker">
             {({ isActive }) => (
               <>
-                <span className={navIconClass(isActive)}>
+                <span className={navIconClass(isActive, sidebarCollapsed)}>
                   <IconJobTracker />
                 </span>
                 <span className={sidebarCollapsed ? "lg:hidden" : ""}>Job tracker</span>
@@ -145,39 +145,39 @@ export function AppLayout() {
           <NavLink to="/documents" className={({ isActive }) => `${linkClass({ isActive, collapsed: sidebarCollapsed })}`} title="Documents">
             {({ isActive }) => (
               <>
-                <span className={navIconClass(isActive)}>
+                <span className={navIconClass(isActive, sidebarCollapsed)}>
                   <IconDocument />
                 </span>
                 <span className={sidebarCollapsed ? "lg:hidden" : ""}>Documents</span>
               </>
             )}
           </NavLink>
-          <NavLink to="/services" className={({ isActive }) => `${linkClass({ isActive, collapsed: sidebarCollapsed })}`} title="Services">
+          <NavLink to="/services" className={({ isActive }) => `${linkClass({ isActive, collapsed: sidebarCollapsed })}`} title="Cover Letter">
             {({ isActive }) => (
               <>
-                <span className={navIconClass(isActive)}>
+                <span className={navIconClass(isActive, sidebarCollapsed)}>
                   <IconServices />
                 </span>
-                <span className={sidebarCollapsed ? "lg:hidden" : ""}>Services</span>
+                <span className={sidebarCollapsed ? "lg:hidden" : ""}>Cover Letter</span>
               </>
             )}
           </NavLink>
 
           <details className="group/refer">
-            <summary className={referSummaryClass(sidebarCollapsed)} title="Refer">
-              <span className="text-slate-500">
+            <summary className={referSummaryClass(sidebarCollapsed)} title="Interview Assistant">
+              <span className={`text-slate-500 ${sidebarCollapsed ? "" : "lg:hidden"}`.trim()}>
                 <IconRefer />
               </span>
-              <span className={`min-w-0 flex-1 text-left ${sidebarCollapsed ? "lg:hidden" : ""}`}>Refer</span>
+              <span className={`min-w-0 flex-1 text-left ${sidebarCollapsed ? "lg:hidden" : ""}`}>Interview Assistant</span>
               <IconChevronDown className={`transition group-open/refer:rotate-180 ${sidebarCollapsed ? "lg:hidden" : ""}`} />
             </summary>
             <div className={`border-l border-slate-200 py-1.5 pl-3 pr-1 text-[11px] leading-relaxed text-slate-600 ${sidebarCollapsed ? "lg:hidden" : ""}`}>
-              Referrals and credits are <span className="font-semibold text-slate-800">not in KiwiJob 1.0</span>. Share the repo with friends, or check back later.
+              Interview question prep and mock interview notes are planned for the next assistant workflow.
             </div>
           </details>
         </nav>
 
-        <div className={`relative z-20 mt-auto flex shrink-0 items-center gap-1 border-t border-slate-100 bg-white px-2 py-2 ${sidebarCollapsed ? "lg:w-full lg:flex-col lg:px-2" : ""}`}>
+        <div className={`sticky bottom-0 z-20 mt-auto flex shrink-0 items-center gap-1 border-t border-slate-100 bg-white px-2 py-2 shadow-[0_-6px_18px_-14px_rgba(15,23,42,0.4)] ${sidebarCollapsed ? "lg:w-full lg:flex-col lg:px-2" : ""}`}>
           <div className={`flex shrink-0 items-center justify-center gap-0.5 ${sidebarCollapsed ? "lg:w-full lg:flex-col" : ""}`}>
             <button type="button" className={utilBtn} title="Product updates — see GitHub releases or changelog in the repo." aria-label="Announcements">
               <IconMegaphone />

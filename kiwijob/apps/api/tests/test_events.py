@@ -60,3 +60,41 @@ def test_track_application_event_upgrades_but_does_not_downgrade_status() -> Non
 
     assert viewed_again.status_code == 200
     assert viewed_again.json()["application"]["status"] == "Applied"
+
+
+def test_insights_counts_recent_application_funnel() -> None:
+    headers = {"X-Mock-User-Id": "73"}
+    url = "https://example.com/jobs/event-interview"
+    job = {
+        "title": "Data Engineer",
+        "company": "Example Ltd",
+        "location": "Auckland",
+        "description": "Data pipelines and analytics.",
+        "url": url,
+        "source_website": "example.com",
+        "status": "Applied",
+    }
+    with TestClient(app) as client:
+        res = client.post(
+            "/events/track",
+            headers=headers,
+            json={"event_type": "application_submitted", "page_url": url, "job": job},
+        )
+        assert res.status_code == 200
+        res = client.post(
+            "/events/track",
+            headers=headers,
+            json={"event_type": "interview_detected", "page_url": url, "job": {**job, "status": "Interview"}},
+        )
+        assert res.status_code == 200
+        insights = client.get("/analytics/insights?days=30", headers=headers)
+
+    assert insights.status_code == 200
+    body = insights.json()
+    assert body["applications"] == 1
+    assert body["replies"] == 1
+    assert body["interviews"] == 1
+    assert body["response_rate"] == 100.0
+    assert body["top_titles"][0] == {"title": "Data Engineer", "count": 1}
+    assert "start_date" in body
+    assert "end_date" in body

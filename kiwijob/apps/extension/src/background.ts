@@ -289,6 +289,36 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         sendResponse({ ok: true, data });
         return;
       }
+      if (request.type === "GET_INSIGHTS") {
+        const api = await getApiBase();
+        let res: Response;
+        try {
+          const days = Math.max(1, Math.min(365, Number(request.days) || 7));
+          const params = new URLSearchParams({ days: String(days) });
+          if (request.start) params.set("start", request.start);
+          if (request.end) params.set("end", request.end);
+          res = await fetch(`${api}/analytics/insights?${params.toString()}`, {
+            method: "GET",
+            headers: await mockUserIdHeaders(),
+          });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          sendResponse({
+            ok: false,
+            error:
+              msg.includes("Failed to fetch") || msg.includes("NetworkError")
+                ? `Cannot reach API at ${api}. Start the backend and check ${api}/health.`
+                : msg,
+          });
+          return;
+        }
+        if (!res.ok) {
+          sendResponse({ ok: false, error: await formatApiError(res) });
+          return;
+        }
+        sendResponse({ ok: true, data: await res.json() });
+        return;
+      }
       sendResponse({ ok: false, error: "Unknown message" });
     } catch (e) {
       sendResponse({ ok: false, error: (e as Error).message });

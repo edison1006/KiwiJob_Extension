@@ -1,4 +1,4 @@
-const y = {
+const k = {
   fullName: "",
   email: "",
   phone: "",
@@ -14,7 +14,7 @@ const y = {
   skills: "",
   summary: "",
   coverLetter: ""
-}, f = {
+}, d = {
   aiUniqueQuestions: !0,
   continuous: !1,
   fields: {
@@ -37,16 +37,16 @@ function T(t) {
     return o;
   }
 }
-function b(t) {
+function U(t) {
   return t.toLowerCase().replace(/[-_]/g, "");
 }
-function L(t, o) {
+function b(t, o) {
   const e = { ...t };
   let r = "", a = "";
   for (const c of o) {
     const n = T(c.value || "");
     if (!n) continue;
-    const i = b(c.name);
+    const i = U(c.name);
     if (!e.email && (i === "email" || i.endsWith("email") || i === "useremail")) {
       n.includes("@") && (e.email = n);
       continue;
@@ -79,20 +79,20 @@ function L(t, o) {
   }
   return !e.fullName.trim() && (r || a) && (e.fullName = [r, a].filter(Boolean).join(" ").trim()), e;
 }
-const v = "http://localhost:8000";
-function k() {
+const L = "http://localhost:8000";
+function g() {
   var t;
   (t = chrome.sidePanel) != null && t.setOptions && (chrome.sidePanel.setOptions({ path: "page-sidebar.html" }), chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: !1 }).catch(() => {
   }));
 }
-k();
+g();
 chrome.action.onClicked.addListener((t) => {
   t.id != null && chrome.tabs.sendMessage(t.id, { type: "KIWIJOB_TOGGLE_UI" }).catch(() => {
   });
 });
-const g = "kiwijob-fill-application-form";
+const w = "kiwijob-fill-application-form";
 function P(t) {
-  const o = y;
+  const o = k;
   if (!t || typeof t != "object") return { ...o };
   const e = t, r = (a) => (typeof e[a] == "string" ? e[a] : "") || "";
   return {
@@ -113,24 +113,24 @@ function P(t) {
     coverLetter: r("coverLetter")
   };
 }
-function S(t) {
-  if (!t || typeof t != "object") return f;
+function v(t) {
+  if (!t || typeof t != "object") return d;
   const o = t;
   return {
-    ...f,
+    ...d,
     ...o,
-    fields: { ...f.fields, ...o.fields || {} }
+    fields: { ...d.fields, ...o.fields || {} }
   };
 }
-async function w() {
+async function A() {
   const t = await chrome.storage.sync.get(["autofillSettings"]);
-  return S(t.autofillSettings);
+  return v(t.autofillSettings);
 }
-async function A(t) {
+async function I(t) {
   const o = await l();
-  let e = { ...y };
+  let e = { ...k };
   try {
-    const a = await fetch(`${o}/me/applicant-profile`, { method: "GET", headers: await E() });
+    const a = await fetch(`${o}/me/applicant-profile`, { method: "GET", headers: await m() });
     a.ok && (e = P(await a.json()));
   } catch {
   }
@@ -140,16 +140,16 @@ async function A(t) {
   } catch {
     r = [];
   }
-  return L(e, r);
+  return b(e, r);
 }
-function I(t) {
+function E(t) {
   return !t || t.startsWith("chrome://") || t.startsWith("edge://") || t.startsWith("about:") || t.startsWith("devtools:") || t.startsWith("chrome-extension://") ? !1 : t.startsWith("http://") || t.startsWith("https://");
 }
-async function U() {
+async function S() {
   const o = (await chrome.tabs.query({ active: !0, currentWindow: !0 }))[0], e = o == null ? void 0 : o.id, r = o == null ? void 0 : o.url;
-  if (typeof e != "number" || !r || !I(r))
+  if (typeof e != "number" || !r || !E(r))
     return { filled: [], skippedEmpty: ["active tab"] };
-  const a = await A(r), c = await w();
+  const a = await I(r), c = await A();
   try {
     return await chrome.tabs.sendMessage(e, { type: "AUTOFILL_TAB", profile: a, settings: c });
   } catch {
@@ -159,30 +159,30 @@ async function U() {
 function _() {
   chrome.contextMenus && chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
-      id: g,
+      id: w,
       title: "Fill form with KiwiJob profile",
       contexts: ["page", "frame", "editable"]
     });
   });
 }
 chrome.runtime.onInstalled.addListener(() => {
-  _(), k();
+  _(), g();
 });
-var m;
-(m = chrome.contextMenus) == null || m.onClicked.addListener((t, o) => {
-  t.menuItemId !== g || typeof (o == null ? void 0 : o.id) != "number" || !o.url || I(o.url) && (async () => {
-    const e = await A(o.url), r = await w();
+var p;
+(p = chrome.contextMenus) == null || p.onClicked.addListener((t, o) => {
+  t.menuItemId !== w || typeof (o == null ? void 0 : o.id) != "number" || !o.url || E(o.url) && (async () => {
+    const e = await I(o.url), r = await A();
     try {
       await chrome.tabs.sendMessage(o.id, { type: "AUTOFILL_TAB", profile: e, settings: r });
     } catch {
     }
   })();
 });
-var p;
-(p = chrome.commands) == null || p.onCommand.addListener((t) => {
-  t === "kiwijob-autofill" && U();
+var y;
+(y = chrome.commands) == null || y.onCommand.addListener((t) => {
+  t === "kiwijob-autofill" && S();
 });
-async function d(t) {
+async function f(t) {
   const o = await t.text();
   try {
     const r = JSON.parse(o).detail;
@@ -195,14 +195,14 @@ async function d(t) {
 }
 async function l() {
   const t = await chrome.storage.sync.get(["apiBase"]);
-  return typeof t.apiBase == "string" && t.apiBase.length ? t.apiBase.replace(/\/$/, "") : v;
+  return typeof t.apiBase == "string" && t.apiBase.length ? t.apiBase.replace(/\/$/, "") : L;
 }
-async function E() {
+async function m() {
   const t = await chrome.storage.sync.get(["mockUserId"]), o = {}, e = typeof t.mockUserId == "string" ? t.mockUserId.trim() : "";
   return e && !/https?:\/\//i.test(e) && /^\d+$/.test(e) && (o["X-Mock-User-Id"] = e), o;
 }
 async function h() {
-  return { "Content-Type": "application/json", ...await E() };
+  return { "Content-Type": "application/json", ...await m() };
 }
 chrome.runtime.onMessage.addListener((t, o, e) => ((async () => {
   var r;
@@ -216,7 +216,7 @@ chrome.runtime.onMessage.addListener((t, o, e) => ((async () => {
       return;
     }
     if (t.type === "AUTOFILL_ACTIVE_TAB") {
-      e({ ok: !0, data: await U() });
+      e({ ok: !0, data: await S() });
       return;
     }
     if (t.type === "SAVE_JOB") {
@@ -237,7 +237,7 @@ chrome.runtime.onMessage.addListener((t, o, e) => ((async () => {
         return;
       }
       if (!c.ok) {
-        e({ ok: !1, error: await d(c) });
+        e({ ok: !1, error: await f(c) });
         return;
       }
       const n = await c.json();
@@ -262,7 +262,7 @@ chrome.runtime.onMessage.addListener((t, o, e) => ((async () => {
         return;
       }
       if (!c.ok) {
-        e({ ok: !1, error: await d(c) });
+        e({ ok: !1, error: await f(c) });
         return;
       }
       const n = await c.json(), i = (r = n.application) == null ? void 0 : r.id;
@@ -287,11 +287,35 @@ chrome.runtime.onMessage.addListener((t, o, e) => ((async () => {
         return;
       }
       if (!c.ok) {
-        e({ ok: !1, error: await d(c) });
+        e({ ok: !1, error: await f(c) });
         return;
       }
       const n = await c.json();
       e({ ok: !0, data: n });
+      return;
+    }
+    if (t.type === "GET_INSIGHTS") {
+      const a = await l();
+      let c;
+      try {
+        const n = Math.max(1, Math.min(365, Number(t.days) || 7)), i = new URLSearchParams({ days: String(n) });
+        t.start && i.set("start", t.start), t.end && i.set("end", t.end), c = await fetch(`${a}/analytics/insights?${i.toString()}`, {
+          method: "GET",
+          headers: await m()
+        });
+      } catch (n) {
+        const i = n instanceof Error ? n.message : String(n);
+        e({
+          ok: !1,
+          error: i.includes("Failed to fetch") || i.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : i
+        });
+        return;
+      }
+      if (!c.ok) {
+        e({ ok: !1, error: await f(c) });
+        return;
+      }
+      e({ ok: !0, data: await c.json() });
       return;
     }
     e({ ok: !1, error: "Unknown message" });
