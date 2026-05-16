@@ -22,6 +22,7 @@ class JobPost(SQLModel, table=True):
     location: Optional[str] = None
     description: Optional[str] = None
     salary: Optional[str] = None
+    visa_requirement: Optional[str] = None
     url: str = Field(index=True, unique=True)
     source_website: str = Field(default="unknown")
     posted_date: Optional[datetime] = None

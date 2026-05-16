@@ -37,7 +37,13 @@ const SHADOW_CSS = `
   box-shadow: -6px 8px 22px rgba(15, 23, 42, 0.2);
 }
 .ej-launcher:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.ej-launcher svg { width: 22px; height: 22px; flex-shrink: 0; }
+.ej-launcher img {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 11px;
+  object-fit: cover;
+}
 .ej-backdrop {
   display: none;
   position: fixed;
@@ -73,10 +79,9 @@ const SHADOW_CSS = `
 }
 `;
 
-function logoSvg(): string {
-  return `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path d="M8 4 L14 20 M11 4 L17 20" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-  </svg>`;
+function logoMarkup(): string {
+  const src = chrome.runtime.getURL("kiwijob-logo.png");
+  return `<img src="${src}" alt="" aria-hidden="true" />`;
 }
 
 function ensureHost(): HTMLElement {
@@ -97,7 +102,7 @@ function ensureHost(): HTMLElement {
   launcher.className = "ej-launcher";
   launcher.title = "KiwiJob";
   launcher.setAttribute("aria-label", "Open KiwiJob");
-  launcher.innerHTML = logoSvg();
+  launcher.innerHTML = logoMarkup();
 
   const wrap = document.createElement("div");
   wrap.className = "ej-drawer-wrap";

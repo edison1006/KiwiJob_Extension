@@ -7,11 +7,11 @@ import { DEFAULT_AUTOFILL_SETTINGS } from "../autofill";
 import { KIWIJOB_CLOSE_DRAWER, KIWIJOB_EXTENSION_SOURCE } from "../pageHost/messages";
 import "./panel.css";
 
-/** Logo at package root (`public/kiwijob-logo.svg`). Leading `/` URLs fail on `chrome-extension://` pages. */
+/** Logo at package root (`public/kiwijob-logo.png`). Leading `/` URLs fail on `chrome-extension://` pages. */
 const kiwijobLogoSrc =
   typeof chrome !== "undefined" && typeof chrome.runtime?.getURL === "function"
-    ? chrome.runtime.getURL("kiwijob-logo.svg")
-    : "/kiwijob-logo.svg";
+    ? chrome.runtime.getURL("kiwijob-logo.png")
+    : "/kiwijob-logo.png";
 
 type ExtractResp =
   | { ok: true; data: JobSavePayload }
@@ -529,6 +529,7 @@ export function KiwiJobPanel() {
       salary: draft.salary?.trim() || "—",
       location: draft.location?.trim() || "—",
       company: draft.company?.trim() || "—",
+      visa: draft.visa_requirement?.trim() || "",
     };
   }, [draft]);
 
@@ -915,6 +916,12 @@ export function KiwiJobPanel() {
                     <dt className="w-16 shrink-0 font-semibold text-slate-500">Company</dt>
                     <dd className="min-w-0 break-words font-medium">{detectedRows.company}</dd>
                   </div>
+                  {detectedRows.visa ? (
+                    <div className="flex gap-2">
+                      <dt className="w-16 shrink-0 font-semibold text-slate-500">Visa</dt>
+                      <dd className="min-w-0 break-words font-medium">{detectedRows.visa}</dd>
+                    </div>
+                  ) : null}
                 </dl>
                 {detectedSecondary ? (
                   <div className="mt-2 line-clamp-2 text-[11px] text-slate-600">数据来源：{detectedSecondary}</div>

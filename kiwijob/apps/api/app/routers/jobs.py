@@ -50,6 +50,7 @@ def save_job(
         existing_job.location = body.location
         existing_job.description = body.description
         existing_job.salary = body.salary
+        existing_job.visa_requirement = body.visa_requirement
         existing_job.source_website = body.source_website
         existing_job.posted_date = body.posted_date
         existing_job.updated_at = now
@@ -64,6 +65,7 @@ def save_job(
             location=body.location,
             description=body.description,
             salary=body.salary,
+            visa_requirement=body.visa_requirement,
             url=body.url,
             source_website=body.source_website,
             posted_date=body.posted_date,

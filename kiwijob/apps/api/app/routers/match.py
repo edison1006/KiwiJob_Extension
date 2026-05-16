@@ -30,6 +30,13 @@ def _cv_text_for_user(session: Session, user_id: int) -> str:
     return (resume.extracted_text or "").strip() if resume else ""
 
 
+def _jd_text(description: str | None, title: str | None, visa_requirement: str | None) -> str:
+    parts = [description or title or ""]
+    if visa_requirement:
+        parts.append(f"Work authorization / visa requirement: {visa_requirement}")
+    return "\n\n".join(p for p in parts if p)
+
+
 @router.post("/preview", response_model=MatchAnalysisOut)
 def preview_match(
     body: JobSaveIn,
@@ -45,7 +52,7 @@ def preview_match(
             status_code=400,
             detail="Upload a CV first (required when OPENAI_API_KEY is set).",
         )
-    jd = body.description or body.title or ""
+    jd = _jd_text(body.description, body.title, body.visa_requirement)
     return analyze_cv_vs_jd(cv_text, jd)
 
 
@@ -74,7 +81,7 @@ def analyze_match(
             detail="Upload a CV first (required when OPENAI_API_KEY is set). Upload via the web dashboard or POST /resumes/upload.",
         )
 
-    jd = app_row.job_post.description or app_row.job_post.title or ""
+    jd = _jd_text(app_row.job_post.description, app_row.job_post.title, app_row.job_post.visa_requirement)
     # Without API key the scorer is mock/heuristic and can run on JD alone; with OpenAI, CV text is required above.
     result = analyze_cv_vs_jd(cv_text, jd)
 

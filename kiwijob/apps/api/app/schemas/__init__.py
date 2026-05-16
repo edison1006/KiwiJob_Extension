@@ -25,6 +25,7 @@ class JobSaveIn(BaseModel):
     location: Optional[str] = None
     description: Optional[str] = None
     salary: Optional[str] = None
+    visa_requirement: Optional[str] = Field(default=None, max_length=1000)
     url: str = Field(..., min_length=4, max_length=4096)
     source_website: str = Field(default="unknown", max_length=200)
     posted_date: Optional[datetime] = None
@@ -44,6 +45,7 @@ class JobPostOut(BaseModel):
     location: Optional[str]
     description: Optional[str]
     salary: Optional[str]
+    visa_requirement: Optional[str]
     url: str
     source_website: str
     posted_date: Optional[datetime]

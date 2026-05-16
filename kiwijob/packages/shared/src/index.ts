@@ -23,6 +23,7 @@ export interface JobSavePayload {
   location?: string | null;
   description?: string | null;
   salary?: string | null;
+  visa_requirement?: string | null;
   url: string;
   source_website: string;
   posted_date?: string | null;
@@ -50,6 +51,7 @@ export interface JobPostDTO {
   location: string | null;
   description: string | null;
   salary: string | null;
+  visa_requirement: string | null;
   url: string;
   source_website: string;
   posted_date: string | null;

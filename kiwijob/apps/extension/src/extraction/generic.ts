@@ -230,6 +230,33 @@ function pickPostedDate(): string | null {
   return null;
 }
 
+function extractVisaRequirement(text: string | null | undefined): string | null {
+  const raw = (text || "").replace(/\s+/g, " ").trim();
+  if (!raw) return null;
+  const patterns = [
+    /(?:must|need|required|requires?|eligible|eligibility)[^.]{0,120}(?:work rights?|right to work|work authori[sz]ation|visa|citizen|resident|permanent resident|nz resident|new zealand resident)[^.]{0,160}\./i,
+    /(?:work rights?|right to work|work authori[sz]ation|visa sponsorship|sponsorship|citizen|resident|permanent resident|nz resident|new zealand resident)[^.]{0,180}\./i,
+    /(?:applicants?|candidates?)[^.]{0,120}(?:must|need|required)[^.]{0,160}(?:visa|work rights?|right to work|citizen|resident)[^.]{0,120}\./i,
+  ];
+  for (const pattern of patterns) {
+    const hit = raw.match(pattern)?.[0]?.trim();
+    if (hit && /work|visa|citizen|resident|sponsor/i.test(hit)) return hit.slice(0, 500);
+  }
+  const lower = raw.toLowerCase();
+  if (/(visa sponsorship|not sponsor|unable to sponsor|must have.*right to work|must be.*citizen|must be.*resident)/i.test(raw)) {
+    const idx = Math.max(
+      0,
+      Math.min(
+        ...["visa", "sponsor", "right to work", "citizen", "resident"]
+          .map((needle) => lower.indexOf(needle))
+          .filter((i) => i >= 0),
+      ) - 120,
+    );
+    return raw.slice(idx, idx + 420).trim();
+  }
+  return null;
+}
+
 function hostnameSource(): string {
   return window.location.hostname || "unknown";
 }
@@ -259,6 +286,7 @@ export function extractJobFromPage(): JobSavePayload {
       location: partial.location ?? merged.location,
       description: partial.description ?? merged.description,
       salary: partial.salary ?? merged.salary,
+      visa_requirement: partial.visa_requirement ?? merged.visa_requirement,
       posted_date: partial.posted_date ?? merged.posted_date,
       source_website: partial.source_website ?? merged.source_website,
     };
@@ -281,6 +309,7 @@ function genericExtract(): JobSavePayload {
       description:
         "This SEEK page does not show a single job yet. Open a job (URL contains /job/ or /jobs/… with an ad id, or use the list + right-hand detail panel), then click Re-scan.",
       salary: null,
+      visa_requirement: null,
       url: window.location.href,
       source_website: hostnameSource(),
       posted_date: null,
@@ -290,12 +319,14 @@ function genericExtract(): JobSavePayload {
   const jd = tryJobPostingJsonLd();
   const title = jd?.title || pickTitle() || "Untitled role";
   const description = (jd?.description ?? pickDescription()) || fallbackBodyText();
+  const visaRequirement = extractVisaRequirement(description);
   return {
     title,
     company: jd?.company ?? pickCompany(),
     location: jd?.location ?? pickLocation(),
     description,
     salary: pickSalary(),
+    visa_requirement: visaRequirement,
     url: window.location.href,
     source_website: hostnameSource(),
     posted_date: jd?.posted_date ?? pickPostedDate(),
@@ -310,5 +341,6 @@ function normalizePayload(p: JobSavePayload): JobSavePayload {
     url: p.url || window.location.href,
     source_website: (p.source_website || hostnameSource()).slice(0, 200),
     description: (p.description || "").slice(0, 50000),
+    visa_requirement: p.visa_requirement ? p.visa_requirement.trim().slice(0, 1000) : null,
   };
 }

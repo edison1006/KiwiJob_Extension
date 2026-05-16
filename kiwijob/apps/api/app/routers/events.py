@@ -64,6 +64,7 @@ def _upsert_application_from_event(
         job.location = incoming_job.location
         job.description = incoming_job.description
         job.salary = incoming_job.salary
+        job.visa_requirement = incoming_job.visa_requirement
         job.source_website = incoming_job.source_website
         job.posted_date = incoming_job.posted_date
         job.updated_at = now
@@ -74,6 +75,7 @@ def _upsert_application_from_event(
             location=incoming_job.location,
             description=incoming_job.description,
             salary=incoming_job.salary,
+            visa_requirement=incoming_job.visa_requirement,
             url=incoming_job.url,
             source_website=incoming_job.source_website,
             posted_date=incoming_job.posted_date,

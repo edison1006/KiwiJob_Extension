@@ -77,7 +77,7 @@ export function AppLayout() {
         <div className={`border-b border-slate-100 px-4 py-5 ${sidebarCollapsed ? "lg:px-3" : ""}`}>
           <div className={`flex items-start gap-2 ${sidebarCollapsed ? "lg:justify-center" : "justify-between"}`}>
             <img
-              src="/kiwijob-logo.svg"
+              src="/kiwijob-logo.png"
               alt="KiwiJob"
               className={`h-12 w-auto object-contain object-left transition-all ${sidebarCollapsed ? "lg:max-w-12" : "max-w-[10rem]"}`}
               width={160}
