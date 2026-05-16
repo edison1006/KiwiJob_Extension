@@ -19,8 +19,11 @@ const SHADOW_CSS = `
   margin: 0;
   border: none;
   border-radius: 14px 0 0 14px;
-  background: linear-gradient(180deg, #38bdf8 0%, #0ea5e9 100%);
-  box-shadow: -2px 4px 16px rgba(15, 23, 42, 0.18);
+  background-color: #4f2a91;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  box-shadow: -2px 4px 16px rgba(15, 23, 42, 0.16);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -34,16 +37,10 @@ const SHADOW_CSS = `
 .ej-launcher:hover {
   filter: brightness(1.06);
   transform: translate(0, -50%);
-  box-shadow: -6px 8px 22px rgba(15, 23, 42, 0.2);
+  box-shadow: -6px 8px 22px rgba(15, 23, 42, 0.18);
 }
-.ej-launcher:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.ej-launcher img {
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  border-radius: 11px;
-  object-fit: cover;
-}
+.ej-launcher:focus,
+.ej-launcher:focus-visible { outline: none; }
 .ej-backdrop {
   display: none;
   position: fixed;
@@ -79,11 +76,6 @@ const SHADOW_CSS = `
 }
 `;
 
-function logoMarkup(): string {
-  const src = chrome.runtime.getURL("kiwijob-logo.png");
-  return `<img src="${src}" alt="" aria-hidden="true" />`;
-}
-
 function ensureHost(): HTMLElement {
   let host = document.getElementById(HOST_ID) as HTMLElement | null;
   if (host) return host;
@@ -102,7 +94,7 @@ function ensureHost(): HTMLElement {
   launcher.className = "ej-launcher";
   launcher.title = "KiwiJob";
   launcher.setAttribute("aria-label", "Open KiwiJob");
-  launcher.innerHTML = logoMarkup();
+  launcher.style.backgroundImage = `url("${chrome.runtime.getURL("kiwijob-logo.png")}")`;
 
   const wrap = document.createElement("div");
   wrap.className = "ej-drawer-wrap";
