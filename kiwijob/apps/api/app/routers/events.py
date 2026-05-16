@@ -3,12 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
 
-from app.deps import ensure_demo_user, get_mock_user_id, get_or_create_user
+from app.deps import get_current_user
 from app.db.session import get_session
-from app.models import Application, ApplicationEvent, JobPost
+from app.models import Application, ApplicationEvent, JobPost, User
 from app.routers.jobs import _app_to_list_out
 from app.schemas import ApplicationEventTrackOut, ApplicationEventIn
 
@@ -112,16 +112,14 @@ def _upsert_application_from_event(
 def track_event(
     body: ApplicationEventIn,
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
 ):
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
-    get_or_create_user(session, uid)
+    assert user.id is not None
 
     status = body.normalized_status()
-    app_row = _upsert_application_from_event(session, uid, body, status)
+    app_row = _upsert_application_from_event(session, user.id, body, status)
     event = ApplicationEvent(
-        user_id=uid,
+        user_id=user.id,
         application_id=app_row.id if app_row else None,
         event_type=body.event_type.strip().lower(),
         source=body.source.strip() or "extension",

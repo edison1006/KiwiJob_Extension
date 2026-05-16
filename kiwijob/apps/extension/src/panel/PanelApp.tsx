@@ -22,6 +22,9 @@ type AnyResp = { ok: true; data?: unknown } | { ok: false; error: string };
 type TabId = "jobs" | "applications" | "profile" | "insights";
 type AutofillFieldKey = keyof AutofillSettings["fields"];
 type InsightRange = "7" | "30" | "90" | "custom";
+type LoadCvProfileOptions = { silent?: boolean; preferLatest?: boolean };
+type AuthUser = { id: number; email: string; display_name: string };
+type AuthState = { token: string; user: AuthUser | null };
 
 type RequirementMatch = {
   label: string;
@@ -29,18 +32,6 @@ type RequirementMatch = {
   total: number;
   note: string;
 };
-
-/** Positive integer only. Job URLs / text are ignored so the API falls back to the default user. */
-function sanitizeMockUserIdInput(raw: string): string {
-  const t = raw.trim();
-  if (!t) return "";
-  if (/https?:\/\//i.test(t)) return "";
-  const digits = t.replace(/\D/g, "");
-  if (!digits) return "";
-  const n = parseInt(digits, 10);
-  if (!Number.isFinite(n) || n < 1) return "";
-  return String(n);
-}
 
 async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -111,6 +102,10 @@ async function probeApiHealth(base: string): Promise<boolean> {
   } finally {
     window.clearTimeout(tid);
   }
+}
+
+function authHeaders(token: string): HeadersInit {
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 function requestCloseEmbed(): void {
@@ -261,14 +256,6 @@ function MatchSummary({ data }: { data: MatchAnalysis }) {
   );
 }
 
-function formatDateTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString();
-  } catch {
-    return iso;
-  }
-}
-
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="border-t border-slate-200 pt-4">
@@ -295,6 +282,27 @@ function SkillChips({ items }: { items: string[] }) {
   );
 }
 
+function InfoLine({
+  label,
+  value,
+  onCopy,
+}: {
+  label: string;
+  value: string;
+  onCopy?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="group flex w-full items-start gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-slate-50"
+      onClick={onCopy ?? (() => void navigator.clipboard?.writeText(value))}
+    >
+      <span className="mt-0.5 w-12 shrink-0 text-[11px] font-bold uppercase tracking-wide text-slate-400">{label}</span>
+      <span className="min-w-0 flex-1 break-words text-sm font-semibold text-slate-900 group-hover:text-teal-700">{value}</span>
+    </button>
+  );
+}
+
 function CvProfileView({
   profile,
   resumes,
@@ -318,12 +326,10 @@ function CvProfileView({
   if (!profile?.upload) {
     return (
       <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-600">
-        <div>Upload a CV in Documents first, then refresh this profile.</div>
-        <div className="mt-2 text-xs leading-relaxed text-slate-500">
-          If you already uploaded one, restart the API, reload the extension, and make sure the extension mock user id matches the web app.
-        </div>
+        <div>Upload a CV or resume in Documents first. Profile will update automatically.</div>
+        <div className="mt-2 text-xs leading-relaxed text-slate-500">If you already uploaded one, make sure you are signed in with the same account.</div>
         <button type="button" className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm" onClick={onRefresh}>
-          Refresh profile
+          Sync now
         </button>
         {error ? <div className="mt-2 text-amber-800">{error}</div> : null}
       </div>
@@ -334,7 +340,7 @@ function CvProfileView({
     <div className="space-y-4 text-slate-900">
       {resumes.length > 1 ? (
         <label className="block rounded-xl border border-slate-200 bg-white p-3 text-xs font-semibold text-slate-700 shadow-sm">
-          Choose CV
+          CV
           <select
             className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900"
             value={selectedResumeId ?? ""}
@@ -349,58 +355,61 @@ function CvProfileView({
         </label>
       ) : null}
 
-      <div className="rounded-xl bg-slate-50 p-3 text-sm">
-        <div className="font-bold text-slate-900">Click any block of text below to copy it!</div>
-        <p className="mt-1 text-slate-600">Reference your profile to fill out your application</p>
-      </div>
-
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="min-w-0 truncate text-xl font-bold text-slate-950">{profile.full_name || "KiwiJob Profile"}</h2>
-        <div className="flex shrink-0 gap-2 text-sm font-semibold text-teal-700">
-          <button type="button" onClick={onRefresh} className="hover:underline">
-            Refresh
+      <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <button
+            type="button"
+            className="min-w-0 text-left"
+            onClick={() => void navigator.clipboard?.writeText([profile.full_name, profile.email, profile.phone, ...profile.links].filter(Boolean).join("\n"))}
+          >
+            <h2 className="min-w-0 break-words text-xl font-bold leading-tight text-slate-950">{profile.full_name || "KiwiJob Profile"}</h2>
+            <div className="mt-1 text-xs font-medium text-slate-500">Personal information</div>
           </button>
-          <button type="button" onClick={onEdit} className="hover:underline">
-            Edit
-          </button>
-        </div>
-      </div>
-
-      <button
-        type="button"
-        className="flex w-full items-center gap-4 rounded-lg text-left"
-        onClick={() => void navigator.clipboard?.writeText([profile.full_name, profile.email, profile.phone].filter(Boolean).join("\n"))}
-      >
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-cyan-400 text-xl font-bold text-white">
-          {profile.initials || "KJ"}
-        </div>
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-slate-900">{profile.email || "No email provided"}</div>
-          {profile.phone ? <div className="mt-1 text-xs text-slate-500">{profile.phone}</div> : null}
-        </div>
-      </button>
-
-      <Section title="Education">
-        {profile.education.length ? (
-          <div className="space-y-4">
-            {profile.education.map((item) => (
-              <button
-                key={`${item.school}-${item.degree}-${item.years}`}
-                type="button"
-                className="flex w-full gap-3 text-left"
-                onClick={() => void navigator.clipboard?.writeText([item.school, item.degree, item.years].filter(Boolean).join("\n"))}
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-700">ED</div>
-                <div className="min-w-0">
-                  <div className="font-bold text-slate-950">{item.school}</div>
-                  <div className="text-sm text-slate-600">{item.degree || "Degree not detected"}</div>
-                  <div className="text-sm text-slate-600">{item.years || "Dates not detected"}</div>
-                </div>
-              </button>
-            ))}
+          <div className="flex shrink-0 gap-2 text-sm font-semibold text-teal-700">
+            <button type="button" onClick={onRefresh} className="hover:underline">
+              Sync
+            </button>
+            <button type="button" onClick={onEdit} className="hover:underline">
+              Edit
+            </button>
           </div>
+        </div>
+
+        <div className="mt-3 space-y-1 rounded-xl bg-slate-50/80 p-1.5">
+          <InfoLine label="Email" value={profile.email || "No email provided"} />
+          <InfoLine label="Phone" value={profile.phone || "No phone provided"} />
+          <div className="flex items-start gap-3 rounded-lg px-2 py-2">
+            <span className="mt-1 w-12 shrink-0 text-[11px] font-bold uppercase tracking-wide text-slate-400">Links</span>
+            <div className="min-w-0 flex-1">
+              {profile.links.length ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {profile.links.map((link) => (
+                    <button
+                      key={link}
+                      type="button"
+                      className="max-w-full truncate rounded-full border border-teal-100 bg-white px-2.5 py-1 text-xs font-semibold text-teal-700 shadow-sm hover:bg-teal-50"
+                      title={link}
+                      onClick={() => void navigator.clipboard?.writeText(link)}
+                    >
+                      {link.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm font-medium text-slate-500">No links provided</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Section title="Summary">
+        {profile.summary ? (
+          <button type="button" className="block w-full text-left text-sm leading-relaxed text-slate-700" onClick={() => void navigator.clipboard?.writeText(profile.summary)}>
+            {profile.summary}
+          </button>
         ) : (
-          <EmptyLine>No education provided</EmptyLine>
+          <EmptyLine>No summary provided</EmptyLine>
         )}
       </Section>
 
@@ -424,27 +433,16 @@ function CvProfileView({
         )}
       </Section>
 
-      <Section title="Uploads">
-        <div className="flex gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-sm font-bold text-white">CV</div>
-          <div>
-            <div className="font-bold text-slate-950">Resume</div>
-            <div className="text-sm text-slate-600">Uploaded: {formatDateTime(profile.upload.created_at)}</div>
-            <div className="text-sm font-semibold text-teal-700">{profile.upload.filename}</div>
-          </div>
-        </div>
-      </Section>
-
-      <Section title="Links">
-        {profile.links.length ? <SkillChips items={profile.links} /> : <EmptyLine>No urls provided</EmptyLine>}
-      </Section>
-
       <Section title="Skills">
-        <SkillChips items={profile.skills} />
+        {profile.skills.length ? <SkillChips items={profile.skills} /> : <EmptyLine>No skills provided</EmptyLine>}
+      </Section>
+
+      <Section title="Certificates">
+        {profile.certifications.length ? <SkillChips items={profile.certifications} /> : <EmptyLine>No certificates provided</EmptyLine>}
       </Section>
 
       <Section title="Languages">
-        <SkillChips items={profile.languages} />
+        {profile.languages.length ? <SkillChips items={profile.languages} /> : <EmptyLine>No languages provided</EmptyLine>}
       </Section>
 
       {error ? <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">{error}</div> : null}
@@ -466,7 +464,13 @@ export function KiwiJobPanel() {
   const [tab, setTab] = useState<TabId>("jobs");
   const [apiBase, setApiBase] = useState("http://localhost:8000");
   const [webAppUrl, setWebAppUrl] = useState(DEFAULT_WEB_APP_URL);
-  const [mockUserId, setMockUserId] = useState("");
+  const [auth, setAuth] = useState<AuthState>({ token: "", user: null });
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authName, setAuthName] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [draft, setDraft] = useState<JobSavePayload | null>(null);
   const [status, setStatus] = useState<ApplicationStatus>("Saved");
   const [busy, setBusy] = useState(false);
@@ -490,15 +494,13 @@ export function KiwiJobPanel() {
   const autoMatchedJobKey = useRef("");
 
   useEffect(() => {
-    void chrome.storage.sync.get(["apiBase", "mockUserId", "webAppUrl", "autofillSettings"]).then((v) => {
+    void chrome.storage.sync.get(["apiBase", "webAppUrl", "autofillSettings"]).then((v) => {
       if (typeof v.apiBase === "string" && v.apiBase) setApiBase(v.apiBase);
       if (typeof v.webAppUrl === "string" && v.webAppUrl.trim()) setWebAppUrl(normalizeWebAppUrl(v.webAppUrl));
       setAutofillSettings(mergeAutofillSettings(v.autofillSettings));
-      if (typeof v.mockUserId === "string") {
-        const s = sanitizeMockUserIdInput(v.mockUserId);
-        setMockUserId(s);
-        if (s !== v.mockUserId.trim()) void setSyncStorage({ mockUserId: s }).catch(() => {});
-      }
+    });
+    void chrome.runtime.sendMessage({ type: "AUTH_STATE" }).then((resp: AnyResp) => {
+      if (resp.ok) setAuth(resp.data as AuthState);
     });
     void chrome.storage.local.get(["lastApplicationId"]).then((v) => {
       if (typeof v.lastApplicationId === "number") setLastId(v.lastApplicationId);
@@ -543,6 +545,34 @@ export function KiwiJobPanel() {
   }, [draft]);
 
   const saveLabel = lastId ? `Saved #${lastId}` : "Not saved";
+
+  async function submitAuth() {
+    setAuthBusy(true);
+    setAuthError(null);
+    try {
+      const resp = (await chrome.runtime.sendMessage(
+        authMode === "login"
+          ? { type: "AUTH_LOGIN", email: authEmail, password: authPassword }
+          : { type: "AUTH_REGISTER", email: authEmail, password: authPassword, displayName: authName },
+      )) as AnyResp;
+      if (!resp.ok) {
+        setAuthError(resp.error);
+        return;
+      }
+      const body = resp.data as { access_token?: string; user?: AuthUser };
+      setAuth({ token: body.access_token || "", user: body.user || null });
+      setAuthPassword("");
+    } catch (e) {
+      setAuthError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function signOut() {
+    const resp = (await chrome.runtime.sendMessage({ type: "AUTH_LOGOUT" })) as AnyResp;
+    if (resp.ok) setAuth({ token: "", user: null });
+  }
 
   async function refreshExtract() {
     setMsg(null);
@@ -597,16 +627,13 @@ export function KiwiJobPanel() {
     return () => chrome.runtime.onMessage.removeListener(listener);
   }, [status]);
 
-  async function persistSettings(nextApi: string, nextMock: string) {
-    const clean = sanitizeMockUserIdInput(nextMock);
+  async function persistSettings(nextApi: string) {
     const web = normalizeWebAppUrl(webAppUrl);
     setWebAppUrl(web);
     await setSyncStorage({
       apiBase: nextApi,
-      mockUserId: clean,
       webAppUrl: web,
     });
-    if (clean !== nextMock) setMockUserId(clean);
   }
 
   async function persistAutofillSettings(next: AutofillSettings) {
@@ -630,8 +657,6 @@ export function KiwiJobPanel() {
   function openSavedJobInDashboard(applicationId: number) {
     const url = new URL(`${normalizeWebAppUrl(webAppUrl)}/tracker`);
     url.searchParams.set("saved", String(applicationId));
-    const cleanMockUserId = sanitizeMockUserIdInput(mockUserId);
-    if (cleanMockUserId) url.searchParams.set("mockUserId", cleanMockUserId);
     void chrome.tabs.create({ url: url.toString() });
   }
 
@@ -640,7 +665,7 @@ export function KiwiJobPanel() {
     setBusy(true);
     setMsg(null);
     try {
-      await persistSettings(apiBase, mockUserId);
+      await persistSettings(apiBase);
       const resp = (await chrome.runtime.sendMessage({
         type: "SAVE_JOB",
         payload: { ...draft, status },
@@ -666,7 +691,7 @@ export function KiwiJobPanel() {
     setMsg(auto ? "Detected job. Calculating match…" : null);
     setMatchError(null);
     try {
-      await persistSettings(apiBase, mockUserId);
+      await persistSettings(apiBase);
       const matchResp = await sendRuntimeMessage({
         type: "PREVIEW_MATCH",
         payload: { ...draft, status },
@@ -708,7 +733,7 @@ export function KiwiJobPanel() {
     setMsg(null);
     setMatchError(null);
     try {
-      await persistSettings(apiBase, mockUserId);
+      await persistSettings(apiBase);
       const resp = (await chrome.runtime.sendMessage({ type: "ANALYZE_MATCH", jobId: id })) as AnyResp;
       if (!resp.ok) {
         setMsg(resp.error);
@@ -742,8 +767,7 @@ export function KiwiJobPanel() {
   }
 
   async function loadResumes(): Promise<ResumeDTO[]> {
-    const cleanMockUserId = sanitizeMockUserIdInput(mockUserId);
-    const headers: HeadersInit = cleanMockUserId ? { "X-Mock-User-Id": cleanMockUserId } : {};
+    const headers = authHeaders(auth.token);
     const res = await fetch(`${normalizeApiBase(apiBase)}/resumes`, { headers });
     if (!res.ok) throw new Error(await res.text() || res.statusText);
     const list = (await res.json()) as ResumeDTO[];
@@ -751,12 +775,13 @@ export function KiwiJobPanel() {
     return list;
   }
 
-  async function loadCvProfile(resumeId = selectedResumeId) {
-    setCvProfileLoading(true);
+  async function loadCvProfile(resumeId?: number | null, options: LoadCvProfileOptions = {}) {
+    const { silent = false, preferLatest = resumeId == null } = options;
+    if (!silent) setCvProfileLoading(true);
     setCvProfileError(null);
     try {
       const list = await loadResumes();
-      const requestedId = resumeId ?? selectedResumeId;
+      const requestedId = preferLatest ? null : (resumeId ?? selectedResumeId);
       const id = requestedId && list.some((resume) => resume.id === requestedId) ? requestedId : (list[0]?.id ?? null);
       setSelectedResumeId(id);
       if (id) void setLocalStorage({ selectedResumeId: id });
@@ -764,8 +789,7 @@ export function KiwiJobPanel() {
         setCvProfile(null);
         return;
       }
-      const cleanMockUserId = sanitizeMockUserIdInput(mockUserId);
-      const headers: HeadersInit = cleanMockUserId ? { "X-Mock-User-Id": cleanMockUserId } : {};
+      const headers = authHeaders(auth.token);
       const res = await fetch(`${normalizeApiBase(apiBase)}/resumes/${id}/profile`, { headers });
       if (!res.ok) {
         setCvProfileError(await res.text() || res.statusText);
@@ -775,14 +799,14 @@ export function KiwiJobPanel() {
     } catch (e) {
       setCvProfileError(e instanceof Error ? e.message : String(e));
     } finally {
-      setCvProfileLoading(false);
+      if (!silent) setCvProfileLoading(false);
     }
   }
 
   function selectResume(id: number) {
     setSelectedResumeId(id);
     void setLocalStorage({ selectedResumeId: id });
-    void loadCvProfile(id);
+    void loadCvProfile(id, { preferLatest: false });
   }
 
   async function onAutofillActiveTab() {
@@ -796,7 +820,7 @@ export function KiwiJobPanel() {
         setAutofillResult({ filled: [], skippedEmpty: [expired] });
         return;
       }
-      await persistSettings(apiBase, mockUserId);
+      await persistSettings(apiBase);
       await persistAutofillSettings(autofillSettings);
       const resp = await sendRuntimeMessage({ type: "AUTOFILL_ACTIVE_TAB" });
       if (!resp.ok) {
@@ -817,7 +841,7 @@ export function KiwiJobPanel() {
   async function loadInsights(range = insightRange) {
     setInsightsError(null);
     try {
-      await persistSettings(apiBase, mockUserId);
+      await persistSettings(apiBase);
       const days = range === "custom" ? 30 : Number(range);
       const resp = (await chrome.runtime.sendMessage({
         type: "GET_INSIGHTS",
@@ -841,9 +865,23 @@ export function KiwiJobPanel() {
   }, [tab, insightRange, customStart, customEnd]);
 
   useEffect(() => {
-    if (tab === "profile") void loadCvProfile();
+    if (tab === "profile") void loadCvProfile(null, { preferLatest: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
+
+  useEffect(() => {
+    if (tab !== "profile") return;
+    const syncLatest = () => void loadCvProfile(null, { preferLatest: true, silent: true });
+    const timer = window.setInterval(syncLatest, 12000);
+    window.addEventListener("focus", syncLatest);
+    document.addEventListener("visibilitychange", syncLatest);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", syncLatest);
+      document.removeEventListener("visibilitychange", syncLatest);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, apiBase, auth.token]);
 
   const tabs: { id: TabId; label: string; description: string }[] = [
     { id: "jobs", label: "Jobs", description: "职位列表、实时抓取" },
@@ -895,6 +933,61 @@ export function KiwiJobPanel() {
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
         <div className="px-3 py-3 pb-6">
+          {!auth.user ? (
+            <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50/90 p-3">
+              <div className="text-sm font-bold text-slate-900">{authMode === "register" ? "Create KiwiJob account" : "Login to KiwiJob"}</div>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600">Use the same account in the dashboard and extension.</p>
+              <div className="mt-3 grid grid-cols-2 rounded-lg bg-slate-200/70 p-1 text-xs font-semibold">
+                <button
+                  type="button"
+                  className={`rounded-md px-2 py-1.5 ${authMode === "login" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}
+                  onClick={() => setAuthMode("login")}
+                >
+                  Login
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-md px-2 py-1.5 ${authMode === "register" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}
+                  onClick={() => setAuthMode("register")}
+                >
+                  Register
+                </button>
+              </div>
+              <div className="mt-3 space-y-2">
+                {authMode === "register" ? (
+                  <input
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm"
+                    placeholder="Name"
+                    value={authName}
+                    onChange={(e) => setAuthName(e.target.value)}
+                  />
+                ) : null}
+                <input
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm"
+                  placeholder="Email"
+                  type="email"
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                />
+                <input
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm"
+                  placeholder="Password"
+                  type="password"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                />
+                {authError ? <div className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">{authError}</div> : null}
+                <button
+                  type="button"
+                  disabled={authBusy}
+                  className="w-full rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
+                  onClick={() => void submitAuth()}
+                >
+                  {authBusy ? "Please wait..." : authMode === "register" ? "Create account" : "Login"}
+                </button>
+              </div>
+            </div>
+          ) : null}
           {tab === "jobs" ? (
             <div className="space-y-4">
               <div className="rounded-xl border border-slate-200 bg-slate-50/90 p-3">
@@ -1049,8 +1142,7 @@ export function KiwiJobPanel() {
                   className="rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm hover:bg-slate-50"
                   onClick={() => void chrome.tabs.create({ url: `${normalizeWebAppUrl(webAppUrl)}/matches` })}
                 >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 text-sm font-bold text-orange-700">JM</div>
-                  <div className="mt-2 text-sm font-bold text-slate-900">Job Matches</div>
+                  <div className="text-sm font-bold text-slate-900">Job Matches</div>
                   <div className="mt-1 text-xs text-slate-500">Fill out preferences</div>
                 </button>
                 <button
@@ -1058,8 +1150,7 @@ export function KiwiJobPanel() {
                   className="rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm hover:bg-slate-50"
                   onClick={() => void chrome.tabs.create({ url: `${normalizeWebAppUrl(webAppUrl)}/tracker` })}
                 >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-pink-100 text-sm font-bold text-pink-700">JT</div>
-                  <div className="mt-2 text-sm font-bold text-slate-900">Job Tracker</div>
+                  <div className="text-sm font-bold text-slate-900">Job Tracker</div>
                   <div className="mt-1 text-xs text-slate-500">Track saved jobs</div>
                 </button>
               </div>
@@ -1201,7 +1292,7 @@ export function KiwiJobPanel() {
                   className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm"
                   value={apiBase}
                   onChange={(e) => setApiBase(e.target.value)}
-                  onBlur={() => void persistSettings(apiBase, mockUserId)}
+                  onBlur={() => void persistSettings(apiBase)}
                 />
                 <div className="mt-1 flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1 text-[11px] leading-snug">
@@ -1229,18 +1320,18 @@ export function KiwiJobPanel() {
                   </button>
                 </div>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-600">Mock user id (optional)</label>
-                <p className="text-[11px] text-slate-500">Digits only. Same as web app local mock id.</p>
-                <input
-                  className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm"
-                  value={mockUserId}
-                  placeholder="1"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  onChange={(e) => setMockUserId(e.target.value)}
-                  onBlur={() => void persistSettings(apiBase, mockUserId)}
-                />
+              <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700">
+                <div className="font-semibold text-slate-900">Signed in</div>
+                <div className="mt-1 break-words">{auth.user?.email || "Not signed in"}</div>
+                {auth.user ? (
+                  <button
+                    type="button"
+                    className="mt-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    onClick={() => void signOut()}
+                  >
+                    Sign out
+                  </button>
+                ) : null}
               </div>
               <div>
                 <label className="text-xs font-semibold text-slate-600" htmlFor="kiwijob-web-app-url">
@@ -1252,7 +1343,7 @@ export function KiwiJobPanel() {
                   value={webAppUrl}
                   placeholder={DEFAULT_WEB_APP_URL}
                   onChange={(e) => setWebAppUrl(e.target.value)}
-                  onBlur={() => void persistSettings(apiBase, mockUserId)}
+                  onBlur={() => void persistSettings(apiBase)}
                 />
               </div>
             </div>

@@ -1,4 +1,4 @@
-const y = {
+const w = {
   fullName: "",
   email: "",
   phone: "",
@@ -27,104 +27,52 @@ const y = {
     skills: !1,
     coverLetter: !0
   }
-};
-function b(t) {
-  const c = t.trim();
-  if (!c) return "";
-  try {
-    return decodeURIComponent(c.replace(/\+/g, " "));
-  } catch {
-    return c;
-  }
-}
-function T(t) {
-  return t.toLowerCase().replace(/[-_]/g, "");
-}
-function $(t, c) {
-  const e = { ...t };
-  let n = "", a = "";
-  for (const o of c) {
-    const i = b(o.value || "");
-    if (!i) continue;
-    const r = T(o.name);
-    if (!e.email && (r === "email" || r.endsWith("email") || r === "useremail")) {
-      i.includes("@") && (e.email = i);
-      continue;
-    }
-    if (!e.phone && (r.includes("phone") || r.includes("mobile") || r.includes("cell") || r === "tel")) {
-      e.phone = i;
-      continue;
-    }
-    if (!e.linkedInUrl && (r.includes("linkedin") || r === "inurl")) {
-      (i.includes("linkedin") || i.startsWith("http")) && (e.linkedInUrl = i);
-      continue;
-    }
-    if (!e.portfolioUrl && (r.includes("website") || r.includes("portfolio") || r === "url" || r === "homepage")) {
-      i.startsWith("http") && (e.portfolioUrl = i);
-      continue;
-    }
-    if (!e.city && r.includes("city") && !r.includes("company")) {
-      e.city = i;
-      continue;
-    }
-    if (!e.country && (r.includes("country") || r === "nation")) {
-      e.country = i;
-      continue;
-    }
-    if (!e.fullName && (r === "name" || r === "fullname" || r === "displayname")) {
-      e.fullName = i;
-      continue;
-    }
-    (r === "firstname" || r === "fname" || r === "givenname") && (n = i), (r === "lastname" || r === "lname" || r === "surname" || r === "familyname") && (a = i);
-  }
-  return !e.fullName.trim() && (n || a) && (e.fullName = [n, a].filter(Boolean).join(" ").trim()), e;
-}
-const P = "http://localhost:8000";
-function w() {
+}, b = "http://localhost:8000";
+function p() {
   var t;
   (t = chrome.sidePanel) != null && t.setOptions && (chrome.sidePanel.setOptions({ path: "page-sidebar.html" }), chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: !1 }).catch(() => {
   }));
 }
-w();
+p();
 chrome.action.onClicked.addListener((t) => {
   t.id != null && chrome.tabs.sendMessage(t.id, { type: "KIWIJOB_TOGGLE_UI" }).catch(() => {
   });
 });
 const g = "kiwijob-fill-application-form";
 function U(t) {
-  const c = y;
-  if (!t || typeof t != "object") return { ...c };
-  const e = t, n = (a) => (typeof e[a] == "string" ? e[a] : "") || "";
+  const i = w;
+  if (!t || typeof t != "object") return { ...i };
+  const e = t, c = (a) => (typeof e[a] == "string" ? e[a] : "") || "";
   return {
-    fullName: n("fullName"),
-    email: n("email"),
-    phone: n("phone"),
-    linkedInUrl: n("linkedInUrl"),
-    portfolioUrl: n("portfolioUrl"),
-    githubUrl: n("githubUrl"),
-    city: n("city"),
-    country: n("country"),
-    workAuthorization: n("workAuthorization"),
-    sponsorship: n("sponsorship"),
-    salaryExpectation: n("salaryExpectation"),
-    noticePeriod: n("noticePeriod"),
-    skills: n("skills"),
-    summary: n("summary"),
-    coverLetter: n("coverLetter")
+    fullName: c("fullName"),
+    email: c("email"),
+    phone: c("phone"),
+    linkedInUrl: c("linkedInUrl"),
+    portfolioUrl: c("portfolioUrl"),
+    githubUrl: c("githubUrl"),
+    city: c("city"),
+    country: c("country"),
+    workAuthorization: c("workAuthorization"),
+    sponsorship: c("sponsorship"),
+    salaryExpectation: c("salaryExpectation"),
+    noticePeriod: c("noticePeriod"),
+    skills: c("skills"),
+    summary: c("summary"),
+    coverLetter: c("coverLetter")
   };
 }
-function L(t) {
-  var c, e;
+function $(t) {
+  var i, e;
   return t != null && t.upload ? {
     fullName: t.full_name || "",
     email: t.email || "",
     phone: t.phone || "",
     skills: t.skills.join(", "),
-    linkedInUrl: t.links.find((n) => /linkedin/i.test(n)) || "",
-    portfolioUrl: t.links.find((n) => !/linkedin|github/i.test(n)) || "",
-    githubUrl: t.links.find((n) => /github/i.test(n)) || "",
+    linkedInUrl: t.links.find((c) => /linkedin/i.test(c)) || "",
+    portfolioUrl: t.links.find((c) => !/linkedin|github/i.test(c)) || "",
+    githubUrl: t.links.find((c) => /github/i.test(c)) || "",
     summary: [
-      (c = t.experience[0]) != null && c.title ? `Most recent role: ${t.experience[0].title}` : "",
+      (i = t.experience[0]) != null && i.title ? `Most recent role: ${t.experience[0].title}` : "",
       (e = t.education[0]) != null && e.school ? `Education: ${t.education[0].school}` : ""
     ].filter(Boolean).join(`
 `)
@@ -132,54 +80,48 @@ function L(t) {
 }
 function _(t) {
   if (!t || typeof t != "object") return m;
-  const c = t;
+  const i = t;
   return {
     ...m,
-    ...c,
-    fields: { ...m.fields, ...c.fields || {} }
+    ...i,
+    fields: { ...m.fields, ...i.fields || {} }
   };
 }
-async function E() {
+async function T() {
   const t = await chrome.storage.sync.get(["autofillSettings"]);
   return _(t.autofillSettings);
 }
-async function I(t) {
-  const c = await l();
-  let e = { ...y };
+async function A(t) {
+  const i = await l();
+  let e = { ...w };
   try {
-    const a = await fetch(`${c}/me/applicant-profile`, { method: "GET", headers: await u() });
-    a.ok && (e = U(await a.json()));
+    const c = await fetch(`${i}/me/applicant-profile`, { method: "GET", headers: await u() });
+    c.ok && (e = U(await c.json()));
   } catch {
   }
   try {
-    const a = await chrome.storage.local.get(["selectedResumeId"]), o = typeof a.selectedResumeId == "number" ? a.selectedResumeId : void 0, i = o ? `/resumes/${o}/profile` : "/resumes/profile", r = await fetch(`${c}${i}`, { method: "GET", headers: await u() });
-    r.ok && (e = { ...e, ...L(await r.json()) });
+    const c = await chrome.storage.local.get(["selectedResumeId"]), a = typeof c.selectedResumeId == "number" ? c.selectedResumeId : void 0, r = a ? `/resumes/${a}/profile` : "/resumes/profile", n = await fetch(`${i}${r}`, { method: "GET", headers: await u() });
+    n.ok && (e = { ...e, ...$(await n.json()) });
   } catch {
   }
-  let n = [];
-  try {
-    n = await chrome.cookies.getAll({ url: t });
-  } catch {
-    n = [];
-  }
-  return $(e, n);
+  return e;
 }
-function A(t) {
+function E(t) {
   return !t || t.startsWith("chrome://") || t.startsWith("edge://") || t.startsWith("about:") || t.startsWith("devtools:") || t.startsWith("chrome-extension://") ? !1 : t.startsWith("http://") || t.startsWith("https://");
 }
-async function S() {
-  const c = (await chrome.tabs.query({ active: !0, currentWindow: !0 }))[0], e = c == null ? void 0 : c.id, n = c == null ? void 0 : c.url;
-  if (typeof e != "number" || !n || !A(n))
+async function I() {
+  const i = (await chrome.tabs.query({ active: !0, currentWindow: !0 }))[0], e = i == null ? void 0 : i.id, c = i == null ? void 0 : i.url;
+  if (typeof e != "number" || !c || !E(c))
     return { filled: [], skippedEmpty: ["active tab"] };
-  const a = await I(n), o = await E();
+  const a = await A(), r = await T();
   try {
-    return await chrome.tabs.sendMessage(e, { type: "AUTOFILL_TAB", profile: a, settings: o });
-  } catch (i) {
-    const r = i instanceof Error ? i.message : String(i);
-    return { filled: [], skippedEmpty: [`page script: ${r || "not reachable"}`] };
+    return await chrome.tabs.sendMessage(e, { type: "AUTOFILL_TAB", profile: a, settings: r });
+  } catch (n) {
+    const o = n instanceof Error ? n.message : String(n);
+    return { filled: [], skippedEmpty: [`page script: ${o || "not reachable"}`] };
   }
 }
-function v() {
+function P() {
   chrome.contextMenus && chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: g,
@@ -189,46 +131,56 @@ function v() {
   });
 }
 chrome.runtime.onInstalled.addListener(() => {
-  v(), w();
+  P(), p();
 });
-var p;
-(p = chrome.contextMenus) == null || p.onClicked.addListener((t, c) => {
-  t.menuItemId !== g || typeof (c == null ? void 0 : c.id) != "number" || !c.url || A(c.url) && (async () => {
-    const e = await I(c.url), n = await E();
+var y;
+(y = chrome.contextMenus) == null || y.onClicked.addListener((t, i) => {
+  t.menuItemId !== g || typeof (i == null ? void 0 : i.id) != "number" || !i.url || E(i.url) && (async () => {
+    const e = await A(i.url), c = await T();
     try {
-      await chrome.tabs.sendMessage(c.id, { type: "AUTOFILL_TAB", profile: e, settings: n });
+      await chrome.tabs.sendMessage(i.id, { type: "AUTOFILL_TAB", profile: e, settings: c });
     } catch {
     }
   })();
 });
 var k;
 (k = chrome.commands) == null || k.onCommand.addListener((t) => {
-  t === "kiwijob-autofill" && S();
+  t === "kiwijob-autofill" && I();
 });
-async function f(t) {
-  const c = await t.text();
+async function h(t) {
+  const i = await t.text();
   try {
-    const n = JSON.parse(c).detail;
-    if (typeof n == "string") return n;
-    if (Array.isArray(n))
-      return n.map((a) => a && typeof a == "object" && "msg" in a ? String(a.msg) : String(a)).join("; ");
+    const c = JSON.parse(i).detail;
+    if (typeof c == "string") return c;
+    if (Array.isArray(c))
+      return c.map((a) => a && typeof a == "object" && "msg" in a ? String(a.msg) : String(a)).join("; ");
   } catch {
   }
-  return c.slice(0, 800);
+  return i.slice(0, 800);
 }
 async function l() {
   const t = await chrome.storage.sync.get(["apiBase"]);
-  return typeof t.apiBase == "string" && t.apiBase.length ? t.apiBase.replace(/\/$/, "") : P;
+  return typeof t.apiBase == "string" && t.apiBase.length ? t.apiBase.replace(/\/$/, "") : b;
+}
+async function S() {
+  const t = await chrome.storage.sync.get(["authToken", "authUser"]), i = typeof t.authToken == "string" ? t.authToken.trim() : "", e = t.authUser && typeof t.authUser == "object" && typeof t.authUser.email == "string" ? t.authUser : null;
+  return { token: i, user: e };
 }
 async function u() {
-  const t = await chrome.storage.sync.get(["mockUserId"]), c = {}, e = typeof t.mockUserId == "string" ? t.mockUserId.trim() : "";
-  return e && !/https?:\/\//i.test(e) && /^\d+$/.test(e) && (c["X-Mock-User-Id"] = e), c;
+  const { token: t } = await S(), i = {};
+  return t && (i.Authorization = `Bearer ${t}`), i;
 }
-async function h() {
+async function f() {
   return { "Content-Type": "application/json", ...await u() };
 }
-chrome.runtime.onMessage.addListener((t, c, e) => ((async () => {
-  var n;
+async function L(t) {
+  const i = t;
+  if (typeof i.access_token != "string" || !i.user || typeof i.user != "object")
+    throw new Error("Invalid auth response");
+  return await chrome.storage.sync.set({ authToken: i.access_token, authUser: i.user }), i;
+}
+chrome.runtime.onMessage.addListener((t, i, e) => ((async () => {
+  var c;
   try {
     if (t.type === "GET_API_BASE") {
       e({ ok: !0, data: await l() });
@@ -238,42 +190,84 @@ chrome.runtime.onMessage.addListener((t, c, e) => ((async () => {
       await chrome.storage.sync.set({ apiBase: t.apiBase }), e({ ok: !0, data: await l() });
       return;
     }
+    if (t.type === "AUTH_STATE") {
+      const a = await l(), r = await S();
+      if (!r.token) {
+        e({ ok: !0, data: r });
+        return;
+      }
+      try {
+        const n = await fetch(`${a}/auth/me`, { method: "GET", credentials: "include", headers: await u() });
+        if (n.ok) {
+          const o = await n.json();
+          await chrome.storage.sync.set({ authUser: o }), e({ ok: !0, data: { token: r.token, user: o } });
+          return;
+        }
+        await chrome.storage.sync.remove(["authToken", "authUser"]), e({ ok: !0, data: { token: "", user: null } });
+      } catch {
+        e({ ok: !0, data: r });
+      }
+      return;
+    }
+    if (t.type === "AUTH_LOGIN" || t.type === "AUTH_REGISTER") {
+      const a = await l(), r = t.type === "AUTH_LOGIN" ? "/auth/login" : "/auth/register", n = t.type === "AUTH_LOGIN" ? { email: t.email, password: t.password } : { email: t.email, password: t.password, display_name: t.displayName || "" }, o = await fetch(`${a}${r}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(n)
+      });
+      if (!o.ok) {
+        e({ ok: !1, error: await h(o) });
+        return;
+      }
+      e({ ok: !0, data: await L(await o.json()) });
+      return;
+    }
+    if (t.type === "AUTH_LOGOUT") {
+      const a = await l();
+      try {
+        await fetch(`${a}/auth/logout`, { method: "POST", credentials: "include", headers: await u() });
+      } catch {
+      }
+      await chrome.storage.sync.remove(["authToken", "authUser"]), e({ ok: !0, data: { token: "", user: null } });
+      return;
+    }
     if (t.type === "AUTOFILL_ACTIVE_TAB") {
-      e({ ok: !0, data: await S() });
+      e({ ok: !0, data: await I() });
       return;
     }
     if (t.type === "SAVE_JOB") {
       const a = await l();
-      let o;
+      let r;
       try {
-        o = await fetch(`${a}/jobs/save`, {
+        r = await fetch(`${a}/jobs/save`, {
           method: "POST",
-          headers: await h(),
+          headers: await f(),
           body: JSON.stringify(t.payload)
         });
-      } catch (r) {
-        const s = r instanceof Error ? r.message : String(r);
+      } catch (o) {
+        const s = o instanceof Error ? o.message : String(o);
         e({
           ok: !1,
           error: s.includes("Failed to fetch") || s.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend (uvicorn) and open ${a}/health in a tab to verify.` : s
         });
         return;
       }
-      if (!o.ok) {
-        e({ ok: !1, error: await f(o) });
+      if (!r.ok) {
+        e({ ok: !1, error: await h(r) });
         return;
       }
-      const i = await o.json();
-      await chrome.storage.local.set({ lastApplicationId: i.id }), e({ ok: !0, data: i });
+      const n = await r.json();
+      await chrome.storage.local.set({ lastApplicationId: n.id }), e({ ok: !0, data: n });
       return;
     }
     if (t.type === "TRACK_EVENT") {
       const a = await l();
-      let o;
+      let r;
       try {
-        o = await fetch(`${a}/events/track`, {
+        r = await fetch(`${a}/events/track`, {
           method: "POST",
-          headers: await h(),
+          headers: await f(),
           body: JSON.stringify(t.payload)
         });
       } catch (s) {
@@ -284,156 +278,156 @@ chrome.runtime.onMessage.addListener((t, c, e) => ((async () => {
         });
         return;
       }
-      if (!o.ok) {
-        e({ ok: !1, error: await f(o) });
+      if (!r.ok) {
+        e({ ok: !1, error: await h(r) });
         return;
       }
-      const i = await o.json(), r = (n = i.application) == null ? void 0 : n.id;
-      typeof r == "number" && await chrome.storage.local.set({ lastApplicationId: r }), e({ ok: !0, data: i });
+      const n = await r.json(), o = (c = n.application) == null ? void 0 : c.id;
+      typeof o == "number" && await chrome.storage.local.set({ lastApplicationId: o }), e({ ok: !0, data: n });
       return;
     }
     if (t.type === "PREVIEW_MATCH") {
       const a = await l();
-      let o;
+      let r;
       try {
-        o = await fetch(`${a}/match/preview`, {
+        r = await fetch(`${a}/match/preview`, {
           method: "POST",
-          headers: await h(),
+          headers: await f(),
           body: JSON.stringify(t.payload)
         });
-      } catch (i) {
-        const r = i instanceof Error ? i.message : String(i);
+      } catch (n) {
+        const o = n instanceof Error ? n.message : String(n);
         e({
           ok: !1,
-          error: r.includes("Failed to fetch") || r.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : r
+          error: o.includes("Failed to fetch") || o.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : o
         });
         return;
       }
-      if (!o.ok) {
-        e({ ok: !1, error: await f(o) });
+      if (!r.ok) {
+        e({ ok: !1, error: await h(r) });
         return;
       }
-      e({ ok: !0, data: await o.json() });
+      e({ ok: !0, data: await r.json() });
       return;
     }
     if (t.type === "ANALYZE_MATCH") {
       const a = await l();
-      let o;
+      let r;
       try {
-        o = await fetch(`${a}/match/analyze`, {
+        r = await fetch(`${a}/match/analyze`, {
           method: "POST",
-          headers: await h(),
+          headers: await f(),
           body: JSON.stringify({ job_id: t.jobId })
         });
-      } catch (r) {
-        const s = r instanceof Error ? r.message : String(r);
+      } catch (o) {
+        const s = o instanceof Error ? o.message : String(o);
         e({
           ok: !1,
           error: s.includes("Failed to fetch") || s.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : s
         });
         return;
       }
-      if (!o.ok) {
-        e({ ok: !1, error: await f(o) });
+      if (!r.ok) {
+        e({ ok: !1, error: await h(r) });
         return;
       }
-      const i = await o.json();
-      e({ ok: !0, data: i });
+      const n = await r.json();
+      e({ ok: !0, data: n });
       return;
     }
     if (t.type === "GET_MATCH") {
       const a = await l();
-      let o;
+      let r;
       try {
-        o = await fetch(`${a}/match/${t.jobId}`, {
+        r = await fetch(`${a}/match/${t.jobId}`, {
           method: "GET",
           headers: await u()
         });
-      } catch (r) {
-        const s = r instanceof Error ? r.message : String(r);
+      } catch (o) {
+        const s = o instanceof Error ? o.message : String(o);
         e({
           ok: !1,
           error: s.includes("Failed to fetch") || s.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : s
         });
         return;
       }
-      if (!o.ok) {
-        e({ ok: !1, error: await f(o) });
+      if (!r.ok) {
+        e({ ok: !1, error: await h(r) });
         return;
       }
-      const i = await o.json();
-      e({ ok: !0, data: i });
+      const n = await r.json();
+      e({ ok: !0, data: n });
       return;
     }
     if (t.type === "GET_INSIGHTS") {
       const a = await l();
-      let o;
+      let r;
       try {
-        const i = Math.max(1, Math.min(365, Number(t.days) || 7)), r = new URLSearchParams({ days: String(i) });
-        t.start && r.set("start", t.start), t.end && r.set("end", t.end), o = await fetch(`${a}/analytics/insights?${r.toString()}`, {
+        const n = Math.max(1, Math.min(365, Number(t.days) || 7)), o = new URLSearchParams({ days: String(n) });
+        t.start && o.set("start", t.start), t.end && o.set("end", t.end), r = await fetch(`${a}/analytics/insights?${o.toString()}`, {
           method: "GET",
           headers: await u()
         });
-      } catch (i) {
-        const r = i instanceof Error ? i.message : String(i);
+      } catch (n) {
+        const o = n instanceof Error ? n.message : String(n);
         e({
           ok: !1,
-          error: r.includes("Failed to fetch") || r.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : r
+          error: o.includes("Failed to fetch") || o.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : o
         });
         return;
       }
-      if (!o.ok) {
-        e({ ok: !1, error: await f(o) });
+      if (!r.ok) {
+        e({ ok: !1, error: await h(r) });
         return;
       }
-      e({ ok: !0, data: await o.json() });
+      e({ ok: !0, data: await r.json() });
       return;
     }
     if (t.type === "GET_CV_PROFILE") {
       const a = await l();
-      let o;
+      let r;
       try {
-        const i = typeof t.resumeId == "number" ? `/resumes/${t.resumeId}/profile` : "/resumes/profile";
-        o = await fetch(`${a}${i}`, {
+        const n = typeof t.resumeId == "number" ? `/resumes/${t.resumeId}/profile` : "/resumes/profile";
+        r = await fetch(`${a}${n}`, {
           method: "GET",
           headers: await u()
         });
-      } catch (i) {
-        const r = i instanceof Error ? i.message : String(i);
+      } catch (n) {
+        const o = n instanceof Error ? n.message : String(n);
         e({
           ok: !1,
-          error: r.includes("Failed to fetch") || r.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : r
+          error: o.includes("Failed to fetch") || o.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : o
         });
         return;
       }
-      if (!o.ok) {
-        e({ ok: !1, error: await f(o) });
+      if (!r.ok) {
+        e({ ok: !1, error: await h(r) });
         return;
       }
-      e({ ok: !0, data: await o.json() });
+      e({ ok: !0, data: await r.json() });
       return;
     }
     if (t.type === "GET_RESUMES") {
       const a = await l();
-      let o;
+      let r;
       try {
-        o = await fetch(`${a}/resumes`, {
+        r = await fetch(`${a}/resumes`, {
           method: "GET",
           headers: await u()
         });
-      } catch (i) {
-        const r = i instanceof Error ? i.message : String(i);
+      } catch (n) {
+        const o = n instanceof Error ? n.message : String(n);
         e({
           ok: !1,
-          error: r.includes("Failed to fetch") || r.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : r
+          error: o.includes("Failed to fetch") || o.includes("NetworkError") ? `Cannot reach API at ${a}. Start the backend and check ${a}/health.` : o
         });
         return;
       }
-      if (!o.ok) {
-        e({ ok: !1, error: await f(o) });
+      if (!r.ok) {
+        e({ ok: !1, error: await h(r) });
         return;
       }
-      e({ ok: !0, data: await o.json() });
+      e({ ok: !0, data: await r.json() });
       return;
     }
     e({ ok: !1, error: "Unknown message" });

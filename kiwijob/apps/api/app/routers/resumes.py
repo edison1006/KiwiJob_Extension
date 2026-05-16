@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlmodel import Session, select
 
-from app.deps import ensure_demo_user, get_mock_user_id, get_or_create_user
+from app.deps import get_current_user
 from app.db.session import get_session
-from app.models import Resume
+from app.models import Resume, User
 from app.schemas import CvProfileOut, ResumeOut
 from app.services.resume_parse import extract_cv_text, parse_cv_profile, store_resume_file
 
@@ -22,10 +22,10 @@ def _profile_out(row: Resume) -> CvProfileOut:
 @router.post("/upload", response_model=ResumeOut)
 async def upload_resume(
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
     file: UploadFile = File(...),
 ):
-    user = get_or_create_user(session, get_mock_user_id(x_mock_user_id))
+    assert user.id is not None
 
     filename = file.filename or "resume.bin"
     data = await file.read()
@@ -54,11 +54,10 @@ async def upload_resume(
 @router.get("", response_model=list[ResumeOut])
 def list_resumes(
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
 ):
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
-    rows = session.exec(select(Resume).where(Resume.user_id == uid).order_by(Resume.created_at.desc())).all()
+    assert user.id is not None
+    rows = session.exec(select(Resume).where(Resume.user_id == user.id).order_by(Resume.created_at.desc())).all()
     out: list[ResumeOut] = []
     for r in rows:
         preview = (r.extracted_text or "")[:280].replace("\n", " ")
@@ -76,11 +75,10 @@ def list_resumes(
 @router.get("/profile", response_model=CvProfileOut)
 def latest_resume_profile(
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
 ):
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
-    row = session.exec(select(Resume).where(Resume.user_id == uid).order_by(Resume.created_at.desc())).first()
+    assert user.id is not None
+    row = session.exec(select(Resume).where(Resume.user_id == user.id).order_by(Resume.created_at.desc())).first()
     if not row:
         return CvProfileOut()
     return _profile_out(row)
@@ -90,11 +88,10 @@ def latest_resume_profile(
 def resume_profile(
     resume_id: int,
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
 ):
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
-    row = session.exec(select(Resume).where(Resume.id == resume_id, Resume.user_id == uid)).first()
+    assert user.id is not None
+    row = session.exec(select(Resume).where(Resume.id == resume_id, Resume.user_id == user.id)).first()
     if not row:
         raise HTTPException(status_code=404, detail="Resume not found")
     return _profile_out(row)
@@ -104,11 +101,10 @@ def resume_profile(
 def delete_resume(
     resume_id: int,
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
 ):
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
-    row = session.exec(select(Resume).where(Resume.id == resume_id, Resume.user_id == uid)).first()
+    assert user.id is not None
+    row = session.exec(select(Resume).where(Resume.id == resume_id, Resume.user_id == user.id)).first()
     if not row:
         raise HTTPException(status_code=404, detail="Resume not found")
     stored_path = row.stored_path

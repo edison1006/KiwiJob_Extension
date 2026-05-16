@@ -3,7 +3,6 @@ import type { ApplicantAutofillProfile, CvProfileDTO } from "@kiwijob/shared";
 import { EMPTY_APPLICANT_AUTOFILL_PROFILE } from "@kiwijob/shared";
 import type { AutofillSettings, AutofillResult } from "./autofill";
 import { DEFAULT_AUTOFILL_SETTINGS } from "./autofill";
-import { mergeApplicantProfileWithCookies } from "./autofillMergeCookies";
 
 const DEFAULT_API = "http://localhost:8000";
 
@@ -85,31 +84,26 @@ async function buildAutofillProfileForTab(tabUrl: string): Promise<ApplicantAuto
   const api = await getApiBase();
   let apiProfile = { ...EMPTY_APPLICANT_AUTOFILL_PROFILE };
   try {
-    const res = await fetch(`${api}/me/applicant-profile`, { method: "GET", headers: await mockUserIdHeaders() });
+    const res = await fetch(`${api}/me/applicant-profile`, { method: "GET", headers: await authHeaders() });
     if (res.ok) {
       apiProfile = parseApplicantProfileJson(await res.json());
     }
   } catch {
-    /* offline API — still try cookies */
+    /* offline API — CV profile may still be available if the API comes back later. */
   }
   try {
     const local = await chrome.storage.local.get(["selectedResumeId"]);
     const resumeId = typeof local.selectedResumeId === "number" ? local.selectedResumeId : undefined;
     const path = resumeId ? `/resumes/${resumeId}/profile` : "/resumes/profile";
-    const res = await fetch(`${api}${path}`, { method: "GET", headers: await mockUserIdHeaders() });
+    const res = await fetch(`${api}${path}`, { method: "GET", headers: await authHeaders() });
     if (res.ok) {
       apiProfile = { ...apiProfile, ...profileFromCv((await res.json()) as CvProfileDTO) };
     }
   } catch {
     /* CV profile is best-effort; manual applicant profile remains valid. */
   }
-  let cookies: chrome.cookies.Cookie[] = [];
-  try {
-    cookies = await chrome.cookies.getAll({ url: tabUrl });
-  } catch {
-    cookies = [];
-  }
-  return mergeApplicantProfileWithCookies(apiProfile, cookies);
+  void tabUrl;
+  return apiProfile;
 }
 
 function isInjectableUrl(url: string | undefined): boolean {
@@ -201,18 +195,36 @@ async function getApiBase(): Promise<string> {
   return typeof v.apiBase === "string" && v.apiBase.length ? v.apiBase.replace(/\/$/, "") : DEFAULT_API;
 }
 
-async function mockUserIdHeaders(): Promise<Record<string, string>> {
-  const v = await chrome.storage.sync.get(["mockUserId"]);
+async function authState(): Promise<{ token: string; user: { id: number; email: string; display_name: string } | null }> {
+  const v = await chrome.storage.sync.get(["authToken", "authUser"]);
+  const token = typeof v.authToken === "string" ? v.authToken.trim() : "";
+  const user =
+    v.authUser && typeof v.authUser === "object" && typeof v.authUser.email === "string"
+      ? (v.authUser as { id: number; email: string; display_name: string })
+      : null;
+  return { token, user };
+}
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const { token } = await authState();
   const h: Record<string, string> = {};
-  const raw = typeof v.mockUserId === "string" ? v.mockUserId.trim() : "";
-  if (raw && !/https?:\/\//i.test(raw) && /^\d+$/.test(raw)) {
-    h["X-Mock-User-Id"] = raw;
+  if (token) {
+    h.Authorization = `Bearer ${token}`;
   }
   return h;
 }
 
-async function mockHeaders(): Promise<HeadersInit> {
-  return { "Content-Type": "application/json", ...(await mockUserIdHeaders()) };
+async function jsonHeaders(): Promise<HeadersInit> {
+  return { "Content-Type": "application/json", ...(await authHeaders()) };
+}
+
+async function storeAuth(data: unknown): Promise<unknown> {
+  const body = data as { access_token?: unknown; user?: unknown };
+  if (typeof body.access_token !== "string" || !body.user || typeof body.user !== "object") {
+    throw new Error("Invalid auth response");
+  }
+  await chrome.storage.sync.set({ authToken: body.access_token, authUser: body.user });
+  return body;
 }
 
 chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse: (r: BgResponse) => void) => {
@@ -227,6 +239,59 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         sendResponse({ ok: true, data: await getApiBase() });
         return;
       }
+      if (request.type === "AUTH_STATE") {
+        const api = await getApiBase();
+        const state = await authState();
+        if (!state.token) {
+          sendResponse({ ok: true, data: state });
+          return;
+        }
+        try {
+          const res = await fetch(`${api}/auth/me`, { method: "GET", credentials: "include", headers: await authHeaders() });
+          if (res.ok) {
+            const user = await res.json();
+            await chrome.storage.sync.set({ authUser: user });
+            sendResponse({ ok: true, data: { token: state.token, user } });
+            return;
+          }
+          await chrome.storage.sync.remove(["authToken", "authUser"]);
+          sendResponse({ ok: true, data: { token: "", user: null } });
+        } catch {
+          sendResponse({ ok: true, data: state });
+        }
+        return;
+      }
+      if (request.type === "AUTH_LOGIN" || request.type === "AUTH_REGISTER") {
+        const api = await getApiBase();
+        const endpoint = request.type === "AUTH_LOGIN" ? "/auth/login" : "/auth/register";
+        const payload =
+          request.type === "AUTH_LOGIN"
+            ? { email: request.email, password: request.password }
+            : { email: request.email, password: request.password, display_name: request.displayName || "" };
+        const res = await fetch(`${api}${endpoint}`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          sendResponse({ ok: false, error: await formatApiError(res) });
+          return;
+        }
+        sendResponse({ ok: true, data: await storeAuth(await res.json()) });
+        return;
+      }
+      if (request.type === "AUTH_LOGOUT") {
+        const api = await getApiBase();
+        try {
+          await fetch(`${api}/auth/logout`, { method: "POST", credentials: "include", headers: await authHeaders() });
+        } catch {
+          /* network logout is best-effort; local session is cleared either way. */
+        }
+        await chrome.storage.sync.remove(["authToken", "authUser"]);
+        sendResponse({ ok: true, data: { token: "", user: null } });
+        return;
+      }
       if (request.type === "AUTOFILL_ACTIVE_TAB") {
         sendResponse({ ok: true, data: await runAutofillActiveTab() });
         return;
@@ -237,7 +302,7 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         try {
           res = await fetch(`${api}/jobs/save`, {
             method: "POST",
-            headers: await mockHeaders(),
+            headers: await jsonHeaders(),
             body: JSON.stringify(request.payload),
           });
         } catch (e) {
@@ -266,7 +331,7 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         try {
           res = await fetch(`${api}/events/track`, {
             method: "POST",
-            headers: await mockHeaders(),
+            headers: await jsonHeaders(),
             body: JSON.stringify(request.payload),
           });
         } catch (e) {
@@ -298,7 +363,7 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         try {
           res = await fetch(`${api}/match/preview`, {
             method: "POST",
-            headers: await mockHeaders(),
+            headers: await jsonHeaders(),
             body: JSON.stringify(request.payload),
           });
         } catch (e) {
@@ -325,7 +390,7 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         try {
           res = await fetch(`${api}/match/analyze`, {
             method: "POST",
-            headers: await mockHeaders(),
+            headers: await jsonHeaders(),
             body: JSON.stringify({ job_id: request.jobId }),
           });
         } catch (e) {
@@ -353,7 +418,7 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         try {
           res = await fetch(`${api}/match/${request.jobId}`, {
             method: "GET",
-            headers: await mockUserIdHeaders(),
+            headers: await authHeaders(),
           });
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
@@ -384,7 +449,7 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
           if (request.end) params.set("end", request.end);
           res = await fetch(`${api}/analytics/insights?${params.toString()}`, {
             method: "GET",
-            headers: await mockUserIdHeaders(),
+            headers: await authHeaders(),
           });
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
@@ -411,7 +476,7 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
           const path = typeof request.resumeId === "number" ? `/resumes/${request.resumeId}/profile` : "/resumes/profile";
           res = await fetch(`${api}${path}`, {
             method: "GET",
-            headers: await mockUserIdHeaders(),
+            headers: await authHeaders(),
           });
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
@@ -437,7 +502,7 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         try {
           res = await fetch(`${api}/resumes`, {
             method: "GET",
-            headers: await mockUserIdHeaders(),
+            headers: await authHeaders(),
           });
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);

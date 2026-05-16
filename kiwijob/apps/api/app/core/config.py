@@ -15,7 +15,9 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/kiwijob.db"
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
-    mock_user_id: int = 1
+    jwt_secret_key: str = "change-me-in-production"
+    jwt_expires_minutes: int = 60 * 24 * 14
+    secure_auth_cookie: bool = False
     resume_storage_dir: str = "./data/resumes"
     # Comma-separated browser origins, or * (default: dev-friendly for web + MV3 extension chrome-extension://).
     cors_origins: str = "*"

@@ -7,7 +7,9 @@ from sqlmodel import Field, Relationship, SQLModel
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    email: str = Field(default="demo@kiwijob.local", index=True)
+    email: str = Field(default="demo@kiwijob.local", index=True, unique=True)
+    password_hash: str = Field(default="")
+    display_name: str = Field(default="")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     applicant_profile: Optional[dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
 

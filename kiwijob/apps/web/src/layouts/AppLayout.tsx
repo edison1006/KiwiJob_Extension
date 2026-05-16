@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { useState } from "react";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth";
 import {
   IconBell,
   IconBriefcase,
@@ -13,7 +14,7 @@ import {
   IconRefer,
   IconServices,
 } from "../components/nav/SidebarIcons";
-import { UserMenu, KIWIJOB_PREFS_EVENT, readDisplayName, writeDisplayName } from "../components/UserMenu";
+import { UserMenu } from "../components/UserMenu";
 
 const LS_SIDEBAR_COLLAPSED = "kiwijob_sidebar_collapsed";
 
@@ -34,24 +35,13 @@ const premiumGradientClass =
   "animate-[premium-gradient_3s_ease_infinite] bg-[linear-gradient(90deg,#7c3aed,#c026d3,#8b5cf6,#7c3aed)] bg-[length:220%_100%] bg-clip-text text-transparent";
 
 export function AppLayout() {
-  const [mockUserId, setMockUserId] = useState(() => localStorage.getItem("kiwijob_mock_user_id") ?? "");
-  const [displayName, setDisplayName] = useState(() => readDisplayName());
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem(LS_SIDEBAR_COLLAPSED) === "1");
 
-  useEffect(() => {
-    const sync = () => {
-      setDisplayName(readDisplayName());
-      setMockUserId(localStorage.getItem("kiwijob_mock_user_id") ?? "");
-    };
-    window.addEventListener(KIWIJOB_PREFS_EVENT, sync);
-    return () => window.removeEventListener(KIWIJOB_PREFS_EVENT, sync);
-  }, []);
-
-  function clearLocalSession() {
-    localStorage.removeItem("kiwijob_mock_user_id");
-    writeDisplayName("");
-    setMockUserId("");
-    setDisplayName("");
+  async function signOut() {
+    await logout();
+    navigate("/login", { replace: true });
   }
 
   function toggleSidebar() {
@@ -63,6 +53,7 @@ export function AppLayout() {
   }
 
   const issuesUrl = import.meta.env.VITE_ISSUES_URL?.trim();
+  const displayName = user?.display_name || user?.email || "Account";
 
   const utilBtn =
     "rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/30";
@@ -203,7 +194,7 @@ export function AppLayout() {
             </button>
           </div>
           <div className={`mx-1 h-6 w-px shrink-0 self-center bg-slate-200 ${sidebarCollapsed ? "lg:h-px lg:w-8" : ""}`} aria-hidden />
-          <UserMenu displayName={displayName} mockUserId={mockUserId} onSignOut={clearLocalSession} variant="sidebar" compactRow />
+          <UserMenu displayName={displayName} onSignOut={signOut} variant="sidebar" compactRow />
         </div>
       </aside>
       <main className="flex min-w-0 flex-1 flex-col">

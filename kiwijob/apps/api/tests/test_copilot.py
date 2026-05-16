@@ -3,12 +3,11 @@ from fastapi.testclient import TestClient
 from app.db.session import get_engine
 from app.main import app
 from app.models import Application, Resume
+from conftest import auth_headers
 from sqlmodel import Session, select
 
 
 def test_copilot_answer_uses_profile_fallback() -> None:
-    headers = {"X-Mock-User-Id": "42"}
-
     profile = {
         "fullName": "Ada Lovelace",
         "email": "ada@example.com",
@@ -27,6 +26,7 @@ def test_copilot_answer_uses_profile_fallback() -> None:
         "coverLetter": "I build reliable software for real users.",
     }
     with TestClient(app) as client:
+        headers, _ = auth_headers(client)
         res = client.put("/me/applicant-profile", json=profile, headers=headers)
         assert res.status_code == 200
 
@@ -43,8 +43,8 @@ def test_copilot_answer_uses_profile_fallback() -> None:
 
 
 def test_copilot_autofill_plan_returns_field_answers() -> None:
-    headers = {"X-Mock-User-Id": "43"}
     with TestClient(app) as client:
+        headers, _ = auth_headers(client)
         client.put(
             "/me/applicant-profile",
             json={"email": "candidate@example.com", "workAuthorization": "Yes"},
@@ -68,8 +68,8 @@ def test_copilot_autofill_plan_returns_field_answers() -> None:
 
 
 def test_copilot_cover_letter_fallback() -> None:
-    headers = {"X-Mock-User-Id": "44"}
     with TestClient(app) as client:
+        headers, _ = auth_headers(client)
         client.put(
             "/me/applicant-profile",
             json={"summary": "I enjoy building useful data products."},
@@ -84,7 +84,6 @@ def test_copilot_cover_letter_fallback() -> None:
 
 
 def test_latest_resume_profile_returns_uploaded_cv_fields() -> None:
-    user_id = 881
     text = (
         "Edison Zhang\n"
         "edison@example.com\n\n"
@@ -97,33 +96,91 @@ def test_latest_resume_profile_returns_uploaded_cv_fields() -> None:
         "Languages\n"
         "English\n"
     )
-    with Session(get_engine()) as session:
-        session.add(Resume(user_id=user_id, filename="resume.pdf", stored_path="/tmp/resume.pdf", extracted_text=text))
-        session.commit()
-
     with TestClient(app) as client:
-        res = client.get("/resumes/profile", headers={"X-Mock-User-Id": str(user_id)})
+        headers, user_id = auth_headers(client)
+        with Session(get_engine()) as session:
+            session.add(Resume(user_id=user_id, filename="resume.pdf", stored_path="/tmp/resume.pdf", extracted_text=text))
+            session.commit()
+        res = client.get("/resumes/profile", headers=headers)
 
     assert res.status_code == 200
     body = res.json()
     assert body["email"] == "edison@example.com"
+    assert body["education"][0]["school"] == "York College"
     assert "Python" in body["skills"]
     assert body["upload"]["filename"] == "resume.pdf"
     assert isinstance(body["upload"]["id"], int)
 
 
-def test_resume_delete_removes_selected_cv() -> None:
-    user_id = 882
-    with Session(get_engine()) as session:
-        row = Resume(user_id=user_id, filename="delete-me.pdf", stored_path="/tmp/kiwijob-delete-me.pdf", extracted_text="Delete Me\nme@example.com")
-        session.add(row)
-        session.commit()
-        session.refresh(row)
-        resume_id = row.id
-
-    assert resume_id is not None
-    headers = {"X-Mock-User-Id": str(user_id)}
+def test_resume_profile_detects_common_section_heading_variants() -> None:
+    text = (
+        "Edison Zhang\n"
+        "edison@example.com\n\n"
+        "Professional Summary\n"
+        "Data analyst focused on useful data products.\n\n"
+        "Education & Qualifications\n"
+        "University of Auckland\n"
+        "Bachelor of Commerce\n"
+        "2020 - 2023\n\n"
+        "Professional Experience\n"
+        "Data Analyst\n"
+        "Acme Ltd\n"
+        "2023 - present\n\n"
+        "Skills\n"
+        "SQL Power BI\n\n"
+        "Certifications\n"
+        "Microsoft Power BI Data Analyst\n"
+    )
     with TestClient(app) as client:
+        headers, user_id = auth_headers(client)
+        with Session(get_engine()) as session:
+            session.add(Resume(user_id=user_id, filename="variant-resume.pdf", stored_path="/tmp/variant-resume.pdf", extracted_text=text))
+            session.commit()
+        res = client.get("/resumes/profile", headers=headers)
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["summary"] == "Data analyst focused on useful data products."
+    assert body["education"][0]["school"] == "University of Auckland"
+    assert body["experience"][0]["title"] == "Data Analyst"
+    assert body["certifications"] == ["Microsoft Power BI Data Analyst"]
+
+
+def test_resume_profile_uses_filename_name_before_email_fallback() -> None:
+    text = (
+        "edisonzhang0321@gmail.com\n\n"
+        "Skills\n"
+        "SQL Power BI\n"
+    )
+    with TestClient(app) as client:
+        headers, user_id = auth_headers(client)
+        with Session(get_engine()) as session:
+            session.add(
+                Resume(
+                    user_id=user_id,
+                    filename="Edison(Xiaoyu)_Zhang_Resume.pdf",
+                    stored_path="/tmp/edison-resume.pdf",
+                    extracted_text=text,
+                )
+            )
+            session.commit()
+        res = client.get("/resumes/profile", headers=headers)
+
+    assert res.status_code == 200
+    assert res.json()["full_name"] == "Edison Xiaoyu Zhang"
+
+
+def test_resume_delete_removes_selected_cv() -> None:
+    with TestClient(app) as client:
+        headers, user_id = auth_headers(client)
+        with Session(get_engine()) as session:
+            row = Resume(user_id=user_id, filename="delete-me.pdf", stored_path="/tmp/kiwijob-delete-me.pdf", extracted_text="Delete Me\nme@example.com")
+            session.add(row)
+            session.commit()
+            session.refresh(row)
+            resume_id = row.id
+
+        assert resume_id is not None
         delete = client.delete(f"/resumes/{resume_id}", headers=headers)
         after = client.get("/resumes", headers=headers)
 
@@ -133,13 +190,11 @@ def test_resume_delete_removes_selected_cv() -> None:
 
 
 def test_match_preview_does_not_create_application() -> None:
-    user_id = 883
-    with Session(get_engine()) as session:
-        session.add(Resume(user_id=user_id, filename="preview.pdf", stored_path="/tmp/preview.pdf", extracted_text="Python SQL AWS"))
-        session.commit()
-
-    headers = {"X-Mock-User-Id": str(user_id)}
     with TestClient(app) as client:
+        headers, user_id = auth_headers(client)
+        with Session(get_engine()) as session:
+            session.add(Resume(user_id=user_id, filename="preview.pdf", stored_path="/tmp/preview.pdf", extracted_text="Python SQL AWS"))
+            session.commit()
         res = client.post(
             "/match/preview",
             headers=headers,

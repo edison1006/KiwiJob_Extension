@@ -19,7 +19,7 @@
       "128": "icons/icon-128.png"
     }
   },
-  "permissions": ["storage", "activeTab", "scripting", "sidePanel", "contextMenus", "cookies"],
+  "permissions": ["storage", "activeTab", "sidePanel", "contextMenus"],
   "side_panel": {
     "default_path": "page-sidebar.html"
   },
@@ -38,7 +38,13 @@
         "icons/icon-48.png",
         "icons/icon-128.png"
       ],
-      "matches": ["<all_urls>"]
+      "matches": [
+        "https://*.seek.co.nz/*",
+        "https://*.seek.com.au/*",
+        "https://*.linkedin.com/*",
+        "https://*.trademe.co.nz/*",
+        "https://*.indeed.com/*"
+      ]
     }
   ],
   "commands": {
@@ -50,14 +56,26 @@
       "description": "Fill application form with KiwiJob profile"
     }
   },
-  "host_permissions": ["http://*/*", "https://*/*"],
+  "host_permissions": [
+    "https://*.seek.co.nz/*",
+    "https://*.seek.com.au/*",
+    "https://*.linkedin.com/*",
+    "https://*.trademe.co.nz/*",
+    "https://*.indeed.com/*"
+  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
   "content_scripts": [
     {
-      "matches": ["http://*/*", "https://*/*"],
+      "matches": [
+        "https://*.seek.co.nz/*",
+        "https://*.seek.com.au/*",
+        "https://*.linkedin.com/*",
+        "https://*.trademe.co.nz/*",
+        "https://*.indeed.com/*"
+      ],
       "js": ["content.js"],
       "run_at": "document_idle"
     }

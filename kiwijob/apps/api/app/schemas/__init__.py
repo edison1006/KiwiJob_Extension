@@ -19,6 +19,24 @@ APPLICATION_STATUSES = frozenset(
 )
 
 
+class UserOut(BaseModel):
+    id: int
+    email: str
+    display_name: str = ""
+
+
+class AuthIn(BaseModel):
+    email: str = Field(..., min_length=3, max_length=320)
+    password: str = Field(..., min_length=8, max_length=200)
+    display_name: str = Field(default="", max_length=200)
+
+
+class AuthOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserOut
+
+
 class JobSaveIn(BaseModel):
     title: str = Field(..., min_length=1, max_length=500)
     company: Optional[str] = None
@@ -180,9 +198,11 @@ class CvProfileOut(BaseModel):
     initials: str = ""
     email: str = ""
     phone: str = ""
+    summary: str = ""
     education: list[CvProfileEducationOut] = Field(default_factory=list)
     experience: list[CvProfileExperienceOut] = Field(default_factory=list)
     skills: list[str] = Field(default_factory=list)
+    certifications: list[str] = Field(default_factory=list)
     languages: list[str] = Field(default_factory=list)
     links: list[str] = Field(default_factory=list)
     upload: Optional[CvProfileUploadOut] = None

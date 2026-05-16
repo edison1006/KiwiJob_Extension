@@ -133,9 +133,11 @@ export interface CvProfileDTO {
   initials: string;
   email: string;
   phone: string;
+  summary: string;
   education: CvProfileEducation[];
   experience: CvProfileExperience[];
   skills: string[];
+  certifications: string[];
   languages: string[];
   links: string[];
   upload: CvProfileUpload | null;

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
-from app.deps import ensure_demo_user, get_mock_user_id, get_or_create_user
+from app.deps import get_current_user
 from app.db.session import get_session
-from app.models import Application, JobPost
+from app.models import Application, JobPost, User
 from app.schemas import ApplicationDetailOut, ApplicationListOut, ApplicationUpdateIn, JobPostOut, JobSaveIn
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -34,12 +34,9 @@ def _app_to_list_out(a: Application) -> ApplicationListOut:
 def save_job(
     body: JobSaveIn,
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
 ):
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
-    user = get_or_create_user(session, uid)
-
+    assert user.id is not None
     status = body.normalized_status()
     now = datetime.utcnow()
 
@@ -104,13 +101,12 @@ def save_job(
 @router.get("", response_model=list[ApplicationListOut])
 def list_jobs(
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
 ):
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
+    assert user.id is not None
     rows = session.exec(
         select(Application)
-        .where(Application.user_id == uid)
+        .where(Application.user_id == user.id)
         .options(selectinload(Application.job_post))
         .order_by(Application.updated_at.desc())
     ).all()
@@ -121,13 +117,12 @@ def list_jobs(
 def get_job(
     job_id: int,
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
 ):
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
+    assert user.id is not None
     app_row = session.exec(
         select(Application)
-        .where(Application.id == job_id, Application.user_id == uid)
+        .where(Application.id == job_id, Application.user_id == user.id)
         .options(selectinload(Application.job_post), selectinload(Application.match_results))
     ).first()
     if not app_row:
@@ -146,12 +141,11 @@ def update_job(
     job_id: int,
     body: ApplicationUpdateIn,
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
 ):
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
+    assert user.id is not None
     app_row = session.get(Application, job_id)
-    if not app_row or app_row.user_id != uid:
+    if not app_row or app_row.user_id != user.id:
         raise HTTPException(status_code=404, detail="Application not found")
     ns = body.normalized_status()
     if ns:
@@ -171,12 +165,11 @@ def update_job(
 def delete_job(
     job_id: int,
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
 ):
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
+    assert user.id is not None
     app_row = session.get(Application, job_id)
-    if not app_row or app_row.user_id != uid:
+    if not app_row or app_row.user_id != user.id:
         raise HTTPException(status_code=404, detail="Application not found")
     session.delete(app_row)
     session.commit()

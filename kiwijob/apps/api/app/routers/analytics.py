@@ -3,13 +3,13 @@ from __future__ import annotations
 from collections import Counter
 from datetime import datetime, time, timedelta
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
-from app.deps import ensure_demo_user, get_mock_user_id
+from app.deps import get_current_user
 from app.db.session import get_session
-from app.models import Application
+from app.models import Application, User
 from app.schemas import AnalyticsSummaryOut, InsightTitleCountOut, InsightsSummaryOut
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -18,13 +18,12 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 @router.get("/summary", response_model=AnalyticsSummaryOut)
 def analytics_summary(
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
 ):
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
+    assert user.id is not None
     rows = session.exec(
         select(Application)
-        .where(Application.user_id == uid)
+        .where(Application.user_id == user.id)
         .options(selectinload(Application.job_post))
     ).all()
 
@@ -60,10 +59,9 @@ def analytics_insights(
     start: str | None = None,
     end: str | None = None,
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
 ):
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
+    assert user.id is not None
     now = datetime.utcnow()
     window_days = min(max(days, 1), 365)
     until = now
@@ -75,7 +73,7 @@ def analytics_insights(
     window_days = max(1, (until.date() - since.date()).days + 1)
     rows = session.exec(
         select(Application)
-        .where(Application.user_id == uid, Application.updated_at >= since, Application.updated_at <= until)
+        .where(Application.user_id == user.id, Application.updated_at >= since, Application.updated_at <= until)
         .options(selectinload(Application.job_post))
     ).all()
 

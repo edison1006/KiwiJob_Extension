@@ -1,4 +1,8 @@
 export type BgRequest =
+  | { type: "AUTH_STATE" }
+  | { type: "AUTH_LOGIN"; email: string; password: string }
+  | { type: "AUTH_REGISTER"; email: string; password: string; displayName?: string }
+  | { type: "AUTH_LOGOUT" }
   | { type: "SAVE_JOB"; payload: unknown }
   | { type: "TRACK_EVENT"; payload: unknown }
   | { type: "PREVIEW_MATCH"; payload: unknown }

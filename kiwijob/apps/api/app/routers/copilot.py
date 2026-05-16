@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
-from app.deps import ensure_demo_user, get_mock_user_id, get_or_create_user
+from app.deps import get_current_user
 from app.db.session import get_session
-from app.models import Application
+from app.models import Application, User
 from app.schemas import (
     CopilotAnswerOut,
     CopilotAutofillPlanIn,
@@ -20,8 +20,7 @@ from app.services.copilot_ai import answer_question, build_autofill_plan, genera
 router = APIRouter(prefix="/copilot", tags=["copilot"])
 
 
-def _profile_for_user(session: Session, user_id: int) -> dict:
-    user = get_or_create_user(session, user_id)
+def _profile_for_user(user: User) -> dict:
     raw = user.applicant_profile or {}
     return raw if isinstance(raw, dict) else {}
 
@@ -52,13 +51,12 @@ def _job_for_application(session: Session, user_id: int, job_id: int | None) -> 
 @router.post("/answer", response_model=CopilotAnswerOut)
 def copilot_answer(
     body: CopilotQuestionIn,
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
 ):
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
-    profile = _profile_for_user(session, uid)
-    job = _job_for_application(session, uid, body.job_id)
+    assert user.id is not None
+    profile = _profile_for_user(user)
+    job = _job_for_application(session, user.id, body.job_id)
     return answer_question(
         question=body.question,
         field_label=body.field_label,
@@ -71,26 +69,24 @@ def copilot_answer(
 @router.post("/autofill-plan", response_model=CopilotAutofillPlanOut)
 def copilot_autofill_plan(
     body: CopilotAutofillPlanIn,
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
 ):
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
-    profile = _profile_for_user(session, uid)
-    job = _job_for_application(session, uid, body.job_id)
+    assert user.id is not None
+    profile = _profile_for_user(user)
+    job = _job_for_application(session, user.id, body.job_id)
     return build_autofill_plan(fields=body.fields, profile=profile, job=job)
 
 
 @router.post("/cover-letter", response_model=CopilotCoverLetterOut)
 def copilot_cover_letter(
     body: CopilotCoverLetterIn,
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
 ):
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
-    profile = _profile_for_user(session, uid)
-    job = _job_for_application(session, uid, body.job_id)
+    assert user.id is not None
+    profile = _profile_for_user(user)
+    job = _job_for_application(session, user.id, body.job_id)
     return generate_cover_letter(
         profile=profile,
         job=job,

@@ -18,12 +18,10 @@ export function writeDisplayName(value: string) {
   window.dispatchEvent(new Event(KIWIJOB_PREFS_EVENT));
 }
 
-export function initialsFromPrefs(displayName: string, mockUserId: string): string {
+export function initialsFromPrefs(displayName: string): string {
   const n = displayName.trim();
   if (n.length >= 2) return n.slice(0, 2).toUpperCase();
   if (n.length === 1) return (n + n).toUpperCase();
-  const d = mockUserId.replace(/\D/g, "");
-  if (d) return `U${d.slice(0, 1)}`;
   return "EJ";
 }
 
@@ -34,7 +32,6 @@ const menuRowDisabled = "cursor-not-allowed opacity-45 hover:bg-transparent";
 
 type Props = {
   displayName: string;
-  mockUserId: string;
   onSignOut: () => void;
   /** `sidebar`: light styles for left rail. `header`: on gradient (legacy). */
   variant?: "sidebar" | "header";
@@ -42,7 +39,7 @@ type Props = {
   compactRow?: boolean;
 };
 
-export function UserMenu({ displayName, mockUserId, onSignOut, variant = "sidebar", compactRow = false }: Props) {
+export function UserMenu({ displayName, onSignOut, variant = "sidebar", compactRow = false }: Props) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
 
@@ -101,7 +98,7 @@ export function UserMenu({ displayName, mockUserId, onSignOut, variant = "sideba
                 : "flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand-600 text-xs font-bold text-white"
           }
         >
-          {initialsFromPrefs(displayName, mockUserId)}
+          {initialsFromPrefs(displayName)}
         </span>
         {isSidebarCompact ? (
           <svg

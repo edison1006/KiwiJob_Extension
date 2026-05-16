@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
 from app.core.config import get_settings
-from app.deps import ensure_demo_user, get_mock_user_id
+from app.deps import get_current_user
 from app.db.session import get_session
-from app.models import Application, MatchResult, Resume
+from app.models import Application, MatchResult, Resume, User
 from app.schemas import JobSaveIn, MatchAnalysisOut, MatchAnalyzeIn
 from app.services.match_ai import analyze_cv_vs_jd
 
@@ -41,12 +41,11 @@ def _jd_text(description: str | None, title: str | None, visa_requirement: str |
 def preview_match(
     body: JobSaveIn,
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
 ):
     """Analyze a page job against the latest CV without saving it to the tracker."""
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
-    cv_text = _cv_text_for_user(session, uid)
+    assert user.id is not None
+    cv_text = _cv_text_for_user(session, user.id)
     if not cv_text and _openai_configured():
         raise HTTPException(
             status_code=400,
@@ -60,21 +59,20 @@ def preview_match(
 def analyze_match(
     body: MatchAnalyzeIn,
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
 ):
     """`job_id` is the application (tracker) id."""
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
+    assert user.id is not None
     app_row = session.exec(
         select(Application)
-        .where(Application.id == body.job_id, Application.user_id == uid)
+        .where(Application.id == body.job_id, Application.user_id == user.id)
         .options(selectinload(Application.job_post))
     ).first()
     if not app_row:
         raise HTTPException(status_code=404, detail="Application not found")
     assert app_row.job_post is not None
 
-    cv_text = _cv_text_for_user(session, uid)
+    cv_text = _cv_text_for_user(session, user.id)
     if not cv_text and _openai_configured():
         raise HTTPException(
             status_code=400,
@@ -103,13 +101,12 @@ def analyze_match(
 def get_match(
     job_id: int,
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
 ):
-    ensure_demo_user(session)
-    uid = get_mock_user_id(x_mock_user_id)
+    assert user.id is not None
     app_row = session.exec(
         select(Application)
-        .where(Application.id == job_id, Application.user_id == uid)
+        .where(Application.id == job_id, Application.user_id == user.id)
         .options(selectinload(Application.match_results))
     ).first()
     if not app_row:

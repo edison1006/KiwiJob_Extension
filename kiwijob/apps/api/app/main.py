@@ -4,20 +4,16 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import Session
 
 from app.core.config import get_settings
 from app.cors_util import parse_cors_allow_origins, warn_insecure_cors_if_needed
-from app.db.session import get_engine, init_db
-from app.deps import ensure_demo_user
-from app.routers import analytics, copilot, events, jobs, match, profile, resumes
+from app.db.session import init_db
+from app.routers import analytics, auth, copilot, events, jobs, match, profile, resumes
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    with Session(get_engine()) as session:
-        ensure_demo_user(session)
     yield
 
 
@@ -31,11 +27,12 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allow_origins,
-        allow_credentials=False,
+        allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
+    app.include_router(auth.router)
     app.include_router(profile.router)
     app.include_router(copilot.router)
     app.include_router(jobs.router)

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
-from app.deps import get_or_create_user, get_mock_user_id
+from app.deps import get_current_user
 from app.db.session import get_session
 from app.models import User
 from app.schemas import ApplicantAutofillIn, ApplicantAutofillOut
@@ -36,10 +36,8 @@ def _out_from_user(user: User) -> ApplicantAutofillOut:
 
 @router.get("/applicant-profile", response_model=ApplicantAutofillOut)
 def get_applicant_profile(
-    session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
 ):
-    user = get_or_create_user(session, get_mock_user_id(x_mock_user_id))
     return _out_from_user(user)
 
 
@@ -47,9 +45,8 @@ def get_applicant_profile(
 def put_applicant_profile(
     body: ApplicantAutofillIn,
     session: Session = Depends(get_session),
-    x_mock_user_id: str | None = Header(default=None, alias="X-Mock-User-Id"),
+    user: User = Depends(get_current_user),
 ):
-    user = get_or_create_user(session, get_mock_user_id(x_mock_user_id))
     user.applicant_profile = body.model_dump()
     session.add(user)
     try:

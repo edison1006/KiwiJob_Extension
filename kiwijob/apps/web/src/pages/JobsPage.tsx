@@ -76,10 +76,6 @@ export default function JobsPage() {
   const [bulkFeedback, setBulkFeedback] = useState<string | null>(null);
 
   useEffect(() => {
-    const mockUserId = query.get("mockUserId")?.trim();
-    if (mockUserId && /^\d+$/.test(mockUserId)) {
-      localStorage.setItem("kiwijob_mock_user_id", mockUserId);
-    }
     fetchJobs()
       .then((data) => {
         setRows(data);
@@ -296,7 +292,7 @@ export default function JobsPage() {
 
   const pageTitle = isMatchesRoute ? "Matches" : "Your job tracker";
   const pageSubtitle = isMatchesRoute
-    ? "Roles where KiwiJob has stored a JD↔CV (or JD-only mock) match score."
+    ? "Roles where KiwiJob has stored a JD↔CV or JD-only heuristic match score."
     : "No more endless spreadsheets — keep track of roles, statuses, and match scores in one workspace.";
 
   const headerActions = isTrackerRoute ? (

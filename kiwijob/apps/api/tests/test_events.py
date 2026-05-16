@@ -1,12 +1,13 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from conftest import auth_headers
 
 
 def test_track_viewed_event_creates_application() -> None:
-    headers = {"X-Mock-User-Id": "71"}
     url = "https://example.com/jobs/event-viewed"
     with TestClient(app) as client:
+        headers, _ = auth_headers(client)
         res = client.post(
             "/events/track",
             headers=headers,
@@ -33,7 +34,6 @@ def test_track_viewed_event_creates_application() -> None:
 
 
 def test_track_application_event_upgrades_but_does_not_downgrade_status() -> None:
-    headers = {"X-Mock-User-Id": "72"}
     url = "https://example.com/jobs/event-applied"
     job = {
         "title": "Product Analyst",
@@ -45,6 +45,7 @@ def test_track_application_event_upgrades_but_does_not_downgrade_status() -> Non
         "status": "Viewed",
     }
     with TestClient(app) as client:
+        headers, _ = auth_headers(client)
         viewed = client.post("/events/track", headers=headers, json={"event_type": "job_viewed", "page_url": url, "job": job})
         assert viewed.status_code == 200
 
@@ -63,7 +64,6 @@ def test_track_application_event_upgrades_but_does_not_downgrade_status() -> Non
 
 
 def test_insights_counts_recent_application_funnel() -> None:
-    headers = {"X-Mock-User-Id": "73"}
     url = "https://example.com/jobs/event-interview"
     job = {
         "title": "Data Engineer",
@@ -75,6 +75,7 @@ def test_insights_counts_recent_application_funnel() -> None:
         "status": "Applied",
     }
     with TestClient(app) as client:
+        headers, _ = auth_headers(client)
         res = client.post(
             "/events/track",
             headers=headers,

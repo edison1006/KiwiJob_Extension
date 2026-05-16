@@ -1,31 +1,38 @@
 from __future__ import annotations
 
-from sqlmodel import Session, select
+from fastapi import Cookie, Depends, Header, HTTPException
+from sqlmodel import Session
 
-from app.core.config import get_settings
+from app.db.session import get_session
 from app.models import User
+from app.services.auth import decode_access_token
 
 
-def get_or_create_user(session: Session, user_id: int) -> User:
-    user = session.get(User, user_id)
-    if user:
-        return user
-    user = User(id=user_id, email=f"user{user_id}@kiwijob.local")
-    session.add(user)
-    session.commit()
-    session.refresh(user)
-    return user
+def _bearer_token(authorization: str | None) -> str | None:
+    if not authorization:
+        return None
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token.strip():
+        return None
+    return token.strip()
 
 
-def ensure_demo_user(session: Session) -> User:
-    """Guarantees the default mock user row exists (for FK integrity)."""
-    return get_or_create_user(session, get_settings().mock_user_id)
-
-
-def get_mock_user_id(x_mock_user_id: str | None) -> int:
-    if not x_mock_user_id:
-        return get_settings().mock_user_id
+def get_current_user(
+    session: Session = Depends(get_session),
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    session_cookie: str | None = Cookie(default=None, alias="kiwijob_session"),
+) -> User:
+    token = _bearer_token(authorization) or session_cookie
+    if not token:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    payload = decode_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
     try:
-        return int(x_mock_user_id)
-    except ValueError:
-        return get_settings().mock_user_id
+        user_id = int(payload.get("sub"))
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid session") from None
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user

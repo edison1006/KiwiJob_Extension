@@ -1,6 +1,8 @@
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
+import { RequireAuth } from "./auth";
 import { AppLayout } from "./layouts/AppLayout";
 import AnalyticsPage from "./pages/AnalyticsPage";
+import AuthPage from "./pages/AuthPage";
 import BrowseJobsPage from "./pages/BrowseJobsPage";
 import CvUploadPage from "./pages/CvUploadPage";
 import HomePage from "./pages/HomePage";
@@ -9,13 +11,20 @@ import JobDetailPage from "./pages/JobDetailPage";
 import JobsPage from "./pages/JobsPage";
 import MatchReportPage from "./pages/MatchReportPage";
 import MembershipPage from "./pages/MembershipPage";
+import PrivacyPage from "./pages/PrivacyPage";
 import ServicesPage from "./pages/ServicesPage";
 import SettingsPage from "./pages/SettingsPage";
 
 const router = createBrowserRouter([
+  { path: "/login", element: <AuthPage /> },
+  { path: "/privacy", element: <PrivacyPage /> },
   {
     path: "/",
-    element: <AppLayout />,
+    element: (
+      <RequireAuth>
+        <AppLayout />
+      </RequireAuth>
+    ),
     children: [
       { index: true, element: <HomePage /> },
       { path: "tracker", element: <JobsPage /> },
