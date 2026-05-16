@@ -10,6 +10,8 @@ class User(SQLModel, table=True):
     email: str = Field(default="demo@kiwijob.local", index=True, unique=True)
     password_hash: str = Field(default="")
     display_name: str = Field(default="")
+    auth_provider: str = Field(default="password", index=True)
+    auth_provider_subject: str = Field(default="", index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     applicant_profile: Optional[dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
 

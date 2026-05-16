@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import type { ApplicantAutofillProfile } from "@kiwijob/shared";
 import { EMPTY_APPLICANT_AUTOFILL_PROFILE } from "@kiwijob/shared";
 import { useAuth } from "../auth";
-import { deleteAccount, fetchApplicantProfile, saveApplicantProfile } from "../lib/api";
+import { changePassword, deleteAccount, fetchApplicantProfile, saveApplicantProfile } from "../lib/api";
 
 function scrollToHash() {
   const id = window.location.hash.replace(/^#/, "") || "profile";
@@ -21,6 +21,10 @@ export default function SettingsPage() {
   const [applicantSaving, setApplicantSaving] = useState(false);
   const [applicantMsg, setApplicantMsg] = useState<string | null>(null);
   const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,6 +80,47 @@ export default function SettingsPage() {
             <dd className="mt-1 font-semibold text-slate-950">{user?.email}</dd>
           </div>
         </dl>
+        <div className="mt-5 max-w-xl rounded-2xl border border-slate-200 p-4">
+          <h3 className="text-sm font-bold text-slate-950">Change password</h3>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <input
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              type="password"
+              placeholder="Current password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+            <input
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              type="password"
+              placeholder="New password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
+            />
+          </div>
+          <button
+            type="button"
+            disabled={passwordSaving}
+            className="mt-3 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
+            onClick={() => {
+              setPasswordSaving(true);
+              setPasswordMsg(null);
+              void changePassword(currentPassword, newPassword)
+                .then(() => {
+                  setCurrentPassword("");
+                  setNewPassword("");
+                  setPasswordMsg("Password updated.");
+                })
+                .catch((e: Error) => setPasswordMsg(e.message || "Could not update password"))
+                .finally(() => setPasswordSaving(false));
+            }}
+          >
+            {passwordSaving ? "Saving..." : "Update password"}
+          </button>
+          {passwordMsg ? <p className="mt-2 text-sm text-slate-600">{passwordMsg}</p> : null}
+        </div>
       </section>
 
       <section id="applicant-profile" className="scroll-mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

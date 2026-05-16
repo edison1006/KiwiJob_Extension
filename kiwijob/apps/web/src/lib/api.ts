@@ -111,12 +111,34 @@ export async function loginAccount(email: string, password: string): Promise<Aut
   return body;
 }
 
+export async function oauthLogin(provider: "google" | "apple", idToken: string): Promise<AuthResponse> {
+  const res = await fetch(`${API_URL}/auth/oauth`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider, id_token: idToken }),
+  });
+  const body = await parseJson<AuthResponse>(res);
+  setAuthToken(body.access_token);
+  return body;
+}
+
 export async function logoutAccount(): Promise<void> {
   try {
     await fetch(`${API_URL}/auth/logout`, { method: "POST", credentials: "include", headers: headers() });
   } finally {
     clearAuthToken();
   }
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const res = await fetch(`${API_URL}/auth/password`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...headers() },
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+  if (!res.ok) throw new Error(formatErrorBody(await res.text()));
 }
 
 export async function fetchCurrentUser(): Promise<UserDTO> {

@@ -508,6 +508,20 @@ export function KiwiJobPanel() {
   }, []);
 
   useEffect(() => {
+    const syncAuth = () => {
+      void chrome.runtime.sendMessage({ type: "AUTH_STATE" }).then((resp: AnyResp) => {
+        if (resp.ok) setAuth(resp.data as AuthState);
+      });
+    };
+    window.addEventListener("focus", syncAuth);
+    document.addEventListener("visibilitychange", syncAuth);
+    return () => {
+      window.removeEventListener("focus", syncAuth);
+      document.removeEventListener("visibilitychange", syncAuth);
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     const base = apiBase;
     setApiHealth("checking");
@@ -768,7 +782,7 @@ export function KiwiJobPanel() {
 
   async function loadResumes(): Promise<ResumeDTO[]> {
     const headers = authHeaders(auth.token);
-    const res = await fetch(`${normalizeApiBase(apiBase)}/resumes`, { headers });
+    const res = await fetch(`${normalizeApiBase(apiBase)}/resumes`, { credentials: "include", headers });
     if (!res.ok) throw new Error(await res.text() || res.statusText);
     const list = (await res.json()) as ResumeDTO[];
     setResumes(list);
@@ -790,7 +804,7 @@ export function KiwiJobPanel() {
         return;
       }
       const headers = authHeaders(auth.token);
-      const res = await fetch(`${normalizeApiBase(apiBase)}/resumes/${id}/profile`, { headers });
+      const res = await fetch(`${normalizeApiBase(apiBase)}/resumes/${id}/profile`, { credentials: "include", headers });
       if (!res.ok) {
         setCvProfileError(await res.text() || res.statusText);
         return;

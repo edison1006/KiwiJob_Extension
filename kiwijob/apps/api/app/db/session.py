@@ -46,6 +46,10 @@ def _ensure_sqlite_user_columns() -> None:
             conn.execute(text("ALTER TABLE user ADD COLUMN password_hash VARCHAR DEFAULT ''"))
         if "display_name" not in cols:
             conn.execute(text("ALTER TABLE user ADD COLUMN display_name VARCHAR DEFAULT ''"))
+        if "auth_provider" not in cols:
+            conn.execute(text("ALTER TABLE user ADD COLUMN auth_provider VARCHAR DEFAULT 'password'"))
+        if "auth_provider_subject" not in cols:
+            conn.execute(text("ALTER TABLE user ADD COLUMN auth_provider_subject VARCHAR DEFAULT ''"))
 
 
 def _ensure_sqlite_jobpost_visa_requirement_column() -> None:

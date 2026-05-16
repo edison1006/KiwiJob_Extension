@@ -21,3 +21,8 @@ def warn_insecure_cors_if_needed(settings: Settings, allow_origins: list[str]) -
             "CORS_ORIGINS is '*' in production. Prefer explicit https:// origins plus each "
             "chrome-extension://<extension-id> origin once the store build is known."
         )
+    if settings.environment.lower() == "production" and settings.cors_origin_regex:
+        logger.warning(
+            "CORS_ORIGIN_REGEX is set in production. Prefer an exact chrome-extension://<extension-id> "
+            "origin in CORS_ORIGINS after the Chrome Web Store extension id is known."
+        )

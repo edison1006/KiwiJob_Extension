@@ -84,7 +84,7 @@ async function buildAutofillProfileForTab(tabUrl: string): Promise<ApplicantAuto
   const api = await getApiBase();
   let apiProfile = { ...EMPTY_APPLICANT_AUTOFILL_PROFILE };
   try {
-    const res = await fetch(`${api}/me/applicant-profile`, { method: "GET", headers: await authHeaders() });
+    const res = await fetch(`${api}/me/applicant-profile`, { method: "GET", credentials: "include", headers: await authHeaders() });
     if (res.ok) {
       apiProfile = parseApplicantProfileJson(await res.json());
     }
@@ -95,7 +95,7 @@ async function buildAutofillProfileForTab(tabUrl: string): Promise<ApplicantAuto
     const local = await chrome.storage.local.get(["selectedResumeId"]);
     const resumeId = typeof local.selectedResumeId === "number" ? local.selectedResumeId : undefined;
     const path = resumeId ? `/resumes/${resumeId}/profile` : "/resumes/profile";
-    const res = await fetch(`${api}${path}`, { method: "GET", headers: await authHeaders() });
+    const res = await fetch(`${api}${path}`, { method: "GET", credentials: "include", headers: await authHeaders() });
     if (res.ok) {
       apiProfile = { ...apiProfile, ...profileFromCv((await res.json()) as CvProfileDTO) };
     }
@@ -242,10 +242,6 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
       if (request.type === "AUTH_STATE") {
         const api = await getApiBase();
         const state = await authState();
-        if (!state.token) {
-          sendResponse({ ok: true, data: state });
-          return;
-        }
         try {
           const res = await fetch(`${api}/auth/me`, { method: "GET", credentials: "include", headers: await authHeaders() });
           if (res.ok) {
@@ -302,6 +298,7 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         try {
           res = await fetch(`${api}/jobs/save`, {
             method: "POST",
+            credentials: "include",
             headers: await jsonHeaders(),
             body: JSON.stringify(request.payload),
           });
@@ -331,6 +328,7 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         try {
           res = await fetch(`${api}/events/track`, {
             method: "POST",
+            credentials: "include",
             headers: await jsonHeaders(),
             body: JSON.stringify(request.payload),
           });
@@ -363,6 +361,7 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         try {
           res = await fetch(`${api}/match/preview`, {
             method: "POST",
+            credentials: "include",
             headers: await jsonHeaders(),
             body: JSON.stringify(request.payload),
           });
@@ -390,6 +389,7 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         try {
           res = await fetch(`${api}/match/analyze`, {
             method: "POST",
+            credentials: "include",
             headers: await jsonHeaders(),
             body: JSON.stringify({ job_id: request.jobId }),
           });
@@ -418,6 +418,7 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         try {
           res = await fetch(`${api}/match/${request.jobId}`, {
             method: "GET",
+            credentials: "include",
             headers: await authHeaders(),
           });
         } catch (e) {
@@ -449,6 +450,7 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
           if (request.end) params.set("end", request.end);
           res = await fetch(`${api}/analytics/insights?${params.toString()}`, {
             method: "GET",
+            credentials: "include",
             headers: await authHeaders(),
           });
         } catch (e) {
@@ -476,6 +478,7 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
           const path = typeof request.resumeId === "number" ? `/resumes/${request.resumeId}/profile` : "/resumes/profile";
           res = await fetch(`${api}${path}`, {
             method: "GET",
+            credentials: "include",
             headers: await authHeaders(),
           });
         } catch (e) {
@@ -502,6 +505,7 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         try {
           res = await fetch(`${api}/resumes`, {
             method: "GET",
+            credentials: "include",
             headers: await authHeaders(),
           });
         } catch (e) {

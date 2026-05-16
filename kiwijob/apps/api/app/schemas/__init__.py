@@ -37,6 +37,16 @@ class AuthOut(BaseModel):
     user: UserOut
 
 
+class OAuthIn(BaseModel):
+    provider: str = Field(..., pattern="^(google|apple)$")
+    id_token: str = Field(..., min_length=20)
+
+
+class PasswordChangeIn(BaseModel):
+    current_password: str = Field(..., min_length=8, max_length=200)
+    new_password: str = Field(..., min_length=8, max_length=200)
+
+
 class JobSaveIn(BaseModel):
     title: str = Field(..., min_length=1, max_length=500)
     company: Optional[str] = None

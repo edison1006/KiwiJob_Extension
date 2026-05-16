@@ -4,6 +4,7 @@ import {
   fetchCurrentUser,
   loginAccount,
   logoutAccount,
+  oauthLogin,
   registerAccount,
   type UserDTO,
 } from "./lib/api";
@@ -13,6 +14,7 @@ type AuthContextValue = {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
+  loginWithOAuth: (provider: "google" | "apple", idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -59,6 +61,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       async register(email, password, displayName) {
         const res = await registerAccount(email, password, displayName);
+        setUser(res.user);
+      },
+      async loginWithOAuth(provider, idToken) {
+        const res = await oauthLogin(provider, idToken);
         setUser(res.user);
       },
       async logout() {
