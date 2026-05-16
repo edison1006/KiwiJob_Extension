@@ -20,7 +20,7 @@ const LS_SIDEBAR_COLLAPSED = "kiwijob_sidebar_collapsed";
 
 const linkClass = ({ isActive, collapsed }: { isActive: boolean; collapsed: boolean }) =>
   `flex items-center rounded-lg px-3 py-2.5 text-base font-medium transition ${
-    collapsed ? "gap-3 lg:justify-center lg:gap-0" : "gap-3"
+    collapsed ? "justify-center gap-0" : "gap-3"
   } ${
     isActive
       ? "border border-white/60 bg-white/45 text-slate-900 shadow-[0_8px_28px_-16px_rgba(37,99,235,0.75)] ring-1 ring-brand-500/15 backdrop-blur-xl"
@@ -28,7 +28,7 @@ const linkClass = ({ isActive, collapsed }: { isActive: boolean; collapsed: bool
   }`;
 
 function navIconClass(isActive: boolean, collapsed: boolean) {
-  return `${isActive ? "text-brand-700" : "text-slate-500"} ${collapsed ? "" : "lg:hidden"}`.trim();
+  return `${isActive ? "text-brand-700" : "text-slate-500"} ${collapsed ? "" : "hidden"}`.trim();
 }
 
 const premiumGradientClass =
@@ -59,24 +59,24 @@ export function AppLayout() {
     "rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/30";
 
   return (
-    <div className="min-h-screen lg:flex">
+    <div className="flex min-h-screen">
       <aside
-        className={`relative z-30 flex w-full overflow-visible flex-col border-b border-slate-200 bg-white transition-[width] duration-200 lg:min-h-screen lg:shrink-0 lg:border-b-0 lg:border-r ${
-          sidebarCollapsed ? "lg:w-20" : "lg:w-64"
+        className={`relative z-30 flex min-h-screen shrink-0 overflow-visible flex-col border-r border-slate-200 bg-white transition-[width] duration-200 ${
+          sidebarCollapsed ? "w-20" : "w-64"
         }`}
       >
-        <div className={`border-b border-slate-100 px-4 py-5 ${sidebarCollapsed ? "lg:px-3" : ""}`}>
-          <div className={`flex items-start gap-2 ${sidebarCollapsed ? "lg:justify-center" : "justify-between"}`}>
+        <div className={`border-b border-slate-100 px-4 py-5 ${sidebarCollapsed ? "px-3" : ""}`}>
+          <div className={`flex items-start gap-2 ${sidebarCollapsed ? "justify-center" : "justify-between"}`}>
             <img
               src="/kiwijob-logo.png"
               alt="KiwiJob"
-              className={`h-12 w-auto object-contain object-left transition-all ${sidebarCollapsed ? "lg:max-w-12" : "max-w-[10rem]"}`}
+              className={`h-12 w-auto object-contain object-left transition-all ${sidebarCollapsed ? "max-w-12" : "max-w-[10rem]"}`}
               width={160}
               height={88}
             />
             <button
               type="button"
-              className="hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 lg:inline-flex"
+              className="inline-flex rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
               title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               onClick={toggleSidebar}
@@ -86,8 +86,8 @@ export function AppLayout() {
               </svg>
             </button>
           </div>
-          <div className={`mt-2 text-[11px] font-medium tracking-wide text-slate-400 ${sidebarCollapsed ? "lg:text-center" : ""}`}>
-            {sidebarCollapsed ? <span className="hidden lg:inline">v1</span> : "v1.0"}
+          <div className={`mt-2 text-[11px] font-medium tracking-wide text-slate-400 ${sidebarCollapsed ? "text-center" : ""}`}>
+            {sidebarCollapsed ? <span>v1</span> : "v1.0"}
           </div>
         </div>
 
@@ -98,7 +98,7 @@ export function AppLayout() {
                 <span className={navIconClass(isActive, sidebarCollapsed)}>
                   <IconHome />
                 </span>
-                <span className={sidebarCollapsed ? "lg:hidden" : ""}>Home</span>
+                <span className={sidebarCollapsed ? "hidden" : ""}>Home</span>
               </>
             )}
           </NavLink>
@@ -108,7 +108,7 @@ export function AppLayout() {
                 <span className={navIconClass(isActive, sidebarCollapsed)}>
                   <IconHeart />
                 </span>
-                <span className={sidebarCollapsed ? "lg:hidden" : ""}>Matches</span>
+                <span className={sidebarCollapsed ? "hidden" : ""}>Matches</span>
               </>
             )}
           </NavLink>
@@ -118,7 +118,7 @@ export function AppLayout() {
                 <span className={navIconClass(isActive, sidebarCollapsed)}>
                   <IconBriefcase />
                 </span>
-                <span className={sidebarCollapsed ? "lg:hidden" : ""}>Jobs</span>
+                <span className={sidebarCollapsed ? "hidden" : ""}>Jobs</span>
               </>
             )}
           </NavLink>
@@ -128,7 +128,7 @@ export function AppLayout() {
                 <span className={navIconClass(isActive, sidebarCollapsed)}>
                   <IconJobTracker />
                 </span>
-                <span className={sidebarCollapsed ? "lg:hidden" : ""}>Job tracker</span>
+                <span className={sidebarCollapsed ? "hidden" : ""}>Job tracker</span>
               </>
             )}
           </NavLink>
@@ -138,7 +138,7 @@ export function AppLayout() {
                 <span className={navIconClass(isActive, sidebarCollapsed)}>
                   <IconDocument />
                 </span>
-                <span className={sidebarCollapsed ? "lg:hidden" : ""}>Documents</span>
+                <span className={sidebarCollapsed ? "hidden" : ""}>Documents</span>
               </>
             )}
           </NavLink>
@@ -148,7 +148,7 @@ export function AppLayout() {
                 <span className={navIconClass(isActive, sidebarCollapsed)}>
                   <IconServices />
                 </span>
-                <span className={sidebarCollapsed ? "lg:hidden" : ""}>Cover Letter</span>
+                <span className={sidebarCollapsed ? "hidden" : ""}>Cover Letter</span>
               </>
             )}
           </NavLink>
@@ -159,24 +159,24 @@ export function AppLayout() {
                 <span className={navIconClass(isActive, sidebarCollapsed)}>
                   <IconRefer />
                 </span>
-                <span className={sidebarCollapsed ? "lg:hidden" : ""}>Interview Assistant</span>
+                <span className={sidebarCollapsed ? "hidden" : ""}>Interview Assistant</span>
               </>
             )}
           </NavLink>
           <NavLink to="/premium" className={({ isActive }) => `${linkClass({ isActive, collapsed: sidebarCollapsed })}`} title="Premium">
             {() => (
               <>
-                <span className={`${premiumGradientClass} ${sidebarCollapsed ? "" : "lg:hidden"}`}>
+                <span className={`${premiumGradientClass} ${sidebarCollapsed ? "" : "hidden"}`}>
                   <IconMembership />
                 </span>
-                <span className={`${premiumGradientClass} ${sidebarCollapsed ? "lg:hidden" : ""}`}>Premium</span>
+                <span className={`${premiumGradientClass} ${sidebarCollapsed ? "hidden" : ""}`}>Premium</span>
               </>
             )}
           </NavLink>
         </nav>
 
-        <div className={`sticky bottom-0 z-20 mt-auto flex shrink-0 items-center gap-1 border-t border-slate-100 bg-white px-2 py-2 shadow-[0_-6px_18px_-14px_rgba(15,23,42,0.4)] ${sidebarCollapsed ? "lg:w-full lg:flex-col lg:px-2" : ""}`}>
-          <div className={`flex shrink-0 items-center justify-center gap-0.5 ${sidebarCollapsed ? "lg:w-full lg:flex-col" : ""}`}>
+        <div className={`sticky bottom-0 z-20 mt-auto flex shrink-0 items-center gap-1 border-t border-slate-100 bg-white px-2 py-2 shadow-[0_-6px_18px_-14px_rgba(15,23,42,0.4)] ${sidebarCollapsed ? "w-full flex-col px-2" : ""}`}>
+          <div className={`flex shrink-0 items-center justify-center gap-0.5 ${sidebarCollapsed ? "w-full flex-col" : ""}`}>
             <button type="button" className={utilBtn} title="Product updates — see GitHub releases or changelog in the repo." aria-label="Announcements">
               <IconMegaphone />
             </button>
@@ -193,7 +193,7 @@ export function AppLayout() {
               <IconBell />
             </button>
           </div>
-          <div className={`mx-1 h-6 w-px shrink-0 self-center bg-slate-200 ${sidebarCollapsed ? "lg:h-px lg:w-8" : ""}`} aria-hidden />
+          <div className={`mx-1 h-6 w-px shrink-0 self-center bg-slate-200 ${sidebarCollapsed ? "h-px w-8" : ""}`} aria-hidden />
           <UserMenu displayName={displayName} onSignOut={signOut} variant="sidebar" compactRow />
         </div>
       </aside>
