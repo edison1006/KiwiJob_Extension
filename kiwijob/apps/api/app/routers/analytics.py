@@ -77,8 +77,8 @@ def analytics_insights(
         .options(selectinload(Application.job_post))
     ).all()
 
-    applications = sum(1 for a in rows if a.status in {"Applied", "Assessment", "Interview", "Rejected", "Offer"})
-    replies = sum(1 for a in rows if a.status in {"Assessment", "Interview", "Rejected", "Offer"})
+    applications = sum(1 for a in rows if a.status in {"Applied", "Reply", "Assessment", "Interview", "Rejected", "Offer"})
+    replies = sum(1 for a in rows if a.status in {"Reply", "Assessment", "Interview", "Rejected", "Offer"})
     interviews = sum(1 for a in rows if a.status == "Interview")
     offers = sum(1 for a in rows if a.status == "Offer")
     rejections = sum(1 for a in rows if a.status == "Rejected")

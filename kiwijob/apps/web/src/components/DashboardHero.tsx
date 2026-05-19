@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
  */
 export function DashboardHero() {
   return (
-    <div className="mb-8 overflow-hidden rounded-2xl bg-gradient-to-r from-brand-600 to-sky-600 px-6 py-8 text-white shadow-md sm:px-10">
+    <div className="mb-8 overflow-hidden rounded-2xl bg-gradient-to-r from-brand-700 via-brand-600 to-fuchsia-600 px-6 py-8 text-white shadow-md sm:px-10">
       <div className="mx-auto max-w-3xl rounded-2xl bg-white p-6 text-slate-900 shadow-sm sm:p-8">
         <div className="text-2xl" aria-hidden>
           🔥

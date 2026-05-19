@@ -69,11 +69,28 @@ def _ensure_sqlite_jobpost_visa_requirement_column() -> None:
         conn.execute(text("ALTER TABLE jobpost ADD COLUMN visa_requirement VARCHAR"))
 
 
+def _ensure_sqlite_email_event_columns() -> None:
+    engine = get_engine()
+    url = str(engine.url)
+    if not url.startswith("sqlite"):
+        return
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if not insp.has_table("emailevent"):
+        return
+    cols = {c["name"] for c in insp.get_columns("emailevent")}
+    with engine.begin() as conn:
+        if "application_id" not in cols:
+            conn.execute(text("ALTER TABLE emailevent ADD COLUMN application_id INTEGER"))
+
+
 def init_db() -> None:
     engine = get_engine()
     SQLModel.metadata.create_all(engine)
     _ensure_sqlite_user_columns()
     _ensure_sqlite_jobpost_visa_requirement_column()
+    _ensure_sqlite_email_event_columns()
 
 
 def get_session() -> Generator[Session, None, None]:

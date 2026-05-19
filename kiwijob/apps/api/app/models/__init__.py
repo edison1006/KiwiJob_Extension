@@ -99,6 +99,7 @@ class ApplicationEvent(SQLModel, table=True):
 class EmailEvent(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
+    application_id: Optional[int] = Field(default=None, foreign_key="application.id", index=True)
     external_id: str = Field(default="", index=True)
     subject: str = ""
     body_preview: str = ""

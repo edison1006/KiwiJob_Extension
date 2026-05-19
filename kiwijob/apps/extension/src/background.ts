@@ -9,7 +9,7 @@ const DEFAULT_API = "http://localhost:8000";
 function syncSidePanelEntry(): void {
   if (!chrome.sidePanel?.setOptions) return;
   void chrome.sidePanel.setOptions({ path: "page-sidebar.html" });
-  void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch(() => {});
+  void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
 }
 
 syncSidePanelEntry();

@@ -7,7 +7,8 @@ export default function AuthPage() {
   const { user, login, loginWithOAuth, register } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const queryMode = new URLSearchParams(location.search).get("mode");
+  const [mode, setMode] = useState<"login" | "register">(queryMode === "register" ? "register" : "login");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -124,27 +125,64 @@ export default function AuthPage() {
   if (user) return <Navigate to={from} replace />;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
-      <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-6 flex items-center gap-3">
-          <img src="/kiwijob-logo.png" alt="KiwiJob" className="h-12 w-12 rounded-xl object-cover" />
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#09090b] px-4 py-10 text-zinc-100">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-96 bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,0.44),rgba(80,38,150,0.18)_34%,transparent_70%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.09] [background-image:linear-gradient(rgba(255,255,255,0.16)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.16)_1px,transparent_1px)] [background-size:72px_72px]" />
+      <section className="relative grid w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] shadow-[0_40px_120px_-70px_rgba(139,92,246,0.95)] backdrop-blur-xl lg:grid-cols-[1fr_440px]">
+        <div className="relative hidden min-h-[600px] flex-col justify-between border-r border-white/10 p-10 lg:flex">
+          <div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-brand-300/85 to-transparent" />
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-950">KiwiJob</h1>
-            <p className="text-sm text-slate-500">Sign in to sync dashboard and extension data.</p>
+            <div className="mb-14 flex items-center gap-3">
+              <span className="grid h-12 w-12 place-items-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.05]">
+                <img src="/kiwijob-logo.png" alt="KiwiJob" className="h-full w-full object-cover" />
+              </span>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight text-white">KiwiJob</h1>
+                <p className="text-xs text-zinc-500">Career command center</p>
+              </div>
+            </div>
+            <p className="text-sm font-medium uppercase tracking-[0.24em] text-brand-300/85">Dashboard sync</p>
+            <h2 className="mt-4 max-w-md bg-gradient-to-br from-white to-zinc-500 bg-clip-text text-5xl font-bold tracking-tight text-transparent">
+              Keep your job search data connected.
+            </h2>
+            <p className="mt-5 max-w-md text-base leading-7 text-zinc-400">
+              Sign in once to share resumes, matches, applications, and insights between the dashboard and the Chrome extension.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {["CV", "Jobs", "Match"].map((item) => (
+              <div key={item} className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
+                <div className="h-1 w-10 rounded-full bg-gradient-to-r from-brand-300 to-fuchsia-400" />
+                <div className="mt-4 text-sm font-semibold text-zinc-200">{item}</div>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="mb-5 grid grid-cols-2 rounded-xl bg-slate-100 p-1 text-sm font-semibold">
+        <div className="p-6 sm:p-8">
+          <div className="mb-6 flex items-center gap-3 lg:hidden">
+            <img src="/kiwijob-logo.png" alt="KiwiJob" className="h-12 w-12 rounded-xl object-cover" />
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-white">KiwiJob</h1>
+              <p className="text-sm text-zinc-500">Sign in to sync dashboard and extension data.</p>
+            </div>
+          </div>
+
+          <div className="mb-5 grid grid-cols-2 rounded-full border border-white/10 bg-[#09090b] p-1 text-sm font-semibold">
           <button
             type="button"
-            className={`rounded-lg px-3 py-2 ${mode === "login" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}
+            className={`rounded-full px-3 py-2 transition ${
+              mode === "login" ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500 hover:text-zinc-200"
+            }`}
             onClick={() => setMode("login")}
           >
             Login
           </button>
           <button
             type="button"
-            className={`rounded-lg px-3 py-2 ${mode === "register" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}
+            className={`rounded-full px-3 py-2 transition ${
+              mode === "register" ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500 hover:text-zinc-200"
+            }`}
             onClick={() => setMode("register")}
           >
             Register
@@ -158,36 +196,36 @@ export default function AuthPage() {
               <button
                 type="button"
                 disabled={busy}
-                className="flex w-full items-center justify-center rounded-xl border border-slate-900 bg-slate-950 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-slate-800 disabled:opacity-50"
+                className="flex w-full items-center justify-center rounded-xl border border-white/10 bg-white px-4 py-2.5 text-sm font-bold text-zinc-950 shadow-sm hover:bg-zinc-200 disabled:opacity-50"
                 onClick={() => void signInWithApple()}
               >
                 Continue with Apple
               </button>
             ) : null}
-            <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              <span className="h-px flex-1 bg-slate-200" />
+            <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              <span className="h-px flex-1 bg-white/10" />
               or
-              <span className="h-px flex-1 bg-slate-200" />
+              <span className="h-px flex-1 bg-white/10" />
             </div>
           </div>
         ) : null}
 
         <form className="space-y-4" onSubmit={submit}>
           {mode === "register" ? (
-            <label className="block text-sm font-semibold text-slate-700">
+            <label className="block text-sm font-semibold text-zinc-300">
               Name
               <input
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-slate-950 shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 text-zinc-50 shadow-sm outline-none placeholder:text-zinc-600 focus:border-brand-300/40 focus:ring-2 focus:ring-brand-300/15"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 autoComplete="name"
               />
             </label>
           ) : null}
-          <label className="block text-sm font-semibold text-slate-700">
+          <label className="block text-sm font-semibold text-zinc-300">
             Email
             <input
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-slate-950 shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+              className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 text-zinc-50 shadow-sm outline-none placeholder:text-zinc-600 focus:border-brand-300/40 focus:ring-2 focus:ring-brand-300/15"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -195,10 +233,10 @@ export default function AuthPage() {
               required
             />
           </label>
-          <label className="block text-sm font-semibold text-slate-700">
+          <label className="block text-sm font-semibold text-zinc-300">
             Password
             <input
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-slate-950 shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+              className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 text-zinc-50 shadow-sm outline-none placeholder:text-zinc-600 focus:border-brand-300/40 focus:ring-2 focus:ring-brand-300/15"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -208,20 +246,21 @@ export default function AuthPage() {
             />
           </label>
 
-          {error ? <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</div> : null}
+          {error ? <div className="rounded-xl border border-rose-300/20 bg-rose-400/10 px-3 py-2 text-sm text-rose-100">{error}</div> : null}
 
           <button
             type="submit"
             disabled={busy}
-            className="w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
+            className="w-full rounded-xl border border-brand-300/25 bg-brand-500/15 px-4 py-3 text-sm font-bold text-brand-50 shadow-[0_0_40px_-18px_rgba(139,92,246,0.95)] transition hover:bg-brand-500/20 disabled:opacity-50"
           >
             {busy ? "Please wait..." : mode === "register" ? "Create account" : "Login"}
           </button>
         </form>
 
-        <p className="mt-4 text-xs leading-relaxed text-slate-500">
-          API: <span className="font-medium text-slate-700">{getApiBaseUrl()}</span>
+        <p className="mt-4 text-xs leading-relaxed text-zinc-500">
+          API: <span className="font-medium text-zinc-300">{getApiBaseUrl()}</span>
         </p>
+        </div>
       </section>
     </main>
   );

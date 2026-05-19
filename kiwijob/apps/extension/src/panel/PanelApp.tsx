@@ -84,6 +84,16 @@ function sourceLabel(raw: string): string {
   return raw.replace(/^www\./i, "").split(".")[0] || raw;
 }
 
+function initials(value: string): string {
+  const parts = value
+    .trim()
+    .replace(/@.*/, "")
+    .split(/\s+|[._-]+/)
+    .filter(Boolean);
+  const text = parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}` : (parts[0] || "KJ").slice(0, 2);
+  return text.toUpperCase();
+}
+
 function isoDate(daysAgo: number): string {
   const d = new Date();
   d.setDate(d.getDate() - daysAgo);
@@ -466,6 +476,7 @@ export function KiwiJobPanel() {
   const [webAppUrl, setWebAppUrl] = useState(DEFAULT_WEB_APP_URL);
   const [auth, setAuth] = useState<AuthState>({ token: "", user: null });
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [authOpen, setAuthOpen] = useState(false);
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authName, setAuthName] = useState("");
@@ -666,6 +677,13 @@ export function KiwiJobPanel() {
   function openWebDashboard() {
     const url = normalizeWebAppUrl(webAppUrl);
     void chrome.tabs.create({ url });
+  }
+
+  function openDashboardAuth(provider?: "google" | "apple") {
+    const url = new URL(`${normalizeWebAppUrl(webAppUrl)}/login`);
+    url.searchParams.set("mode", authMode);
+    if (provider) url.searchParams.set("provider", provider);
+    void chrome.tabs.create({ url: url.toString() });
   }
 
   function openSavedJobInDashboard(applicationId: number) {
@@ -912,6 +930,143 @@ export function KiwiJobPanel() {
             <div className="truncate text-sm font-semibold tracking-tight text-slate-900">KiwiJob</div>
             <div className="truncate text-[11px] text-slate-500">Job search assistant</div>
           </div>
+          <div className="relative">
+            <button
+              type="button"
+              className={`flex h-8 shrink-0 items-center justify-center rounded-full border px-2.5 text-[11px] font-semibold transition ${
+                auth.user
+                  ? "border-brand-100 bg-brand-50 text-brand-700 hover:bg-brand-100"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+              title={auth.user ? "Account" : "Sign in"}
+              aria-label={auth.user ? "Account" : "Sign in"}
+              onClick={() => setAuthOpen((v) => !v)}
+            >
+              {auth.user ? initials(auth.user.display_name || auth.user.email) : "Sign in"}
+            </button>
+            {authOpen ? (
+              <div className="absolute right-0 top-10 z-30 w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-xl">
+                {auth.user ? (
+                  <div className="space-y-3">
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">Signed in</div>
+                      <div className="mt-1 break-words text-[11px] text-slate-600">{auth.user.email}</div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        onClick={() => openWebDashboard()}
+                      >
+                        Dashboard
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                        onClick={() => {
+                          setAuthOpen(false);
+                          void signOut();
+                        }}
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="text-xs font-bold text-slate-900">{authMode === "register" ? "Create account" : "Sign in"}</div>
+                        <div className="mt-1 text-[11px] text-slate-500">Sync dashboard and extension data.</div>
+                      </div>
+                      <button
+                        type="button"
+                        className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                        aria-label="Close account panel"
+                        onClick={() => setAuthOpen(false)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 rounded-lg bg-slate-100 p-1 text-xs font-semibold">
+                      <button
+                        type="button"
+                        className={`rounded-md px-2 py-1.5 ${authMode === "login" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}
+                        onClick={() => setAuthMode("login")}
+                      >
+                        Login
+                      </button>
+                      <button
+                        type="button"
+                        className={`rounded-md px-2 py-1.5 ${authMode === "register" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}
+                        onClick={() => setAuthMode("register")}
+                      >
+                        Register
+                      </button>
+                    </div>
+                    {authMode === "register" ? (
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+                          onClick={() => openDashboardAuth("google")}
+                        >
+                          Google
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-lg border border-slate-900 bg-slate-950 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-slate-800"
+                          onClick={() => openDashboardAuth("apple")}
+                        >
+                          Apple
+                        </button>
+                      </div>
+                    ) : null}
+                    <div className="mt-3 space-y-2">
+                      {authMode === "register" ? (
+                        <input
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm"
+                          placeholder="Name"
+                          value={authName}
+                          onChange={(e) => setAuthName(e.target.value)}
+                        />
+                      ) : null}
+                      <input
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm"
+                        placeholder="Email"
+                        type="email"
+                        value={authEmail}
+                        onChange={(e) => setAuthEmail(e.target.value)}
+                      />
+                      <input
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm"
+                        placeholder="Password"
+                        type="password"
+                        value={authPassword}
+                        onChange={(e) => setAuthPassword(e.target.value)}
+                      />
+                      {authError ? <div className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">{authError}</div> : null}
+                      <button
+                        type="button"
+                        disabled={authBusy}
+                        className="w-full rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
+                        onClick={() => void submitAuth()}
+                      >
+                        {authBusy ? "Please wait..." : authMode === "register" ? "Create account" : "Login"}
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        onClick={() => openDashboardAuth()}
+                      >
+                        Continue on dashboard
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
           <button
             type="button"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
@@ -947,61 +1102,6 @@ export function KiwiJobPanel() {
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
         <div className="px-3 py-3 pb-6">
-          {!auth.user ? (
-            <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50/90 p-3">
-              <div className="text-sm font-bold text-slate-900">{authMode === "register" ? "Create KiwiJob account" : "Login to KiwiJob"}</div>
-              <p className="mt-1 text-xs leading-relaxed text-slate-600">Use the same account in the dashboard and extension.</p>
-              <div className="mt-3 grid grid-cols-2 rounded-lg bg-slate-200/70 p-1 text-xs font-semibold">
-                <button
-                  type="button"
-                  className={`rounded-md px-2 py-1.5 ${authMode === "login" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}
-                  onClick={() => setAuthMode("login")}
-                >
-                  Login
-                </button>
-                <button
-                  type="button"
-                  className={`rounded-md px-2 py-1.5 ${authMode === "register" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}
-                  onClick={() => setAuthMode("register")}
-                >
-                  Register
-                </button>
-              </div>
-              <div className="mt-3 space-y-2">
-                {authMode === "register" ? (
-                  <input
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm"
-                    placeholder="Name"
-                    value={authName}
-                    onChange={(e) => setAuthName(e.target.value)}
-                  />
-                ) : null}
-                <input
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm"
-                  placeholder="Email"
-                  type="email"
-                  value={authEmail}
-                  onChange={(e) => setAuthEmail(e.target.value)}
-                />
-                <input
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm"
-                  placeholder="Password"
-                  type="password"
-                  value={authPassword}
-                  onChange={(e) => setAuthPassword(e.target.value)}
-                />
-                {authError ? <div className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">{authError}</div> : null}
-                <button
-                  type="button"
-                  disabled={authBusy}
-                  className="w-full rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
-                  onClick={() => void submitAuth()}
-                >
-                  {authBusy ? "Please wait..." : authMode === "register" ? "Create account" : "Login"}
-                </button>
-              </div>
-            </div>
-          ) : null}
           {tab === "jobs" ? (
             <div className="space-y-4">
               <div className="rounded-xl border border-slate-200 bg-slate-50/90 p-3">

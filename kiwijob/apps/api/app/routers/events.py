@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 
 from app.deps import get_current_user
 from app.db.session import get_session
-from app.models import Application, ApplicationEvent, JobPost, User
+from app.models import Application, ApplicationEvent, EmailEvent, JobPost, User
 from app.routers.jobs import _app_to_list_out
 from app.schemas import ApplicationEventTrackOut, ApplicationEventIn
 
@@ -18,6 +18,7 @@ STATUS_RANK = {
     "Saved": 10,
     "Viewed": 20,
     "Applied": 30,
+    "Reply": 35,
     "Assessment": 40,
     "Interview": 50,
     "Rejected": 60,
@@ -46,6 +47,77 @@ def _compact_payload(metadata: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def _clean_words(value: str | None) -> set[str]:
+    if not value:
+        return set()
+    import re
+
+    stop = {
+        "and",
+        "for",
+        "the",
+        "with",
+        "your",
+        "job",
+        "role",
+        "position",
+        "application",
+        "career",
+        "careers",
+        "new",
+        "zealand",
+    }
+    return {w for w in re.findall(r"[a-z0-9]+", value.lower()) if len(w) > 2 and w not in stop}
+
+
+def _email_haystack(metadata: dict[str, Any], page_url: str | None = None) -> str:
+    parts = [
+        metadata.get("subject"),
+        metadata.get("sender"),
+        metadata.get("from"),
+        metadata.get("body_preview"),
+        metadata.get("snippet"),
+        metadata.get("text"),
+        page_url,
+    ]
+    return " ".join(str(x) for x in parts if x).lower()
+
+
+def _match_application_from_metadata(
+    session: Session,
+    user_id: int,
+    metadata: dict[str, Any],
+    page_url: str | None = None,
+) -> Application | None:
+    haystack = _email_haystack(metadata, page_url)
+    if not haystack.strip():
+        return None
+    rows = session.exec(
+        select(Application).where(Application.user_id == user_id)
+    ).all()
+    best: tuple[int, Application] | None = None
+    for app_row in rows:
+        job = app_row.job_post or session.get(JobPost, app_row.job_post_id)
+        if job is None:
+            continue
+        score = 0
+        company = (job.company or "").strip().lower()
+        if company and company in haystack:
+            score += 8
+        title = (job.title or "").strip().lower()
+        if title and title in haystack:
+            score += 10
+        score += len(_clean_words(job.title).intersection(_clean_words(haystack)))
+        if job.url and job.url.lower() in haystack:
+            score += 8
+        if best is None or score > best[0]:
+            best = (score, app_row)
+    if best is None or best[0] < 2:
+        return None
+    best[1].job_post = best[1].job_post or session.get(JobPost, best[1].job_post_id)
+    return best[1]
+
+
 def _upsert_application_from_event(
     session: Session,
     user_id: int,
@@ -53,7 +125,15 @@ def _upsert_application_from_event(
     status: str | None,
 ) -> Application | None:
     if body.job is None:
-        return None
+        matched = _match_application_from_metadata(session, user_id, body.metadata, body.page_url)
+        if matched and _should_update_status(matched.status, status):
+            matched.status = status or matched.status
+            matched.updated_at = datetime.utcnow()
+            session.add(matched)
+            session.commit()
+            session.refresh(matched)
+            matched.job_post = matched.job_post or session.get(JobPost, matched.job_post_id)
+        return matched
 
     now = datetime.utcnow()
     incoming_job = body.job
@@ -118,17 +198,32 @@ def track_event(
 
     status = body.normalized_status()
     app_row = _upsert_application_from_event(session, user.id, body, status)
+    event_type = body.event_type.strip().lower()
+    compact_payload = _compact_payload(body.metadata)
     event = ApplicationEvent(
         user_id=user.id,
         application_id=app_row.id if app_row else None,
-        event_type=body.event_type.strip().lower(),
+        event_type=event_type,
         source=body.source.strip() or "extension",
         page_url=body.page_url,
         status_after=app_row.status if app_row else status,
         occurred_at=body.occurred_at or datetime.utcnow(),
-        payload=_compact_payload(body.metadata),
+        payload=compact_payload,
     )
     session.add(event)
+    if event_type.startswith("email_") or (body.source.strip().lower() in {"email", "gmail", "outlook", "outlook_email"}):
+        external_id = str(compact_payload.get("external_id") or compact_payload.get("message_id") or body.page_url or "")
+        session.add(
+            EmailEvent(
+                user_id=user.id,
+                application_id=app_row.id if app_row else None,
+                external_id=external_id[:500],
+                subject=str(compact_payload.get("subject") or "")[:1000],
+                body_preview=str(compact_payload.get("body_preview") or compact_payload.get("snippet") or "")[:2000],
+                parsed_status=app_row.status if app_row else status,
+                received_at=body.occurred_at,
+            )
+        )
     session.commit()
     session.refresh(event)
 

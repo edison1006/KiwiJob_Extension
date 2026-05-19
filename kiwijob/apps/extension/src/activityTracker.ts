@@ -4,6 +4,7 @@ import { extractJobFromPage } from "./extraction/generic";
 
 type TrackEventType =
   | "job_viewed"
+  | "email_reply"
   | "application_started"
   | "application_submitted"
   | "assessment_detected"
@@ -66,6 +67,7 @@ function tryExtractJob(status: ApplicationStatus): JobSavePayload | null {
 
 function statusForEvent(type: TrackEventType): ApplicationStatus {
   if (type === "job_viewed") return "Viewed";
+  if (type === "email_reply") return "Reply";
   if (type === "assessment_detected") return "Assessment";
   if (type === "interview_detected") return "Interview";
   if (type === "offer_detected") return "Offer";

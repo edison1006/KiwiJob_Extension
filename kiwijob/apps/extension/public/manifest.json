@@ -39,11 +39,8 @@
         "icons/icon-128.png"
       ],
       "matches": [
-        "https://*.seek.co.nz/*",
-        "https://*.seek.com.au/*",
-        "https://*.linkedin.com/*",
-        "https://*.trademe.co.nz/*",
-        "https://*.indeed.com/*"
+        "https://*/*",
+        "http://*/*"
       ]
     }
   ],
@@ -57,11 +54,8 @@
     }
   },
   "host_permissions": [
-    "https://*.seek.co.nz/*",
-    "https://*.seek.com.au/*",
-    "https://*.linkedin.com/*",
-    "https://*.trademe.co.nz/*",
-    "https://*.indeed.com/*"
+    "https://*/*",
+    "http://*/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -70,11 +64,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://*.seek.co.nz/*",
-        "https://*.seek.com.au/*",
-        "https://*.linkedin.com/*",
-        "https://*.trademe.co.nz/*",
-        "https://*.indeed.com/*"
+        "https://*/*",
+        "http://*/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"

@@ -365,14 +365,14 @@ export default function BrowseJobsPage() {
                       {displayType}
                     </span>
                     <span className="inline-flex items-center gap-2 rounded-full bg-slate-200/70 px-4 py-2 text-lg font-semibold text-slate-600">
-                      <svg className="h-5 w-5 text-cyan-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg className="h-5 w-5 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M12 21s7-5.2 7-12A7 7 0 0 0 5 9c0 6.8 7 12 7 12z" />
                         <circle cx="12" cy="9" r="2.5" />
                       </svg>
                       {displayLocation || source.sampleLocation}
                     </span>
                     <span className="inline-flex items-center gap-2 rounded-full bg-slate-200/70 px-4 py-2 text-lg font-semibold text-slate-600">
-                      <svg className="h-5 w-5 text-cyan-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg className="h-5 w-5 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16" />
                         <path d="M16 8h2a2 2 0 0 1 2 2v11" />
                         <path d="M8 7h.01M12 7h.01M8 11h.01M12 11h.01M8 15h.01M12 15h.01" />

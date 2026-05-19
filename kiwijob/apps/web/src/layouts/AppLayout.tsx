@@ -19,20 +19,20 @@ import { UserMenu } from "../components/UserMenu";
 const LS_SIDEBAR_COLLAPSED = "kiwijob_sidebar_collapsed";
 
 const linkClass = ({ isActive, collapsed }: { isActive: boolean; collapsed: boolean }) =>
-  `flex items-center rounded-lg px-3 py-2.5 text-base font-medium transition ${
+  `group flex items-center rounded-xl px-3 py-2.5 text-base font-medium transition ${
     collapsed ? "justify-center gap-0" : "gap-3"
   } ${
     isActive
-      ? "border border-white/60 bg-white/45 text-slate-900 shadow-[0_8px_28px_-16px_rgba(37,99,235,0.75)] ring-1 ring-brand-500/15 backdrop-blur-xl"
-      : "border border-transparent text-slate-700 hover:bg-slate-100"
+      ? "border border-brand-300/25 bg-white/[0.08] text-zinc-50 shadow-[0_18px_60px_-32px_rgba(139,92,246,0.9)] ring-1 ring-white/10"
+      : "border border-transparent text-zinc-400 hover:bg-white/[0.05] hover:text-zinc-100"
   }`;
 
 function navIconClass(isActive: boolean, collapsed: boolean) {
-  return `${isActive ? "text-brand-700" : "text-slate-500"} ${collapsed ? "" : "hidden"}`.trim();
+  return `${isActive ? "text-brand-300" : "text-zinc-500 group-hover:text-zinc-300"} ${collapsed ? "" : "hidden"}`.trim();
 }
 
 const premiumGradientClass =
-  "animate-[premium-gradient_3s_ease_infinite] bg-[linear-gradient(90deg,#7c3aed,#c026d3,#8b5cf6,#7c3aed)] bg-[length:220%_100%] bg-clip-text text-transparent";
+  "animate-[premium-gradient_3s_ease_infinite] bg-[linear-gradient(90deg,#c4b5fd,#8b5cf6,#e879f9,#c4b5fd)] bg-[length:220%_100%] bg-clip-text text-transparent";
 
 export function AppLayout() {
   const { user, logout } = useAuth();
@@ -56,27 +56,29 @@ export function AppLayout() {
   const displayName = user?.display_name || user?.email || "Account";
 
   const utilBtn =
-    "rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/30";
+    "rounded-xl p-2 text-zinc-500 transition hover:bg-white/[0.06] hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand-300/30";
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-[#09090b] text-zinc-100">
       <aside
-        className={`relative z-30 flex min-h-screen shrink-0 overflow-visible flex-col border-r border-slate-200 bg-white transition-[width] duration-200 ${
+        className={`relative z-30 flex min-h-screen shrink-0 overflow-visible flex-col border-r border-white/10 bg-[#09090b]/90 transition-[width] duration-200 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-64 before:bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,0.22),transparent_65%)] ${
           sidebarCollapsed ? "w-20" : "w-64"
         }`}
       >
-        <div className={`border-b border-slate-100 px-4 py-5 ${sidebarCollapsed ? "px-3" : ""}`}>
+        <div className={`relative border-b border-white/10 px-4 py-5 ${sidebarCollapsed ? "px-3" : ""}`}>
           <div className={`flex items-start gap-2 ${sidebarCollapsed ? "justify-center" : "justify-between"}`}>
-            <img
-              src="/kiwijob-logo.png"
-              alt="KiwiJob"
-              className={`h-12 w-auto object-contain object-left transition-all ${sidebarCollapsed ? "max-w-12" : "max-w-[10rem]"}`}
-              width={160}
-              height={88}
-            />
+            <div className={`flex items-center gap-3 ${sidebarCollapsed ? "justify-center" : ""}`}>
+              <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] shadow-[0_0_40px_-18px_rgba(139,92,246,0.9)]">
+                <img src="/kiwijob-logo.png" alt="KiwiJob" className="h-full w-full object-cover" width={40} height={40} />
+              </span>
+              <div className={sidebarCollapsed ? "hidden" : ""}>
+                <div className="text-base font-bold tracking-tight text-white">KiwiJob</div>
+                <div className="text-xs text-zinc-500">Career command center</div>
+              </div>
+            </div>
             <button
               type="button"
-              className="inline-flex rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              className="inline-flex rounded-xl p-2 text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-100"
               title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               onClick={toggleSidebar}
@@ -86,12 +88,9 @@ export function AppLayout() {
               </svg>
             </button>
           </div>
-          <div className={`mt-2 text-[11px] font-medium tracking-wide text-slate-400 ${sidebarCollapsed ? "text-center" : ""}`}>
-            {sidebarCollapsed ? <span>v1</span> : "v1.0"}
-          </div>
         </div>
 
-        <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-1 pt-2" aria-label="Primary">
+        <nav className="relative flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 pb-1 pt-3" aria-label="Primary">
           <NavLink to="/" end className={({ isActive }) => `${linkClass({ isActive, collapsed: sidebarCollapsed })}`} title="Home">
             {({ isActive }) => (
               <>
@@ -175,7 +174,7 @@ export function AppLayout() {
           </NavLink>
         </nav>
 
-        <div className={`sticky bottom-0 z-20 mt-auto flex shrink-0 items-center gap-1 border-t border-slate-100 bg-white px-2 py-2 shadow-[0_-6px_18px_-14px_rgba(15,23,42,0.4)] ${sidebarCollapsed ? "w-full flex-col px-2" : ""}`}>
+        <div className={`sticky bottom-0 z-20 mt-auto flex shrink-0 items-center gap-1 border-t border-white/10 bg-[#09090b]/95 px-2 py-2 shadow-[0_-24px_70px_-48px_rgba(139,92,246,0.85)] backdrop-blur ${sidebarCollapsed ? "w-full flex-col px-2" : ""}`}>
           <div className={`flex shrink-0 items-center justify-center gap-0.5 ${sidebarCollapsed ? "w-full flex-col" : ""}`}>
             <button type="button" className={utilBtn} title="Product updates — see GitHub releases or changelog in the repo." aria-label="Announcements">
               <IconMegaphone />
@@ -193,12 +192,14 @@ export function AppLayout() {
               <IconBell />
             </button>
           </div>
-          <div className={`mx-1 h-6 w-px shrink-0 self-center bg-slate-200 ${sidebarCollapsed ? "h-px w-8" : ""}`} aria-hidden />
+          <div className={`mx-1 h-6 w-px shrink-0 self-center bg-white/10 ${sidebarCollapsed ? "h-px w-8" : ""}`} aria-hidden />
           <UserMenu displayName={displayName} onSignOut={signOut} variant="sidebar" compactRow />
         </div>
       </aside>
-      <main className="flex min-w-0 flex-1 flex-col">
-        <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-10">
+      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,0.34),rgba(80,38,150,0.16)_35%,transparent_70%)]" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:linear-gradient(rgba(255,255,255,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.14)_1px,transparent_1px)] [background-size:64px_64px]" />
+        <div className="relative mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-10">
           <Outlet />
         </div>
       </main>

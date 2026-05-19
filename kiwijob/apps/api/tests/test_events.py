@@ -99,3 +99,53 @@ def test_insights_counts_recent_application_funnel() -> None:
     assert body["top_titles"][0] == {"title": "Data Engineer", "count": 1}
     assert "start_date" in body
     assert "end_date" in body
+
+
+def test_email_reply_event_matches_existing_application_and_updates_status() -> None:
+    url = "https://example.com/jobs/event-email-reply"
+    job = {
+        "title": "Frontend Developer",
+        "company": "Acme Careers",
+        "location": "Auckland",
+        "description": "React, TypeScript, and product engineering.",
+        "url": url,
+        "source_website": "example.com",
+        "status": "Applied",
+    }
+    with TestClient(app) as client:
+        headers, _ = auth_headers(client)
+        created = client.post(
+            "/events/track",
+            headers=headers,
+            json={"event_type": "application_submitted", "page_url": url, "job": job},
+        )
+        assert created.status_code == 200
+        app_id = created.json()["application"]["id"]
+
+        reply = client.post(
+            "/events/track",
+            headers=headers,
+            json={
+                "event_type": "email_reply",
+                "source": "gmail",
+                "page_url": "https://mail.google.com/mail/u/0/#inbox/example",
+                "metadata": {
+                    "external_id": "gmail-message-1",
+                    "subject": "Frontend Developer application at Acme Careers",
+                    "sender": "recruiter@acme.example",
+                    "body_preview": "Thanks for your application. Our hiring team will review the next step.",
+                },
+            },
+        )
+        assert reply.status_code == 200
+
+        details = client.get(f"/jobs/{app_id}", headers=headers)
+        insights = client.get("/analytics/insights?days=30", headers=headers)
+
+    assert reply.json()["application"]["id"] == app_id
+    assert reply.json()["application"]["status"] == "Reply"
+    assert details.status_code == 200
+    assert details.json()["status"] == "Reply"
+    assert insights.status_code == 200
+    assert insights.json()["replies"] == 1
+    assert insights.json()["response_rate"] == 100.0

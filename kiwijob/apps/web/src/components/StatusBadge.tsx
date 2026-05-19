@@ -5,6 +5,7 @@ const STYLES: Record<ApplicationStatus, string> = {
   Applied: "bg-blue-50 text-blue-800 ring-blue-600/10",
   Viewed: "bg-indigo-50 text-indigo-800 ring-indigo-600/10",
   Assessment: "bg-amber-50 text-amber-900 ring-amber-600/10",
+  Reply: "bg-purple-50 text-purple-800 ring-purple-600/10",
   Interview: "bg-emerald-50 text-emerald-800 ring-emerald-600/10",
   Rejected: "bg-rose-50 text-rose-800 ring-rose-600/10",
   Offer: "bg-green-50 text-green-800 ring-green-600/10",

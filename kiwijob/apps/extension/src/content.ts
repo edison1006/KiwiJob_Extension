@@ -1,11 +1,13 @@
 import { applyAutofillToPage, type AutofillProfile } from "./autofill";
 import { initApplicationActivityTracker } from "./activityTracker";
+import { initEmailActivityTracker } from "./emailActivityTracker";
 import { extractJobFromPage } from "./extraction/generic";
 import { initKiwiJobPageHost, toggleKiwiJobPageHost } from "./pageHost/inject";
 import { initSeekNativeSaveOnClick } from "./seekNativeSave";
 
 initSeekNativeSaveOnClick();
 initApplicationActivityTracker();
+initEmailActivityTracker();
 initKiwiJobPageHost();
 
 let lastJobSignature = "";

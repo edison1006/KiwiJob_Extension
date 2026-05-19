@@ -4,6 +4,7 @@
 
 body {
   margin: 0;
+  background: #09090b;
   font-family:
     ui-sans-serif,
     system-ui,
@@ -14,4 +15,9 @@ body {
     Arial,
     "Apple Color Emoji",
     "Segoe UI Emoji";
+}
+
+::selection {
+  background: rgba(139, 92, 246, 0.32);
+  color: #f4f4f5;
 }
