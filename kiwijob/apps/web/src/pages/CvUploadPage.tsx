@@ -34,7 +34,7 @@ function IconChat({ className = "h-5 w-5 text-slate-500" }: { className?: string
   );
 }
 
-function IconSparkle({ className = "h-3.5 w-3.5 text-teal-600" }: { className?: string }) {
+function IconSparkle({ className = "h-3.5 w-3.5 text-brand-600" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" aria-hidden fill="currentColor">
       <path d="M12 2l1.2 4.2L17 7l-3.8 1L12 12l-1.2-4.8L7 7l3.8-1L12 2zm8 10l-2.2.6L17 14l.6-2.2L15 11l2.2-.6L17 8l.6 2.2L19 11zm-8 10l-1.2-4.2L7 17l3.8-1L12 22l1.2-4.8L17 17l-3.8 1L12 22z" />
@@ -85,12 +85,12 @@ type ActionCardProps = {
 
 function ActionCard({ icon, title, description, onPlus, disabled, dim }: ActionCardProps) {
   return (
-    <div className={`relative rounded-2xl border border-slate-200/90 bg-white p-4 pr-12 shadow-sm ${dim ? "opacity-60" : ""}`}>
+    <div className={`relative rounded-[24px] border border-white/75 bg-white/76 p-4 pr-12 shadow-[0_20px_58px_-50px_rgba(109,63,195,0.72)] backdrop-blur ${dim ? "opacity-60" : ""}`}>
       <button
         type="button"
         disabled={disabled || !onPlus}
         onClick={onPlus}
-        className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-lg font-light text-slate-500 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
+        className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-lg border border-brand-100 text-lg font-light text-slate-500 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40"
         aria-label="Add"
       >
         +
@@ -206,7 +206,7 @@ export default function CvUploadPage() {
         key={id}
         type="button"
         className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${
-          tab === id ? "border-teal-600 text-teal-700" : "border-transparent text-slate-500 hover:text-slate-800"
+          tab === id ? "border-brand-600 text-brand-700" : "border-transparent text-slate-500 hover:text-slate-800"
         }`}
         onClick={() => setTab(id)}
       >
@@ -217,10 +217,10 @@ export default function CvUploadPage() {
   }
 
   return (
-    <div className="-mx-4 -mt-4 min-h-[calc(100vh-6rem)] bg-slate-50 px-4 py-6 sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10">
+    <div className="-mx-4 -mt-4 min-h-[calc(100vh-6rem)] bg-transparent px-4 py-6 sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10">
       <div className="mx-auto max-w-6xl space-y-8">
         <header>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">My Documents</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-950">My Documents</h1>
           <p className="mt-2 text-sm text-slate-600">Manage and tailor all of your job search documents here!</p>
         </header>
 
@@ -263,14 +263,14 @@ export default function CvUploadPage() {
 
         <div className="border-b border-slate-200">
           <div className="flex gap-1">
-            {tabBtn("resumes", "Resumes", <IconDoc className={tab === "resumes" ? "h-5 w-5 text-teal-600" : "h-5 w-5"} />)}
-            {tabBtn("cover", "Cover Letters", <IconDoc className={tab === "cover" ? "h-5 w-5 text-teal-600" : "h-5 w-5"} />)}
-            {tabBtn("templates", "Templates", <IconLayout className={tab === "templates" ? "h-5 w-5 text-teal-600" : "h-5 w-5"} />)}
+            {tabBtn("resumes", "Resumes", <IconDoc className={tab === "resumes" ? "h-5 w-5 text-brand-600" : "h-5 w-5"} />)}
+            {tabBtn("cover", "Cover Letters", <IconDoc className={tab === "cover" ? "h-5 w-5 text-brand-600" : "h-5 w-5"} />)}
+            {tabBtn("templates", "Templates", <IconLayout className={tab === "templates" ? "h-5 w-5 text-brand-600" : "h-5 w-5"} />)}
           </div>
         </div>
 
         {tab !== "resumes" ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
+          <div className="rounded-[24px] border border-dashed border-brand-200 bg-white/72 px-6 py-16 text-center shadow-[0_20px_58px_-50px_rgba(109,63,195,0.72)] backdrop-blur">
             <p className="text-sm font-semibold text-slate-800">Nothing here yet</p>
             <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
               {tab === "cover" ? "Cover letters are not available in this build." : "Templates are not available in this build."}
@@ -298,7 +298,7 @@ export default function CvUploadPage() {
                   type="button"
                   disabled={busy}
                   onClick={() => fileRef.current?.click()}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-teal-600 bg-white px-4 py-2.5 text-sm font-semibold text-teal-700 shadow-sm hover:bg-teal-50 disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-brand-200 bg-white px-4 py-2.5 text-sm font-semibold text-brand-700 shadow-sm hover:bg-brand-50 disabled:opacity-50"
                 >
                   <IconUpload />
                   Upload
@@ -316,7 +316,7 @@ export default function CvUploadPage() {
                   <input
                     type="search"
                     placeholder="Search"
-                    className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-3 pr-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                    className="w-full rounded-xl border border-brand-100 bg-white/90 py-2.5 pl-3 pr-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
@@ -329,7 +329,7 @@ export default function CvUploadPage() {
             {!items ? (
               <div className="text-sm text-slate-600">Loading…</div>
             ) : (
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="overflow-hidden rounded-[24px] border border-white/75 bg-white/80 shadow-[0_24px_70px_-58px_rgba(109,63,195,0.72)] backdrop-blur">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-slate-200 text-sm">
                     <thead className="bg-slate-100 text-left text-[11px] font-bold uppercase tracking-wide text-slate-600">
@@ -337,7 +337,7 @@ export default function CvUploadPage() {
                         <th className="w-12 px-3 py-3">
                           <input
                             type="checkbox"
-                            className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                            className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                             checked={filtered.length > 0 && filtered.every((r) => selected.has(r.id))}
                             onChange={toggleAllVisible}
                             aria-label="Select all"
@@ -362,7 +362,7 @@ export default function CvUploadPage() {
                             <td className="px-3 py-3">
                               <input
                                 type="checkbox"
-                                className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                                className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                                 checked={selected.has(r.id)}
                                 onChange={() => toggleRow(r.id)}
                                 aria-label={`Select ${r.filename}`}
@@ -374,7 +374,7 @@ export default function CvUploadPage() {
                                 <div>
                                   <div className="font-semibold text-slate-900">{r.filename}</div>
                                   <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                    <span className="rounded-md bg-teal-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-teal-800">
+                                    <span className="rounded-md bg-brand-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-800">
                                       Uploaded
                                     </span>
                                     {items.length === 1 ? (
@@ -393,7 +393,7 @@ export default function CvUploadPage() {
                                 <button
                                   type="button"
                                   disabled
-                                  className="inline-flex items-center gap-1 text-sm font-semibold text-teal-600 opacity-50"
+                                  className="inline-flex items-center gap-1 text-sm font-semibold text-brand-600 opacity-50"
                                   title="Editor not in this MVP"
                                 >
                                   <IconPencil />

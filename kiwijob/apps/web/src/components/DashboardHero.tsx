@@ -5,20 +5,22 @@ import { Link } from "react-router-dom";
  */
 export function DashboardHero() {
   return (
-    <div className="mb-8 overflow-hidden rounded-2xl bg-gradient-to-r from-brand-700 via-brand-600 to-fuchsia-600 px-6 py-8 text-white shadow-md sm:px-10">
-      <div className="mx-auto max-w-3xl rounded-2xl bg-white p-6 text-slate-900 shadow-sm sm:p-8">
-        <div className="text-2xl" aria-hidden>
-          🔥
+    <div className="mb-8 overflow-hidden rounded-[28px] border border-brand-100 bg-white/72 p-5 shadow-[0_24px_70px_-58px_rgba(109,63,195,0.72)] backdrop-blur sm:p-6">
+      <div className="grid gap-5 sm:grid-cols-[1fr_auto] sm:items-center">
+        <div>
+          <div className="inline-flex rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
+            Match ready
+          </div>
+          <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">Get cleaner JD-to-CV match scores</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
+            Upload your latest CV, then run Analyze match from the Chrome extension. KiwiJob will compare only what the JD actually asks for.
+          </p>
         </div>
-        <h2 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">Get stronger match scores</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          Upload a CV on the dashboard, then use <span className="font-medium text-slate-800">Analyze match</span> in the Chrome extension. Without an OpenAI key on the API, analysis still runs as a JD-only mock scorer.
-        </p>
         <Link
           to="/documents"
-          className="mt-5 inline-flex items-center justify-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700"
+          className="inline-flex items-center justify-center rounded-full bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_16px_45px_-25px_rgba(109,63,195,0.95)] transition hover:bg-brand-700"
         >
-          Upload or replace CV
+          Upload CV
         </Link>
       </div>
     </div>

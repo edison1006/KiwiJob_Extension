@@ -178,14 +178,14 @@ export default function JobsPage() {
           <input
             type="search"
             placeholder="Search roles, companies, or locations…"
-            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+            className="w-full rounded-xl border border-brand-100 bg-white/90 py-2.5 pl-10 pr-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+            className="rounded-xl border border-brand-100 bg-white/90 px-3 py-2 text-sm font-medium text-slate-800 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
             value={statusFilter}
             onChange={(e) => setStatusFilter((e.target.value || "") as ApplicationStatus | "")}
           >
@@ -196,17 +196,17 @@ export default function JobsPage() {
               </option>
             ))}
           </select>
-          <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-0.5 text-xs font-semibold">
+          <div className="flex rounded-xl border border-brand-100 bg-brand-50/70 p-0.5 text-xs font-semibold">
             <button
               type="button"
-              className={`rounded-lg px-3 py-1.5 ${viewMode === "table" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}
+              className={`rounded-lg px-3 py-1.5 ${viewMode === "table" ? "bg-white text-brand-900 shadow-sm" : "text-slate-600"}`}
               onClick={() => setViewMode("table")}
             >
               Table
             </button>
             <button
               type="button"
-              className={`rounded-lg px-3 py-1.5 ${viewMode === "cards" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}
+              className={`rounded-lg px-3 py-1.5 ${viewMode === "cards" ? "bg-white text-brand-900 shadow-sm" : "text-slate-600"}`}
               onClick={() => setViewMode("cards")}
             >
               Cards
@@ -296,7 +296,7 @@ export default function JobsPage() {
     : "No more endless spreadsheets — keep track of roles, statuses, and match scores in one workspace.";
 
   const headerActions = isTrackerRoute ? (
-    <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1 text-xs font-semibold text-slate-600">
+        <div className="flex rounded-xl border border-brand-100 bg-brand-50/70 p-1 text-xs font-semibold text-slate-600">
       <button
         type="button"
         className={`rounded-lg px-3 py-2 ${trackerTab === "active" ? "bg-white text-slate-900 shadow-sm" : ""}`}
@@ -319,7 +319,7 @@ export default function JobsPage() {
       <div className="space-y-8">
         <PageHeader title={pageTitle} subtitle={pageSubtitle} actions={headerActions} />
         <DashboardHero />
-        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-16 text-center">
+        <div className="flex flex-col items-center justify-center rounded-[28px] border border-dashed border-brand-200 bg-white/68 px-6 py-16 text-center shadow-[0_20px_58px_-50px_rgba(109,63,195,0.72)] backdrop-blur">
           <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white text-4xl shadow-sm">📋</div>
           <h2 className="mt-6 text-xl font-semibold text-slate-900">Add your first job application</h2>
           <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-600">
@@ -337,7 +337,7 @@ export default function JobsPage() {
         <PageHeader title={pageTitle} subtitle={pageSubtitle} actions={headerActions} />
         {isTrackerRoute ? <DashboardHero /> : null}
         {toolbar}
-        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-12 text-center text-sm text-slate-600 shadow-sm">
+        <div className="rounded-[24px] border border-white/75 bg-white/76 px-6 py-12 text-center text-sm text-slate-600 shadow-[0_20px_58px_-50px_rgba(109,63,195,0.72)] backdrop-blur">
           No applications match your filters. Try clearing search or status, or switch tabs.
         </div>
       </div>
@@ -360,7 +360,7 @@ export default function JobsPage() {
       </div>
 
       {viewMode === "table" ? (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-[24px] border border-white/75 bg-white/82 shadow-[0_24px_70px_-58px_rgba(109,63,195,0.72)] backdrop-blur">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -435,7 +435,7 @@ export default function JobsPage() {
               key={r.id}
               id={`application-${r.id}`}
               to={`/jobs/${r.id}`}
-              className={`rounded-2xl border bg-white p-5 shadow-sm transition hover:border-brand-300 hover:shadow-md ${
+            className={`rounded-[24px] border bg-white/82 p-5 shadow-[0_20px_58px_-50px_rgba(109,63,195,0.72)] backdrop-blur transition hover:-translate-y-0.5 hover:border-brand-300 hover:bg-white hover:shadow-[0_30px_80px_-56px_rgba(109,63,195,0.82)] ${
                 savedFromExtensionId === r.id ? "border-emerald-300 ring-2 ring-emerald-100" : "border-slate-200"
               }`}
             >

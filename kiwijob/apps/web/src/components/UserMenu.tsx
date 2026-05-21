@@ -77,7 +77,7 @@ export function UserMenu({ displayName, onSignOut, variant = "sidebar", compactR
           isHeader
             ? "flex w-full items-center gap-2 rounded-lg border border-white/30 bg-white/15 px-2.5 py-1.5 text-sm font-semibold text-white shadow-sm backdrop-blur hover:bg-white/25"
             : isSidebarCompact
-              ? "flex min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-zinc-400 transition hover:bg-white/[0.06] hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand-300/30 lg:w-full"
+              ? "flex min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-slate-500 transition hover:bg-white/80 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-300/30 lg:w-full"
               : "flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
         }
         aria-expanded={open}
@@ -102,7 +102,7 @@ export function UserMenu({ displayName, onSignOut, variant = "sidebar", compactR
         </span>
         {isSidebarCompact ? (
           <svg
-            className={`h-3 w-3 shrink-0 text-zinc-400 transition duration-200 ${open ? "translate-x-0.5" : ""}`.trim()}
+            className={`h-3 w-3 shrink-0 text-slate-500 transition duration-200 ${open ? "translate-x-0.5" : ""}`.trim()}
             viewBox="0 0 24 24"
             aria-hidden
           >
