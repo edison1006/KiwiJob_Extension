@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Link } from "react-router-dom";
 
 export default function HomePage() {
@@ -36,6 +37,51 @@ export default function HomePage() {
     { label: "Interviews", value: "4" },
     { label: "Avg match", value: "86%" },
   ];
+  const guideSteps = [
+    {
+      to: "/documents",
+      title: "Upload your CV",
+      body: "Add your latest resume so Profile and Match can stay accurate.",
+      done: true,
+    },
+    {
+      to: "/settings#profile",
+      title: "Complete profile",
+      body: "Confirm your contact info, skills, visa status, links, and preferences.",
+      done: true,
+    },
+    {
+      to: "/browse",
+      title: "Connect job sources",
+      body: "Search across SEEK, LinkedIn, Trade Me, Indeed, and other NZ job boards.",
+      done: false,
+    },
+    {
+      to: "/tracker",
+      title: "Save target jobs",
+      body: "Capture each role, source, JD, status, and application stage in one place.",
+      done: false,
+    },
+    {
+      to: "/matches",
+      title: "Analyze match",
+      body: "Compare the JD requirements against your selected CV before applying.",
+      done: false,
+    },
+    {
+      to: "/analytics",
+      title: "Review outcomes",
+      body: "Track replies, interviews, results, title trends, and weekly progress.",
+      done: false,
+    },
+  ];
+  const completedSteps = guideSteps.filter((step) => step.done).length;
+  const progressPct = Math.round((completedSteps / guideSteps.length) * 100);
+  const guideRef = useRef<HTMLDivElement>(null);
+
+  function scrollGuide(direction: "left" | "right") {
+    guideRef.current?.scrollBy({ left: direction === "left" ? -420 : 420, behavior: "smooth" });
+  }
 
   return (
     <div className="space-y-6">
@@ -101,6 +147,90 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      <section className="overflow-hidden rounded-[32px] border border-white/80 bg-white/78 p-6 shadow-[0_28px_90px_-62px_rgba(109,63,195,0.72)] backdrop-blur-xl sm:p-8">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center">
+          <div>
+            <div className="inline-flex rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
+              Guided setup
+            </div>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">Get started with KiwiJob</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Complete a few focused steps to move from job discovery to tracked applications, match analysis, and interview outcomes.
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="h-3 flex-1 overflow-hidden rounded-full bg-brand-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-brand-600 to-fuchsia-400"
+                style={{ width: `${progressPct}%` }}
+                aria-hidden
+              />
+            </div>
+            <div className="min-w-12 text-right text-lg font-bold text-brand-700">
+              {completedSteps}/{guideSteps.length}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8 flex items-stretch gap-4">
+          <div className="hidden shrink-0 flex-col justify-center rounded-[24px] border border-brand-100 bg-white/70 p-3 shadow-sm sm:flex">
+            <button
+              type="button"
+              className="grid h-11 w-11 place-items-center rounded-full bg-white text-2xl text-brand-600 shadow-[0_14px_34px_-22px_rgba(109,63,195,0.9)] transition hover:bg-brand-50"
+              aria-label="Previous setup steps"
+              onClick={() => scrollGuide("left")}
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <path d="M15 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="mt-3 grid h-11 w-11 place-items-center rounded-full bg-white text-2xl text-brand-600 shadow-[0_14px_34px_-22px_rgba(109,63,195,0.9)] transition hover:bg-brand-50"
+              aria-label="Next setup steps"
+              onClick={() => scrollGuide("right")}
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+
+          <div
+            ref={guideRef}
+            className="flex flex-1 snap-x gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {guideSteps.map((step, index) => (
+              <Link
+                key={step.title}
+                to={step.to}
+                className="group relative min-w-[18rem] snap-start rounded-[24px] border border-brand-100/80 bg-white/76 p-5 shadow-[0_20px_58px_-50px_rgba(109,63,195,0.72)] transition hover:-translate-y-0.5 hover:border-brand-200 hover:bg-white sm:min-w-[23rem]"
+              >
+                <div className="flex items-start gap-4">
+                  <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl border text-sm font-bold ${
+                    step.done ? "border-brand-200 bg-brand-600 text-white" : "border-brand-100 bg-brand-50 text-brand-700"
+                  }`}>
+                    {String(index + 1).padStart(2, "0")}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-bold tracking-tight text-slate-950">{step.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{step.body}</p>
+                  </div>
+                </div>
+                <div className="mt-5 flex items-center justify-between">
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    step.done ? "bg-emerald-50 text-emerald-700" : "bg-brand-50 text-brand-700"
+                  }`}>
+                    {step.done ? "Complete" : "Next step"}
+                  </span>
+                  <span className="text-sm font-semibold text-brand-700 opacity-0 transition group-hover:opacity-100">Open</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {cards.map((card) => (
