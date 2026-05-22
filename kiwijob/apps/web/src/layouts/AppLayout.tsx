@@ -59,7 +59,7 @@ export function AppLayout() {
     "rounded-xl p-2 text-slate-500 transition hover:bg-white/80 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-300/30";
 
   return (
-    <div className="flex min-h-screen bg-[#f6f1ff] text-slate-950">
+    <div className="flex min-h-screen bg-[#f1e8ff] text-slate-950">
       <aside
         className={`relative z-30 flex min-h-screen shrink-0 overflow-visible flex-col border-r border-brand-100/80 bg-white/78 shadow-[18px_0_70px_-60px_rgba(109,63,195,0.65)] backdrop-blur-xl transition-[width] duration-200 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-64 before:bg-[radial-gradient(circle_at_50%_0%,rgba(196,181,253,0.38),transparent_68%)] ${
           sidebarCollapsed ? "w-20" : "w-64"
@@ -67,14 +67,15 @@ export function AppLayout() {
       >
         <div className={`relative border-b border-brand-100/80 px-4 py-5 ${sidebarCollapsed ? "px-3" : ""}`}>
           <div className={`flex items-start gap-2 ${sidebarCollapsed ? "justify-center" : "justify-between"}`}>
-            <div className={`flex items-center gap-3 ${sidebarCollapsed ? "justify-center" : ""}`}>
-              <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl border border-brand-100 bg-white shadow-[0_16px_45px_-24px_rgba(109,63,195,0.7)]">
-                <img src="/kiwijob-logo.png" alt="KiwiJob" className="h-full w-full object-cover" width={40} height={40} />
-              </span>
-              <div className={sidebarCollapsed ? "hidden" : ""}>
-                <div className="text-base font-bold tracking-tight text-slate-950">KiwiJob</div>
-                <div className="text-xs text-slate-500">Career command center</div>
-              </div>
+            <div className={`flex items-center ${sidebarCollapsed ? "justify-center" : ""}`}>
+              {sidebarCollapsed ? (
+                <img src="/kiwijob-fern.png" alt="KiwiJob" className="h-10 w-10 object-contain object-left" />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <img src="/kiwijob-fern.png" alt="" className="h-12 w-10 object-contain object-left" aria-hidden />
+                  <span className="font-mono text-lg font-extrabold tracking-tight text-brand-900">KiwiJob</span>
+                </div>
+              )}
             </div>
             <button
               type="button"
@@ -197,9 +198,9 @@ export function AppLayout() {
         </div>
       </aside>
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-96 bg-[radial-gradient(circle_at_50%_0%,rgba(196,181,253,0.42),rgba(245,243,255,0.72)_42%,transparent_76%)]" />
-        <div className="pointer-events-none absolute inset-0 opacity-[0.42] [background-image:linear-gradient(rgba(109,63,195,0.09)_1px,transparent_1px),linear-gradient(90deg,rgba(109,63,195,0.09)_1px,transparent_1px)] [background-size:64px_64px]" />
-        <div className="relative mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-10">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-96 bg-[radial-gradient(circle_at_50%_0%,rgba(196,181,253,0.5),rgba(237,233,254,0.82)_42%,transparent_76%)]" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.5] [background-image:linear-gradient(rgba(109,63,195,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(109,63,195,0.12)_1px,transparent_1px)] [background-size:64px_64px]" />
+        <div className="relative w-full flex-1 px-3 py-6 sm:px-5 lg:px-6 xl:px-8">
           <Outlet />
         </div>
       </main>

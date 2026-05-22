@@ -16,7 +16,6 @@ router = APIRouter(prefix="/events", tags=["events"])
 
 STATUS_RANK = {
     "Saved": 10,
-    "Viewed": 20,
     "Applied": 30,
     "Reply": 35,
     "Assessment": 40,
@@ -124,6 +123,9 @@ def _upsert_application_from_event(
     body: ApplicationEventIn,
     status: str | None,
 ) -> Application | None:
+    if body.event_type.strip().lower() == "job_viewed":
+        return None
+
     if body.job is None:
         matched = _match_application_from_metadata(session, user_id, body.metadata, body.page_url)
         if matched and _should_update_status(matched.status, status):

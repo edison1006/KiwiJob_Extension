@@ -6,7 +6,6 @@
 export const APPLICATION_STATUSES = [
   "Saved",
   "Applied",
-  "Viewed",
   "Assessment",
   "Reply",
   "Interview",

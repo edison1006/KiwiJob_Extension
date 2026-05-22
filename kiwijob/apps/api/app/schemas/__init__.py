@@ -9,7 +9,6 @@ APPLICATION_STATUSES = frozenset(
     {
         "Saved",
         "Applied",
-        "Viewed",
         "Assessment",
         "Reply",
         "Interview",
@@ -113,7 +112,6 @@ class ApplicationEventIn(BaseModel):
             if s in APPLICATION_STATUSES:
                 return s
         mapped = {
-            "job_viewed": "Viewed",
             "application_started": "Applied",
             "application_submitted": "Applied",
             "email_reply": "Reply",

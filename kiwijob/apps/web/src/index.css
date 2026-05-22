@@ -4,7 +4,7 @@
 
 body {
   margin: 0;
-  background: #f6f1ff;
+  background: #f1e8ff;
   font-family:
     ui-sans-serif,
     system-ui,
@@ -20,4 +20,44 @@ body {
 ::selection {
   background: rgba(139, 92, 246, 0.32);
   color: #1e1b4b;
+}
+
+@keyframes kiwijob-orbit-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.kiwijob-orbit {
+  animation: kiwijob-orbit-spin 46s linear infinite;
+  transform-origin: center;
+}
+
+.kiwijob-orbit-position {
+  transform: translate(-50%, -50%) rotate(var(--node-angle)) translateY(-6.6rem);
+  transform-origin: center;
+}
+
+.kiwijob-orbit-node {
+  animation: kiwijob-orbit-counter-spin 46s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes kiwijob-orbit-counter-spin {
+  from {
+    transform: rotate(var(--node-counter-angle));
+  }
+  to {
+    transform: rotate(calc(var(--node-counter-angle) - 360deg));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kiwijob-orbit,
+  .kiwijob-orbit-node {
+    animation: none;
+  }
 }

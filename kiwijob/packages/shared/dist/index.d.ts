@@ -2,7 +2,7 @@
  * Shared contracts between the web app, Chrome extension, and API.
  * Keep fields aligned with FastAPI Pydantic models.
  */
-export declare const APPLICATION_STATUSES: readonly ["Saved", "Applied", "Viewed", "Assessment", "Reply", "Interview", "Rejected", "Offer", "Withdrawn"];
+export declare const APPLICATION_STATUSES: readonly ["Saved", "Applied", "Assessment", "Reply", "Interview", "Rejected", "Offer", "Withdrawn"];
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 /** Payload sent from the extension to POST /jobs/save */
 export interface JobSavePayload {

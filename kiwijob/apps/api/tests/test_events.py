@@ -4,7 +4,7 @@ from app.main import app
 from conftest import auth_headers
 
 
-def test_track_viewed_event_creates_application() -> None:
+def test_track_viewed_event_does_not_create_application() -> None:
     url = "https://example.com/jobs/event-viewed"
     with TestClient(app) as client:
         headers, _ = auth_headers(client)
@@ -21,16 +21,19 @@ def test_track_viewed_event_creates_application() -> None:
                     "description": "SQL reporting and stakeholder analysis.",
                     "url": url,
                     "source_website": "example.com",
-                    "status": "Viewed",
+                    "status": "Saved",
                 },
             },
         )
+        jobs = client.get("/jobs", headers=headers)
 
     assert res.status_code == 200
     body = res.json()
     assert body["event"]["event_type"] == "job_viewed"
-    assert body["application"]["status"] == "Viewed"
-    assert body["application"]["job"]["title"] == "Data Analyst"
+    assert body["event"]["status_after"] is None
+    assert body["application"] is None
+    assert jobs.status_code == 200
+    assert jobs.json() == []
 
 
 def test_track_application_event_upgrades_but_does_not_downgrade_status() -> None:
@@ -42,12 +45,13 @@ def test_track_application_event_upgrades_but_does_not_downgrade_status() -> Non
         "description": "Analytics, SQL, dashboards, and business partnering.",
         "url": url,
         "source_website": "example.com",
-        "status": "Viewed",
+        "status": "Saved",
     }
     with TestClient(app) as client:
         headers, _ = auth_headers(client)
         viewed = client.post("/events/track", headers=headers, json={"event_type": "job_viewed", "page_url": url, "job": job})
         assert viewed.status_code == 200
+        assert viewed.json()["application"] is None
 
         applied = client.post(
             "/events/track",
@@ -60,7 +64,7 @@ def test_track_application_event_upgrades_but_does_not_downgrade_status() -> Non
         viewed_again = client.post("/events/track", headers=headers, json={"event_type": "job_viewed", "page_url": url, "job": job})
 
     assert viewed_again.status_code == 200
-    assert viewed_again.json()["application"]["status"] == "Applied"
+    assert viewed_again.json()["application"] is None
 
 
 def test_insights_counts_recent_application_funnel() -> None:

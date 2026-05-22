@@ -217,8 +217,8 @@ export default function CvUploadPage() {
   }
 
   return (
-    <div className="-mx-4 -mt-4 min-h-[calc(100vh-6rem)] bg-transparent px-4 py-6 sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10">
-      <div className="mx-auto max-w-6xl space-y-8">
+    <div className="-mx-3 -mt-3 min-h-[calc(100vh-6rem)] bg-transparent px-3 py-6 sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6 xl:-mx-8 xl:px-8">
+      <div className="w-full space-y-8">
         <header>
           <h1 className="text-3xl font-bold tracking-tight text-slate-950">My Documents</h1>
           <p className="mt-2 text-sm text-slate-600">Manage and tailor all of your job search documents here!</p>

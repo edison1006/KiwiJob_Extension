@@ -3,7 +3,6 @@ import type { BgResponse } from "./messages";
 import { extractJobFromPage } from "./extraction/generic";
 
 type TrackEventType =
-  | "job_viewed"
   | "email_reply"
   | "application_started"
   | "application_submitted"
@@ -66,7 +65,6 @@ function tryExtractJob(status: ApplicationStatus): JobSavePayload | null {
 }
 
 function statusForEvent(type: TrackEventType): ApplicationStatus {
-  if (type === "job_viewed") return "Viewed";
   if (type === "email_reply") return "Reply";
   if (type === "assessment_detected") return "Assessment";
   if (type === "interview_detected") return "Interview";
@@ -171,7 +169,6 @@ function scanForOutcome(): void {
 }
 
 export function initApplicationActivityTracker(): void {
-  window.setTimeout(() => sendEvent("job_viewed", { detector: "page_load" }), 1200);
   window.setTimeout(scanForOutcome, 1800);
 
   document.addEventListener(
