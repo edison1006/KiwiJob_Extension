@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     # development | staging | production (used for logging / future strict checks)
     environment: str = "development"
 
-    # Default: file SQLite so `uvicorn` works without Docker/local Postgres. Override with Postgres in .env or Docker.
-    database_url: str = "sqlite:///./data/kiwijob.db"
+    # PostgreSQL is the only supported database. Override in .env for hosted environments.
+    database_url: str = "postgresql+psycopg2://kiwijob:kiwijob@localhost:5432/kiwijob"
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
     google_oauth_client_id: str | None = None

@@ -53,10 +53,16 @@ class JobSaveIn(BaseModel):
     location: Optional[str] = None
     description: Optional[str] = None
     salary: Optional[str] = None
+    employment_type: Optional[str] = Field(default=None, max_length=500)
+    workplace_type: Optional[str] = Field(default=None, max_length=500)
     visa_requirement: Optional[str] = Field(default=None, max_length=1000)
     url: str = Field(..., min_length=4, max_length=4096)
+    apply_url: Optional[str] = Field(default=None, max_length=4096)
+    company_url: Optional[str] = Field(default=None, max_length=4096)
+    external_job_id: Optional[str] = Field(default=None, max_length=500)
     source_website: str = Field(default="unknown", max_length=200)
     posted_date: Optional[datetime] = None
+    closing_date: Optional[datetime] = None
     status: str = Field(default="Saved")
 
     def normalized_status(self) -> str:
@@ -73,10 +79,16 @@ class JobPostOut(BaseModel):
     location: Optional[str]
     description: Optional[str]
     salary: Optional[str]
+    employment_type: Optional[str]
+    workplace_type: Optional[str]
     visa_requirement: Optional[str]
     url: str
+    apply_url: Optional[str]
+    company_url: Optional[str]
+    external_job_id: Optional[str]
     source_website: str
     posted_date: Optional[datetime]
+    closing_date: Optional[datetime]
     created_at: datetime
     updated_at: datetime
 
@@ -93,8 +105,39 @@ class ApplicationListOut(BaseModel):
     job: JobPostOut
 
 
+class ApplicationNoteIn(BaseModel):
+    content: str = Field(..., min_length=1, max_length=10000)
+
+
+class ApplicationNoteOut(BaseModel):
+    id: int
+    application_id: int
+    content: str
+    created_at: datetime
+    updated_at: datetime
+    is_edited: bool = False
+
+    class Config:
+        from_attributes = True
+
+
+class ApplicationTimelineEventOut(BaseModel):
+    id: int
+    event_type: str
+    source: str
+    page_url: Optional[str]
+    status_after: Optional[str]
+    occurred_at: datetime
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class ApplicationDetailOut(ApplicationListOut):
     latest_match: Optional[dict[str, Any]] = None
+    notes: list[ApplicationNoteOut] = Field(default_factory=list)
+    timeline: list[ApplicationTimelineEventOut] = Field(default_factory=list)
 
 
 class ApplicationEventIn(BaseModel):
@@ -151,6 +194,21 @@ class ApplicationEventTrackOut(BaseModel):
 
 class ApplicationUpdateIn(BaseModel):
     status: Optional[str] = None
+    title: Optional[str] = Field(default=None, min_length=1, max_length=500)
+    company: Optional[str] = None
+    location: Optional[str] = None
+    description: Optional[str] = None
+    salary: Optional[str] = None
+    employment_type: Optional[str] = Field(default=None, max_length=500)
+    workplace_type: Optional[str] = Field(default=None, max_length=500)
+    visa_requirement: Optional[str] = Field(default=None, max_length=1000)
+    url: Optional[str] = Field(default=None, min_length=4, max_length=4096)
+    apply_url: Optional[str] = Field(default=None, max_length=4096)
+    company_url: Optional[str] = Field(default=None, max_length=4096)
+    external_job_id: Optional[str] = Field(default=None, max_length=500)
+    source_website: Optional[str] = Field(default=None, max_length=200)
+    posted_date: Optional[datetime] = None
+    closing_date: Optional[datetime] = None
 
     def normalized_status(self) -> Optional[str]:
         if self.status is None:

@@ -3,7 +3,9 @@ import type {
   ApplicantAutofillProfile,
   ApplicationDetail,
   ApplicationListItem,
+  ApplicationNote,
   ApplicationStatus,
+  JobPostUpdatePayload,
   JobSavePayload,
   MatchAnalysis,
   ResumeDTO,
@@ -174,6 +176,41 @@ export async function updateJobStatus(id: number, status: ApplicationStatus): Pr
     body: JSON.stringify({ status }),
   });
   return parseJson(res);
+}
+
+export async function updateJobDetails(id: number, payload: JobPostUpdatePayload): Promise<ApplicationListItem> {
+  const res = await fetch(`${API_URL}/jobs/${id}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...headers() },
+    body: JSON.stringify(payload),
+  });
+  return parseJson(res);
+}
+
+export async function createApplicationNote(jobId: number, content: string): Promise<ApplicationNote> {
+  const res = await fetch(`${API_URL}/jobs/${jobId}/notes`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...headers() },
+    body: JSON.stringify({ content }),
+  });
+  return parseJson(res);
+}
+
+export async function updateApplicationNote(jobId: number, noteId: number, content: string): Promise<ApplicationNote> {
+  const res = await fetch(`${API_URL}/jobs/${jobId}/notes/${noteId}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...headers() },
+    body: JSON.stringify({ content }),
+  });
+  return parseJson(res);
+}
+
+export async function deleteApplicationNote(jobId: number, noteId: number): Promise<void> {
+  const res = await fetch(`${API_URL}/jobs/${jobId}/notes/${noteId}`, { method: "DELETE", credentials: "include", headers: headers() });
+  if (!res.ok) throw new Error(formatErrorBody(await res.text()));
 }
 
 export async function deleteJob(id: number): Promise<void> {

@@ -20,26 +20,24 @@ Monorepo layout (under `kiwijob/`):
 ## Release builds & CI
 
 - Checklist: [`kiwijob/docs/RELEASE.md`](kiwijob/docs/RELEASE.md) (production env, CORS, store listing; **1.0 product scope** is at the top of that file).
-- Local CI-style run from `kiwijob/`: `npm run ci` (Node builds + API tests via `python3 -m pytest`; install Python deps first: `pip install -r apps/api/requirements.txt`, or use `apps/api/.venv`).
-- GitHub Actions: `.github/workflows/kiwijob-ci.yml` (runs on pushes/PRs that touch `kiwijob/**`). Root `postinstall` runs `kiwijob/scripts/ensure-rollup-native.cjs` so Vite/Rollup works after `npm ci` on Linux and macOS (see [`kiwijob/docs/RELEASE.md`](kiwijob/docs/RELEASE.md) → CI).
+- Local CI-style run from `kiwijob/`: `npm run ci` (Node builds + API tests via `python3 -m pytest`; install Python deps first and keep a local PostgreSQL test database reachable, or use `apps/api/.venv`).
+- GitHub Actions: `.github/workflows/kiwijob-ci.yml` (runs on pushes/PRs that touch `kiwijob/**`, starts PostgreSQL, runs Alembic, then tests). Root `postinstall` runs `kiwijob/scripts/ensure-rollup-native.cjs` so Vite/Rollup works after `npm ci` on Linux and macOS (see [`kiwijob/docs/RELEASE.md`](kiwijob/docs/RELEASE.md) → CI).
 
 ## Quick start (local)
 
-### 1) Database (optional for quick local API)
+### 1) Database
 
-By default the API uses **SQLite** (`./data/kiwijob.db`) so you can skip Postgres and Docker for local dev.
-
-For **PostgreSQL** instead, start a server (example with Docker — requires Docker Desktop running):
+The API requires **PostgreSQL**. Start a local server (example with Docker — requires Docker Desktop running):
 
 ```bash
 docker run --name kiwijob-pg -e POSTGRES_USER=kiwijob -e POSTGRES_PASSWORD=kiwijob -e POSTGRES_DB=kiwijob -p 5432:5432 -d postgres:16-alpine
 ```
 
-Then set `DATABASE_URL` in `kiwijob/apps/api/.env` to the Postgres URL from `kiwijob/.env.example` (commented block).
+Then set `DATABASE_URL` in `kiwijob/apps/api/.env` to the Postgres URL from `kiwijob/.env.example`.
 
 ### Postgres user + database (local, one-time)
 
-If you use **PostgreSQL** instead of SQLite, create role `kiwijob` and database `kiwijob` once:
+If you use an existing local PostgreSQL server, create role `kiwijob` and database `kiwijob` once:
 
 ```bash
 cd kiwijob
@@ -76,7 +74,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp ../../.env.example .env
-# Default .env uses SQLite — no Postgres needed. For Postgres, edit DATABASE_URL in .env.
+python -m alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 

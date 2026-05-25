@@ -30,16 +30,35 @@ function jobSignature(payload: ReturnType<typeof extractJobFromPage>): string {
 function isRealJobPayload(payload: JobSavePayload | null | undefined): payload is JobSavePayload {
   if (!payload?.url || !payload.title?.trim()) return false;
   if (/open one seek job posting/i.test(payload.title)) return false;
-  const haystack = `${window.location.hostname} ${window.location.pathname} ${document.title} ${payload.title} ${payload.source_website}`.toLowerCase();
+  const hostname = window.location.hostname.toLowerCase();
+  const pathname = window.location.pathname.toLowerCase();
+  const title = payload.title.toLowerCase();
+  const source = (payload.source_website || "").toLowerCase();
+  if (/(^|\.)coursera\.org$/i.test(hostname)) return false;
   const hasJobPostingJsonLd = Array.from(document.querySelectorAll('script[type="application/ld+json"]')).some((script) =>
     /"@type"\s*:\s*"?JobPosting"?/i.test(script.textContent || ""),
   );
-  const hasJobUrlSignal = /job|jobs|career|careers|greenhouse|lever|workday|smartrecruiters|ashby|bamboohr|seek|linkedin|indeed|trademe/.test(haystack);
+  const isLinkedIn = /(^|\.)linkedin\.com$/i.test(hostname);
+  const isLinkedInJobPage = isLinkedIn && /^\/jobs\//i.test(pathname);
+  if (isLinkedIn && !isLinkedInJobPage) return false;
+
+  const knownJobBoardPath =
+    /\/(job|jobs|viewjob|jobsearch)(\/|\b)/i.test(pathname) ||
+    /\/rc\/clk\b/i.test(pathname) ||
+    /(?:^|[?&])vjk=/i.test(window.location.search);
+  const knownAtsHost = /greenhouse|lever|workday|smartrecruiters|ashby|bamboohr|job-boards/i.test(hostname);
+  const knownJobBoardHost =
+    /seek|indeed|trademe|jobs\.govt\.nz/i.test(hostname) || (isLinkedInJobPage && /job|jobs|hiring/i.test(`${pathname} ${title} ${source}`));
+  const hasJobUrlSignal = knownJobBoardPath || knownAtsHost || knownJobBoardHost;
   const hasJobDomSignal = Boolean(
     document.querySelector(
       [
-        '[data-automation*="job" i]',
-        '[data-testid*="job" i]',
+        '[data-automation="job-detail-title"]',
+        '[data-automation="jobDetailTitle"]',
+        '[data-testid="job-detail-title"]',
+        '[data-testid="jobsearch-JobInfoHeader-title"]',
+        ".job-details-jobs-unified-top-card",
+        ".jobs-unified-top-card",
         "#job-details",
         "#jobDescriptionText",
         ".job-description",

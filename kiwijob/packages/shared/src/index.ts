@@ -23,10 +23,16 @@ export interface JobSavePayload {
   location?: string | null;
   description?: string | null;
   salary?: string | null;
+  employment_type?: string | null;
+  workplace_type?: string | null;
   visa_requirement?: string | null;
   url: string;
+  apply_url?: string | null;
+  company_url?: string | null;
+  external_job_id?: string | null;
   source_website: string;
   posted_date?: string | null;
+  closing_date?: string | null;
   status?: ApplicationStatus;
 }
 
@@ -51,12 +57,37 @@ export interface JobPostDTO {
   location: string | null;
   description: string | null;
   salary: string | null;
+  employment_type: string | null;
+  workplace_type: string | null;
   visa_requirement: string | null;
   url: string;
+  apply_url: string | null;
+  company_url: string | null;
+  external_job_id: string | null;
   source_website: string;
   posted_date: string | null;
+  closing_date: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface JobPostUpdatePayload {
+  title?: string;
+  company?: string | null;
+  location?: string | null;
+  description?: string | null;
+  salary?: string | null;
+  employment_type?: string | null;
+  workplace_type?: string | null;
+  visa_requirement?: string | null;
+  url?: string;
+  apply_url?: string | null;
+  company_url?: string | null;
+  external_job_id?: string | null;
+  source_website?: string;
+  posted_date?: string | null;
+  closing_date?: string | null;
+  status?: ApplicationStatus;
 }
 
 /** One row in the application tracker (application + job + latest match score) */
@@ -69,8 +100,29 @@ export interface ApplicationListItem {
   job: JobPostDTO;
 }
 
+export interface ApplicationNote {
+  id: number;
+  application_id: number;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  is_edited: boolean;
+}
+
+export interface ApplicationTimelineEvent {
+  id: number;
+  event_type: string;
+  source: string;
+  page_url: string | null;
+  status_after: ApplicationStatus | null;
+  occurred_at: string;
+  created_at: string;
+}
+
 export interface ApplicationDetail extends ApplicationListItem {
   latest_match: MatchAnalysis | null;
+  notes: ApplicationNote[];
+  timeline: ApplicationTimelineEvent[];
 }
 
 export interface AnalyticsSummary {

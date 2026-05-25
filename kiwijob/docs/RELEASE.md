@@ -6,7 +6,7 @@ Use this when preparing a production cut (web + API + Chrome extension).
 
 Included in the first production-capable release:
 
-- **API**: FastAPI + SQLModel; `/health`; jobs save/list/detail/update/delete; resumes upload/list; match analyze + read; analytics summary; SQLite by default or Postgres via `DATABASE_URL`; `CORS_ORIGINS` + `ENVIRONMENT`; Docker Compose with Postgres + API **healthchecks**.
+- **API**: FastAPI + SQLModel; `/health`; jobs save/list/detail/update/delete; resumes upload/list; match analyze + read; analytics summary; PostgreSQL via `DATABASE_URL`; Alembic migrations; `CORS_ORIGINS` + `ENVIRONMENT`; Docker Compose with Postgres + API **healthchecks**.
 - **Web**: Applications table, job detail (status, JD, match), CV upload, analytics; layout footer shows **API reachability**, base URL link to `/health`, and **Mock user id** (`localStorage` → `X-Mock-User-Id`, consistent with the extension).
 - **Extension (MV3, Chrome 114+)**: Side panel; page extraction with SEEK **non–job-detail** guard; optional **native SEEK Save** sync; background calls to the same API.
 
@@ -16,6 +16,7 @@ Explicitly **out of scope for 1.0**: ATS one-click autofill, referral/network gr
 
 - Set `ENVIRONMENT=production`.
 - Set `DATABASE_URL` to a managed Postgres URL (TLS recommended).
+- Run `python -m alembic upgrade head` from `apps/api` before starting a new deployment.
 - Set `CORS_ORIGINS` to explicit values: your web origin(s) (`https://…`) and each `chrome-extension://<extension-id>` origin for the MV3 build you ship (comma-separated). Avoid `*` in production unless you accept the risk.
 - Set `OPENAI_API_KEY` in a secret store; never commit `.env`.
 - Point `RESUME_STORAGE_DIR` at durable storage (volume / object storage adapter is a future step).
@@ -55,13 +56,12 @@ Explicitly **out of scope for 1.0**: ATS one-click autofill, referral/network gr
 
 ## CI
 
-- GitHub Actions workflow: `.github/workflows/kiwijob-ci.yml` (builds Node workspaces + runs `python -m pytest` under `apps/api`). Root **`postinstall`** runs `scripts/ensure-rollup-native.cjs` so Vite gets the correct `@rollup/rollup-*` native binding after [npm optional-deps + workspaces](https://github.com/npm/cli/issues/4828) omit it.
-- Run locally: `cd kiwijob && npm run ci` (requires Python 3.12+ with `pip install -r apps/api/requirements.txt` so `python -m pytest` works, or run tests inside `apps/api/.venv`).
+- GitHub Actions workflow: `.github/workflows/kiwijob-ci.yml` (builds Node workspaces, starts PostgreSQL, runs Alembic, then runs `python -m pytest` under `apps/api`). Root **`postinstall`** runs `scripts/ensure-rollup-native.cjs` so Vite gets the correct `@rollup/rollup-*` native binding after [npm optional-deps + workspaces](https://github.com/npm/cli/issues/4828) omit it.
+- Run locally: `cd kiwijob && npm run ci` (requires Python 3.12+, `pip install -r apps/api/requirements.txt`, and local PostgreSQL reachable at `postgresql+psycopg2://kiwijob:kiwijob@localhost:5432/kiwijob_test` unless you override `DATABASE_URL`).
 - If you cloned before this script existed: from `kiwijob/` run `npm install` once (or `node scripts/ensure-rollup-native.cjs`) so Rollup’s platform package is present, then `npm run dev -w @kiwijob/web`.
 
 ## Follow-ups (not in MVP)
 
 - Real auth (replace `X-Mock-User-Id`).
-- Migrations / Alembic when schema stabilizes.
 - Rate limiting and upload virus scanning for `/resumes/upload`.
 - Observability (structured logs, metrics, tracing).

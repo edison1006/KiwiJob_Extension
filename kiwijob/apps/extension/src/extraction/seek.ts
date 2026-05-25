@@ -139,6 +139,36 @@ function pickSeekSalaryFallback(scope: Element | Document): string | null {
   return m ? m[0].replace(/\s+/g, " ").trim().slice(0, 120) : null;
 }
 
+function pickSeekEmploymentType(scope: Element | Document): string | null {
+  const raw = formattedText(scope instanceof Document ? document.body : scope);
+  const hits = ["Full time", "Part time", "Contract/Temp", "Casual/Vacation", "Permanent", "Fixed term"].filter((label) =>
+    new RegExp(label.replace("/", "\\/"), "i").test(raw),
+  );
+  return hits.length ? [...new Set(hits)].slice(0, 3).join(", ") : null;
+}
+
+function pickSeekWorkplaceType(scope: Element | Document, location: string | null): string | null {
+  const raw = `${location || ""} ${formattedText(scope instanceof Document ? document.body : scope).slice(0, 4000)}`;
+  if (/\bremote\b|work from home|wfh/i.test(raw)) return "Remote";
+  if (/\bhybrid\b/i.test(raw)) return "Hybrid";
+  if (location) return "On-site";
+  return null;
+}
+
+function pickSeekClosingDate(scope: Element | Document): string | null {
+  const root = scope instanceof Document ? document.body : scope;
+  const time = root?.querySelector("time[datetime]")?.getAttribute("datetime")?.trim();
+  if (time && /close|closing|expire|expiry/i.test(root?.textContent || "")) return time;
+  const raw = formattedText(root).replace(/\s+/g, " ");
+  const hit = raw.match(/\b(?:applications?\s+close|closing\s+date|closes)\s*:?\s*([A-Z][a-z]{2,9}\s+\d{1,2},?\s+\d{4}|\d{1,2}\s+[A-Z][a-z]{2,9}\s+\d{4}|\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+  return hit?.[1]?.trim() || null;
+}
+
+function seekExternalId(): string | null {
+  const fromPath = window.location.pathname.match(/\/job\/(\d+)/i)?.[1] || window.location.pathname.match(/\/jobs\/[^/]*?(\d{6,})/i)?.[1];
+  return fromPath || null;
+}
+
 function formattedText(el: Element | null | undefined): string {
   if (!el) return "";
   const rendered = "innerText" in el ? (el as HTMLElement).innerText : "";
@@ -262,6 +292,10 @@ export const seekSiteExtractor: SiteExtractor = {
         t(scope.querySelector('a[href*="/companies/"]')) ||
         (scope.tagName === "MAIN" ? pickCompanyLoose(scope) : null);
     }
+    const companyUrl =
+      scope instanceof Element
+        ? (scope.querySelector('a[href*="/company/"], a[href*="/companies/"]') as HTMLAnchorElement | null)?.href || null
+        : null;
 
     const location = pickFirst(scope, [
       '[data-automation="job-detail-location"]',
@@ -283,6 +317,9 @@ export const seekSiteExtractor: SiteExtractor = {
     ]);
     if (!salary) salary = pickSeekSalaryFallback(scope);
     const description = pickSeekDescription(scope);
+    const employmentType = pickSeekEmploymentType(scope);
+    const workplaceType = pickSeekWorkplaceType(scope, location);
+    const closingDate = pickSeekClosingDate(scope);
 
     if (!title && !company && !location && !salary && !description) return null;
     const out: Partial<JobSavePayload> = {};
@@ -290,7 +327,15 @@ export const seekSiteExtractor: SiteExtractor = {
     if (company) out.company = company;
     if (location) out.location = location;
     if (salary) out.salary = salary;
+    if (employmentType) out.employment_type = employmentType;
+    if (workplaceType) out.workplace_type = workplaceType;
     if (description) out.description = description;
+    if (companyUrl) out.company_url = companyUrl;
+    out.apply_url = window.location.href;
+    const externalId = seekExternalId();
+    if (externalId) out.external_job_id = externalId;
+    if (closingDate) out.closing_date = closingDate;
+    out.source_website = "seek.co.nz";
     return out;
   },
 };

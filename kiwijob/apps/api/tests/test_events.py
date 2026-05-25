@@ -153,3 +153,84 @@ def test_email_reply_event_matches_existing_application_and_updates_status() -> 
     assert insights.status_code == 200
     assert insights.json()["replies"] == 1
     assert insights.json()["response_rate"] == 100.0
+
+
+def test_application_detail_includes_notes_and_timeline() -> None:
+    url = "https://example.com/jobs/notes-and-timeline"
+    job = {
+        "title": "Customer Success Analyst",
+        "company": "Example Ltd",
+        "location": "Auckland",
+        "description": "Customer analytics, stakeholder updates, and CRM reporting.",
+        "url": url,
+        "source_website": "example.com",
+        "status": "Saved",
+    }
+    with TestClient(app) as client:
+        headers, _ = auth_headers(client)
+        created = client.post("/jobs/save", headers=headers, json=job)
+        assert created.status_code == 200
+        app_id = created.json()["id"]
+
+        note = client.post(f"/jobs/{app_id}/notes", headers=headers, json={"content": "Ask recruiter about hybrid schedule."})
+        assert note.status_code == 201
+
+        status = client.put(f"/jobs/{app_id}", headers=headers, json={"status": "Applied"})
+        assert status.status_code == 200
+
+        details = client.get(f"/jobs/{app_id}", headers=headers)
+
+    assert details.status_code == 200
+    body = details.json()
+    assert body["notes"][0]["content"] == "Ask recruiter about hybrid schedule."
+    assert body["notes"][0]["is_edited"] is False
+    assert [event["event_type"] for event in body["timeline"]][:2] == ["status_updated", "note_added"]
+    assert body["timeline"][0]["status_after"] == "Applied"
+
+
+def test_job_save_and_update_preserves_rich_job_fields() -> None:
+    url = "https://example.com/jobs/rich-fields"
+    with TestClient(app) as client:
+        headers, _ = auth_headers(client)
+        created = client.post(
+            "/jobs/save",
+            headers=headers,
+            json={
+                "title": "Platform Engineer",
+                "company": "Example Ltd",
+                "location": "Wellington",
+                "description": "Build internal platforms and developer tooling.",
+                "salary": "$120,000-$140,000",
+                "employment_type": "Full-time",
+                "workplace_type": "Hybrid",
+                "visa_requirement": "Applicants must have current right to work in New Zealand.",
+                "url": url,
+                "apply_url": f"{url}/apply",
+                "company_url": "https://example.com",
+                "external_job_id": "EXT-123",
+                "source_website": "example.com",
+                "posted_date": "2026-05-01T00:00:00",
+                "closing_date": "2026-06-01T00:00:00",
+                "status": "Saved",
+            },
+        )
+        assert created.status_code == 200
+        app_id = created.json()["id"]
+
+        updated = client.put(
+            f"/jobs/{app_id}",
+            headers=headers,
+            json={"salary": "$130,000-$150,000", "workplace_type": "Remote", "company_url": None},
+        )
+        assert updated.status_code == 200
+        details = client.get(f"/jobs/{app_id}", headers=headers)
+
+    assert details.status_code == 200
+    job = details.json()["job"]
+    assert job["salary"] == "$130,000-$150,000"
+    assert job["employment_type"] == "Full-time"
+    assert job["workplace_type"] == "Remote"
+    assert job["apply_url"] == f"{url}/apply"
+    assert job["company_url"] is None
+    assert job["external_job_id"] == "EXT-123"
+    assert job["closing_date"].startswith("2026-06-01")

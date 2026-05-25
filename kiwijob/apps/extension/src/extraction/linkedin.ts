@@ -237,6 +237,13 @@ function pickCompanyFromTopCard(root: Element | null): string | null {
   return null;
 }
 
+function pickCompanyUrlFromTopCard(root: Element | null): string | null {
+  const link = root?.querySelector(
+    ".job-details-jobs-unified-top-card__company-name a, .jobs-unified-top-card__company-name a, a[href*='/company/'], a[href*='/school/']",
+  ) as HTMLAnchorElement | null;
+  return link?.href || null;
+}
+
 function pickVisibleRightCompany(): string | null {
   const selectors = [
     ".job-details-jobs-unified-top-card__company-name a",
@@ -282,6 +289,24 @@ function pickLocationLine(root: Element | null): string | null {
     .filter((s): s is string => Boolean(s && s.length > 0 && s.length < 120));
   if (!bits.length) return t(chipRoot);
   return [...new Set(bits)].join(" · ");
+}
+
+function pickLinkedInEmploymentType(root: Element | null): string | null {
+  const raw = t(root) || document.body?.innerText?.slice(0, 6000) || "";
+  const hits = ["Full-time", "Part-time", "Contract", "Temporary", "Internship", "Volunteer"].filter((label) => new RegExp(`\\b${label}\\b`, "i").test(raw));
+  return hits.length ? [...new Set(hits)].slice(0, 2).join(", ") : null;
+}
+
+function workplaceTypeFromText(raw: string | null | undefined, location: string | null): string | null {
+  const hay = `${raw || ""} ${location || ""}`;
+  if (/\bremote\b/i.test(hay)) return "Remote";
+  if (/\bhybrid\b/i.test(hay)) return "Hybrid";
+  if (/\bon-site\b|\bonsite\b/i.test(hay)) return "On-site";
+  return location ? "On-site" : null;
+}
+
+function linkedInExternalId(): string | null {
+  return window.location.pathname.match(/\/jobs\/view\/(\d+)/i)?.[1] || new URLSearchParams(window.location.search).get("currentJobId");
 }
 
 function pickVisibleRightLocation(): string | null {
@@ -364,13 +389,22 @@ export const linkedInSiteExtractor: SiteExtractor = {
     const company = pickCompanyFromTopCard(geometryRoot) || pickVisibleRightCompany() || meta.company || null;
     const location = pickLocationLine(geometryRoot) || pickVisibleRightLocation();
     const description = pickVisibleRightDescription();
+    const employmentType = pickLinkedInEmploymentType(geometryRoot);
+    const workplaceType = workplaceTypeFromText(t(geometryRoot), location);
+    const companyUrl = pickCompanyUrlFromTopCard(geometryRoot);
 
     if (!title && !company && !location) return null;
     const out: Partial<JobSavePayload> = {};
     if (title) out.title = title;
     if (company) out.company = company;
     if (location) out.location = location;
+    if (employmentType) out.employment_type = employmentType;
+    if (workplaceType) out.workplace_type = workplaceType;
     if (description) out.description = description;
+    if (companyUrl) out.company_url = companyUrl;
+    out.apply_url = window.location.href;
+    const externalId = linkedInExternalId();
+    if (externalId) out.external_job_id = externalId;
     out.source_website = "linkedin.com";
     return out;
   },

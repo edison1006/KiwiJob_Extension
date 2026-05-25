@@ -87,6 +87,33 @@ function pickSalary(): string | null {
   ]);
 }
 
+function pickEmploymentType(): string | null {
+  const raw = document.body?.innerText?.slice(0, 6000) || "";
+  const hits = ["Full-time", "Part-time", "Contract", "Temporary", "Casual", "Permanent", "Internship"].filter((label) =>
+    new RegExp(`\\b${label}\\b`, "i").test(raw),
+  );
+  return hits.length ? [...new Set(hits)].slice(0, 3).join(", ") : null;
+}
+
+function pickWorkplaceType(location: string | null): string | null {
+  const raw = `${location || ""} ${document.body?.innerText?.slice(0, 6000) || ""}`;
+  if (/\bremote\b|work from home/i.test(raw)) return "Remote";
+  if (/\bhybrid\b/i.test(raw)) return "Hybrid";
+  if (location) return "On-site";
+  return null;
+}
+
+function pickCompanyUrl(): string | null {
+  const link = document.querySelector(
+    "[data-testid='inlineHeader-companyName'] a, [data-testid='jobsearch-CompanyInfoContainer'] a, .jobsearch-CompanyInfoContainer a",
+  ) as HTMLAnchorElement | null;
+  return link?.href || null;
+}
+
+function indeedExternalId(): string | null {
+  return new URLSearchParams(window.location.search).get("vjk") || window.location.pathname.match(/\/cmp\/[^/]+\/jobs\/([^/?]+)/i)?.[1] || null;
+}
+
 export const indeedSiteExtractor: SiteExtractor = {
   id: "indeed",
   tryExtract(): Partial<JobSavePayload> | null {
@@ -98,6 +125,9 @@ export const indeedSiteExtractor: SiteExtractor = {
     const location = pickLocation();
     const description = pickDescription();
     const salary = pickSalary();
+    const employmentType = pickEmploymentType();
+    const workplaceType = pickWorkplaceType(location);
+    const companyUrl = pickCompanyUrl();
 
     if (!title && !company && !location && !description && !salary) return null;
     const out: Partial<JobSavePayload> = {};
@@ -106,6 +136,13 @@ export const indeedSiteExtractor: SiteExtractor = {
     if (location) out.location = location;
     if (description) out.description = description;
     if (salary) out.salary = salary;
+    if (employmentType) out.employment_type = employmentType;
+    if (workplaceType) out.workplace_type = workplaceType;
+    if (companyUrl) out.company_url = companyUrl;
+    out.apply_url = window.location.href;
+    const externalId = indeedExternalId();
+    if (externalId) out.external_job_id = externalId;
+    out.source_website = "indeed.com";
     return out;
   },
 };

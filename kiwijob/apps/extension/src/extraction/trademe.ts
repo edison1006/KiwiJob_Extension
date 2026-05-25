@@ -87,6 +87,11 @@ function pickCompany(root: Element | null): string | null {
   ]);
 }
 
+function pickCompanyUrl(root: Element | null): string | null {
+  const link = root?.querySelector("a[href*='/a/jobs/company/'], a[href*='/jobs/company/']") as HTMLAnchorElement | null;
+  return link?.href || null;
+}
+
 function pickLocation(root: Element | null): string | null {
   const loc =
     firstTextIn(root, [
@@ -164,6 +169,24 @@ function pickDescription(root: Element | null): string | null {
   return desc && desc.length > 80 ? desc.slice(0, 50000) : null;
 }
 
+function pickEmploymentType(root: Element | null): string | null {
+  const raw = t(root) || "";
+  const hits = ["Full time", "Part time", "Contract", "Temp", "Casual", "Permanent"].filter((label) => new RegExp(`\\b${label}\\b`, "i").test(raw));
+  return hits.length ? [...new Set(hits)].slice(0, 3).join(", ") : null;
+}
+
+function pickWorkplaceType(root: Element | null, location: string | null): string | null {
+  const raw = `${location || ""} ${t(root) || ""}`;
+  if (/\bremote\b|work from home/i.test(raw)) return "Remote";
+  if (/\bhybrid\b/i.test(raw)) return "Hybrid";
+  if (location) return "On-site";
+  return null;
+}
+
+function tradeMeExternalId(): string | null {
+  return window.location.pathname.match(/\/listing\/(\d+)/i)?.[1] || window.location.pathname.match(/-(\d+)\.htm$/i)?.[1] || null;
+}
+
 export const tradeMeSiteExtractor: SiteExtractor = {
   id: "trademe",
   tryExtract(): Partial<JobSavePayload> | null {
@@ -180,6 +203,9 @@ export const tradeMeSiteExtractor: SiteExtractor = {
     }
     const description = pickDescription(root);
     const salary = pickSalary(root);
+    const employmentType = pickEmploymentType(root);
+    const workplaceType = pickWorkplaceType(root, location);
+    const companyUrl = pickCompanyUrl(root);
 
     if (!title && !company && !location && !description && !salary) return null;
     const out: Partial<JobSavePayload> = {};
@@ -188,6 +214,13 @@ export const tradeMeSiteExtractor: SiteExtractor = {
     if (location) out.location = location;
     if (description) out.description = description;
     if (salary) out.salary = salary;
+    if (employmentType) out.employment_type = employmentType;
+    if (workplaceType) out.workplace_type = workplaceType;
+    if (companyUrl) out.company_url = companyUrl;
+    out.apply_url = window.location.href;
+    const externalId = tradeMeExternalId();
+    if (externalId) out.external_job_id = externalId;
+    out.source_website = "trademe.co.nz";
     return out;
   },
 };

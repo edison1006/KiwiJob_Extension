@@ -54,6 +54,11 @@ function orgNameFromJsonLd(org: unknown): string | null {
   return null;
 }
 
+function urlFromJsonLd(value: unknown): string | null {
+  const urls = collectUrlsFromJsonLdField(value);
+  return urls[0] || null;
+}
+
 function formatJsonLdPostalAddress(address: unknown): string | null {
   if (address == null) return null;
   if (typeof address === "string") return address.trim() || null;
@@ -63,6 +68,58 @@ function formatJsonLdPostalAddress(address: unknown): string | null {
   const region = typeof a.addressRegion === "string" ? a.addressRegion.trim() : "";
   const parts = [loc, region].filter(Boolean);
   return parts.length ? parts.join(", ") : null;
+}
+
+function scalarString(value: unknown): string | null {
+  if (typeof value === "string") return value.trim() || null;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return null;
+}
+
+function formatJsonLdEmploymentType(value: unknown): string | null {
+  if (Array.isArray(value)) {
+    const parts = value.map(formatJsonLdEmploymentType).filter((x): x is string => Boolean(x));
+    return parts.length ? [...new Set(parts)].join(", ") : null;
+  }
+  const s = scalarString(value);
+  if (!s) return null;
+  return s
+    .replace(/_/g, " ")
+    .replace(/\b(full|part)\s+time\b/gi, (m) => m.replace(/\s+/, "-"))
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatJsonLdSalary(value: unknown): string | null {
+  if (value == null) return null;
+  if (typeof value === "string") return value.trim() || null;
+  if (Array.isArray(value)) return value.map(formatJsonLdSalary).find(Boolean) || null;
+  if (typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  const currency = scalarString(v.currency) || scalarString(v.salaryCurrency) || "";
+  const unitText = scalarString((v.unitText as string | undefined) || (v.unitCode as string | undefined));
+  const val = v.value;
+  if (typeof val === "number" || typeof val === "string") {
+    const n = String(val).trim();
+    return n ? [currency, n, unitText].filter(Boolean).join(" ") : null;
+  }
+  if (val && typeof val === "object") {
+    const o = val as Record<string, unknown>;
+    const min = scalarString(o.minValue);
+    const max = scalarString(o.maxValue);
+    const single = scalarString(o.value);
+    const unit = unitText || scalarString(o.unitText) || scalarString(o.unitCode);
+    if (min && max) return [currency, `${min}-${max}`, unit].filter(Boolean).join(" ");
+    if (single) return [currency, single, unit].filter(Boolean).join(" ");
+  }
+  return null;
+}
+
+function workplaceTypeFromJsonLd(node: Record<string, unknown>, location: string | null): string | null {
+  const raw = [scalarString(node.jobLocationType), scalarString(node.applicantLocationRequirements), location].filter(Boolean).join(" ");
+  if (/telecommute|remote|work from home/i.test(raw)) return "Remote";
+  if (/hybrid/i.test(raw)) return "Hybrid";
+  if (location) return "On-site";
+  return null;
 }
 
 function formatJsonLdJobLocation(jobLocation: unknown): string | null {
@@ -136,20 +193,34 @@ function tryJobPostingJsonLd(): Partial<JobSavePayload> | null {
   for (const node of jobPostingNodesForPage()) {
     const title = typeof node.title === "string" ? node.title.trim() : "";
     const company = orgNameFromJsonLd(node.hiringOrganization);
+    const companyUrl = urlFromJsonLd(node.hiringOrganization);
     const location = formatJsonLdJobLocation(node.jobLocation);
+    const employmentType = formatJsonLdEmploymentType(node.employmentType);
+    const workplaceType = workplaceTypeFromJsonLd(node, location);
+    const salary = formatJsonLdSalary(node.baseSalary) || formatJsonLdSalary(node.estimatedSalary);
     let description: string | undefined;
     if (typeof node.description === "string") {
       const stripped = node.description.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
       if (stripped.length > 80) description = stripped.slice(0, 50000);
     }
     const posted = typeof node.datePosted === "string" ? node.datePosted.trim() : "";
+    const closing = typeof node.validThrough === "string" ? node.validThrough.trim() : "";
+    const applyUrl = urlFromJsonLd(node.url) || urlFromJsonLd(node.sameAs);
+    const externalJobId = scalarString((node.identifier as Record<string, unknown> | undefined)?.value) || scalarString(node.identifier);
     if (!title && !company && !location && !description) continue;
     const out: Partial<JobSavePayload> = {};
     if (title) out.title = title;
     if (company) out.company = company;
+    if (companyUrl) out.company_url = companyUrl;
     if (location) out.location = location;
+    if (employmentType) out.employment_type = employmentType;
+    if (workplaceType) out.workplace_type = workplaceType;
+    if (salary) out.salary = salary;
     if (description) out.description = description;
+    if (applyUrl) out.apply_url = applyUrl;
+    if (externalJobId) out.external_job_id = externalJobId;
     if (posted) out.posted_date = posted;
+    if (closing) out.closing_date = closing;
     return out;
   }
   return null;
@@ -286,8 +357,14 @@ export function extractJobFromPage(): JobSavePayload {
       location: partial.location ?? merged.location,
       description: partial.description ?? merged.description,
       salary: partial.salary ?? merged.salary,
+      employment_type: partial.employment_type ?? merged.employment_type,
+      workplace_type: partial.workplace_type ?? merged.workplace_type,
       visa_requirement: partial.visa_requirement ?? merged.visa_requirement,
+      apply_url: partial.apply_url ?? merged.apply_url,
+      company_url: partial.company_url ?? merged.company_url,
+      external_job_id: partial.external_job_id ?? merged.external_job_id,
       posted_date: partial.posted_date ?? merged.posted_date,
+      closing_date: partial.closing_date ?? merged.closing_date,
       source_website: partial.source_website ?? merged.source_website,
     };
   }
@@ -325,11 +402,17 @@ function genericExtract(): JobSavePayload {
     company: jd?.company ?? pickCompany(),
     location: jd?.location ?? pickLocation(),
     description,
-    salary: pickSalary(),
+    salary: jd?.salary ?? pickSalary(),
+    employment_type: jd?.employment_type ?? null,
+    workplace_type: jd?.workplace_type ?? null,
     visa_requirement: visaRequirement,
     url: window.location.href,
+    apply_url: jd?.apply_url ?? window.location.href,
+    company_url: jd?.company_url ?? null,
+    external_job_id: jd?.external_job_id ?? null,
     source_website: hostnameSource(),
     posted_date: jd?.posted_date ?? pickPostedDate(),
+    closing_date: jd?.closing_date ?? null,
     status: "Saved",
   };
 }
@@ -341,6 +424,13 @@ function normalizePayload(p: JobSavePayload): JobSavePayload {
     url: p.url || window.location.href,
     source_website: (p.source_website || hostnameSource()).slice(0, 200),
     description: (p.description || "").slice(0, 50000),
+    salary: p.salary ? p.salary.trim().slice(0, 500) : null,
+    employment_type: p.employment_type ? p.employment_type.trim().slice(0, 500) : null,
+    workplace_type: p.workplace_type ? p.workplace_type.trim().slice(0, 500) : null,
     visa_requirement: p.visa_requirement ? p.visa_requirement.trim().slice(0, 1000) : null,
+    apply_url: p.apply_url || p.url || window.location.href,
+    company_url: p.company_url ? p.company_url.trim().slice(0, 4096) : null,
+    external_job_id: p.external_job_id ? p.external_job_id.trim().slice(0, 500) : null,
+    closing_date: p.closing_date || null,
   };
 }

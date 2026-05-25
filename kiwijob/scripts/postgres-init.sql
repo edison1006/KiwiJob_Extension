@@ -15,3 +15,7 @@ $$;
 SELECT format('CREATE DATABASE %I OWNER kiwijob', 'kiwijob')
 WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'kiwijob')
 \gexec
+
+SELECT format('CREATE DATABASE %I OWNER kiwijob', 'kiwijob_test')
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'kiwijob_test')
+\gexec

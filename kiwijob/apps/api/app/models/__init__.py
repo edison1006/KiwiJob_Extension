@@ -26,10 +26,16 @@ class JobPost(SQLModel, table=True):
     location: Optional[str] = None
     description: Optional[str] = None
     salary: Optional[str] = None
+    employment_type: Optional[str] = None
+    workplace_type: Optional[str] = None
     visa_requirement: Optional[str] = None
     url: str = Field(index=True, unique=True)
+    apply_url: Optional[str] = None
+    company_url: Optional[str] = None
+    external_job_id: Optional[str] = Field(default=None, index=True)
     source_website: str = Field(default="unknown")
     posted_date: Optional[datetime] = None
+    closing_date: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -50,6 +56,10 @@ class Application(SQLModel, table=True):
     user: User = Relationship(back_populates="applications")
     job_post: JobPost = Relationship(back_populates="applications")
     match_results: list["MatchResult"] = Relationship(
+        back_populates="application",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+    notes: list["ApplicationNote"] = Relationship(
         back_populates="application",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
@@ -78,6 +88,17 @@ class MatchResult(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     application: Application = Relationship(back_populates="match_results")
+
+
+class ApplicationNote(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    application_id: int = Field(foreign_key="application.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    content: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    application: Application = Relationship(back_populates="notes")
 
 
 class ApplicationEvent(SQLModel, table=True):
