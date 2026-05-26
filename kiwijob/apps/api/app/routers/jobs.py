@@ -16,9 +16,13 @@ from app.schemas import (
     ApplicationNoteOut,
     ApplicationTimelineEventOut,
     ApplicationUpdateIn,
+    JobExtractIn,
     JobPostOut,
+    JobSearchIn,
+    JobSearchResultOut,
     JobSaveIn,
 )
+from app.services.job_extract import JobExtractError, extract_job_from_url, search_jobs
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -84,6 +88,21 @@ def _apply_job_fields(job: JobPost, body: JobSaveIn | ApplicationUpdateIn, now: 
         if field in provided:
             setattr(job, field, getattr(body, field, None))
     job.updated_at = now
+
+
+@router.post("/extract", response_model=JobSaveIn)
+async def extract_job(body: JobExtractIn, user: User = Depends(get_current_user)):
+    assert user.id is not None
+    try:
+        return await extract_job_from_url(body.url)
+    except JobExtractError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/search", response_model=list[JobSearchResultOut])
+async def search_job_boards(body: JobSearchIn, user: User = Depends(get_current_user)):
+    assert user.id is not None
+    return await search_jobs(body)
 
 
 @router.post("/save", response_model=ApplicationListOut)

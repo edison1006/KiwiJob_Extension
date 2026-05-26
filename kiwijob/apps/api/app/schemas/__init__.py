@@ -72,6 +72,25 @@ class JobSaveIn(BaseModel):
         return s
 
 
+class JobExtractIn(BaseModel):
+    url: str = Field(..., min_length=4, max_length=4096)
+
+
+class JobSearchIn(BaseModel):
+    keywords: str = Field(default="", max_length=200)
+    location: str = Field(default="All New Zealand", max_length=200)
+    job_type: str = Field(default="", max_length=50)
+    min_salary: str = Field(default="", max_length=20)
+    sources: list[str] = Field(default_factory=lambda: ["seek"])
+
+
+class JobSearchResultOut(BaseModel):
+    source_id: str
+    source_name: str
+    search_url: str
+    job: JobSaveIn
+
+
 class JobPostOut(BaseModel):
     id: int
     title: str

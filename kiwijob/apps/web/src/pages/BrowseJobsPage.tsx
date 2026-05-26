@@ -1,4 +1,7 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import type { JobSearchResult } from "../lib/api";
+import { saveJobRemote, searchJobsRemote } from "../lib/api";
 
 type JobType = "" | "fulltime" | "parttime" | "contract" | "casual" | "remote";
 
@@ -202,6 +205,7 @@ const SOURCES: Source[] = [
 ];
 
 export default function BrowseJobsPage() {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<SearchFilters>({
     keywords: "Data Analyst",
     location: "All New Zealand",
@@ -209,6 +213,10 @@ export default function BrowseJobsPage() {
     minSalary: "",
   });
   const [enabled, setEnabled] = useState<Set<string>>(() => new Set(SOURCES.map((s) => s.id)));
+  const [results, setResults] = useState<JobSearchResult[]>([]);
+  const [searchBusy, setSearchBusy] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [savingUrl, setSavingUrl] = useState<string | null>(null);
 
   const selectedSources = useMemo(() => SOURCES.filter((s) => enabled.has(s.id)), [enabled]);
   const sourceLinks = useMemo(
@@ -249,6 +257,37 @@ export default function BrowseJobsPage() {
     }
   }
 
+  async function fetchRealJobs() {
+    if (!selectedSources.length || searchBusy) return;
+    setSearchBusy(true);
+    setSearchError(null);
+    try {
+      const data = await searchJobsRemote({
+        ...filters,
+        sources: selectedSources.map((source) => source.id),
+      });
+      setResults(data);
+      if (!data.length) setSearchError("No concrete job cards were found. Try SEEK first, broaden your filters, or open the source site.");
+    } catch (e) {
+      setSearchError(e instanceof Error ? e.message : "Could not fetch job listings.");
+    } finally {
+      setSearchBusy(false);
+    }
+  }
+
+  async function saveResult(result: JobSearchResult) {
+    if (savingUrl) return;
+    setSavingUrl(result.job.url);
+    try {
+      const saved = await saveJobRemote({ ...result.job, status: result.job.status ?? "Saved" });
+      navigate(`/jobs/${saved.id}`);
+    } catch (e) {
+      setSearchError(e instanceof Error ? e.message : "Could not save this job.");
+    } finally {
+      setSavingUrl(null);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <section className="border-b border-slate-200 pb-6">
@@ -256,17 +295,27 @@ export default function BrowseJobsPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Find NZ jobs</h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600">
-              Search once, then jump into New Zealand’s main job boards with the same filters. Use the Chrome extension on any result page to save roles back into KiwiJob.
+              Search once, fetch real job cards from supported boards, then save useful roles directly into KiwiJob.
             </p>
           </div>
-          <button
-            type="button"
-            disabled={!sourceLinks.length}
-            onClick={openAll}
-            className="inline-flex items-center justify-center rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Open selected sites
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!sourceLinks.length || searchBusy}
+              onClick={() => void fetchRealJobs()}
+              className="inline-flex items-center justify-center rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {searchBusy ? "Fetching jobs…" : "Fetch real jobs"}
+            </button>
+            <button
+              type="button"
+              disabled={!sourceLinks.length}
+              onClick={openAll}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Open selected sites
+            </button>
+          </div>
         </div>
       </section>
 
@@ -337,6 +386,60 @@ export default function BrowseJobsPage() {
               </button>
             ))}
           </div>
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-950">Real job results</h2>
+                <p className="text-sm text-slate-600">Concrete postings fetched from supported sources.</p>
+              </div>
+              {results.length ? <span className="text-xs font-semibold text-slate-500">{results.length} found</span> : null}
+            </div>
+            {searchError ? <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">{searchError}</div> : null}
+            {results.length ? (
+              <div className="grid gap-4 xl:grid-cols-2">
+                {results.map((result) => (
+                  <article key={`${result.source_id}-${result.job.url}`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">{result.source_name}</p>
+                        <h3 className="mt-1 text-lg font-bold text-slate-950">{result.job.title}</h3>
+                        <p className="mt-1 text-sm text-slate-600">{result.job.company || "Company not listed"}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                        {result.job.employment_type || "Job"}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm text-slate-600">{result.job.location || "Location not listed"}</p>
+                    {result.job.description ? <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-slate-700">{result.job.description}</p> : null}
+                    {result.job.salary ? <p className="mt-3 text-sm font-semibold text-slate-900">{result.job.salary}</p> : null}
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={savingUrl === result.job.url}
+                        onClick={() => void saveResult(result)}
+                        className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {savingUrl === result.job.url ? "Saving…" : "Save to tracker"}
+                      </button>
+                      <a
+                        href={result.job.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+                      >
+                        Open job
+                      </a>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-5 py-8 text-sm text-slate-600">
+                Click <span className="font-semibold text-slate-800">Fetch real jobs</span> to load specific postings for your current filters.
+              </div>
+            )}
+          </section>
 
           <div className="grid gap-4 xl:grid-cols-2">
             {sourceLinks.map(({ source, url }) => (
@@ -417,7 +520,7 @@ export default function BrowseJobsPage() {
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950">
             <h2 className="font-semibold">How this works</h2>
             <p className="mt-2">
-              KiwiJob opens each site’s own search page with your filters. This keeps results fresh and avoids brittle scraping. Save useful roles with the extension when you land on a job ad.
+              KiwiJob fetches supported search pages, extracts concrete job cards, and lets you save them to your tracker. If a site blocks server-side fetching, open it directly.
             </p>
           </div>
         </aside>

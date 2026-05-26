@@ -26,6 +26,21 @@ export type AuthResponse = {
   user: UserDTO;
 };
 
+export type JobSearchFilters = {
+  keywords: string;
+  location: string;
+  jobType: string;
+  minSalary: string;
+  sources: string[];
+};
+
+export type JobSearchResult = {
+  source_id: string;
+  source_name: string;
+  search_url: string;
+  job: JobSavePayload;
+};
+
 export function getApiBaseUrl(): string {
   return API_URL;
 }
@@ -216,6 +231,32 @@ export async function deleteApplicationNote(jobId: number, noteId: number): Prom
 export async function deleteJob(id: number): Promise<void> {
   const res = await fetch(`${API_URL}/jobs/${id}`, { method: "DELETE", credentials: "include", headers: headers() });
   if (!res.ok) throw new Error(formatErrorBody(await res.text()));
+}
+
+export async function extractJobFromUrl(url: string): Promise<JobSavePayload> {
+  const res = await fetch(`${API_URL}/jobs/extract`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...headers() },
+    body: JSON.stringify({ url }),
+  });
+  return parseJson(res);
+}
+
+export async function searchJobsRemote(filters: JobSearchFilters): Promise<JobSearchResult[]> {
+  const res = await fetch(`${API_URL}/jobs/search`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...headers() },
+    body: JSON.stringify({
+      keywords: filters.keywords,
+      location: filters.location,
+      job_type: filters.jobType,
+      min_salary: filters.minSalary,
+      sources: filters.sources,
+    }),
+  });
+  return parseJson(res);
 }
 
 export async function fetchMatch(jobId: number): Promise<MatchAnalysis> {

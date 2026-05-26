@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import type { ApplicationListItem } from "@kiwijob/shared";
 import { APPLICATION_STATUSES, type ApplicationStatus } from "@kiwijob/shared";
 import { DashboardHero } from "../components/DashboardHero";
 import { PageHeader } from "../components/PageHeader";
 import { StatusBadge } from "../components/StatusBadge";
-import { deleteJob, fetchJobs } from "../lib/api";
+import { deleteJob, extractJobFromUrl, fetchJobs, saveJobRemote } from "../lib/api";
 
 function fmtDate(iso: string) {
   try {
@@ -55,6 +55,7 @@ type TrackerTab = "active" | "archived";
 
 export default function JobsPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const isMatchesRoute = location.pathname === "/matches";
   const isTrackerRoute = location.pathname === "/tracker";
   const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -74,6 +75,9 @@ export default function JobsPage() {
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkFeedback, setBulkFeedback] = useState<string | null>(null);
+  const [jobUrl, setJobUrl] = useState("");
+  const [extractBusy, setExtractBusy] = useState(false);
+  const [extractFeedback, setExtractFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     fetchJobs()
@@ -168,6 +172,31 @@ export default function JobsPage() {
     }
   }
 
+  async function extractAndSaveJob(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const url = jobUrl.trim();
+    if (!url || extractBusy) return;
+    setExtractBusy(true);
+    setExtractFeedback(null);
+    try {
+      const extracted = await extractJobFromUrl(url);
+      const saved = await saveJobRemote({ ...extracted, status: extracted.status ?? "Saved" });
+      const fresh = await fetchJobs();
+      setRows(fresh);
+      setJobUrl("");
+      setTrackerTab("active");
+      setSearch("");
+      setStatusFilter("");
+      setBulkFeedback(`Saved ${saved.job.title} from ${saved.job.source_website}.`);
+      window.setTimeout(() => setBulkFeedback(null), 6000);
+      navigate(`/jobs/${saved.id}`);
+    } catch (e) {
+      setExtractFeedback(e instanceof Error ? e.message : "Could not extract this job posting.");
+    } finally {
+      setExtractBusy(false);
+    }
+  }
+
   const toolbar = (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -251,12 +280,29 @@ export default function JobsPage() {
             <span>＋</span> Add application
             <span className="text-xs opacity-80">▼</span>
           </summary>
-          <div className="absolute right-0 z-10 mt-2 w-[min(100vw-2rem,22rem)] rounded-xl border border-slate-200 bg-white p-4 text-left text-sm text-slate-600 shadow-lg sm:w-80">
-            <p className="font-medium text-slate-900">Save from a live job posting</p>
+          <div className="absolute right-0 z-10 mt-2 w-[min(100vw-2rem,24rem)] rounded-xl border border-slate-200 bg-white p-4 text-left text-sm text-slate-600 shadow-lg sm:w-96">
+            <p className="font-medium text-slate-900">Fetch a real job posting</p>
             <p className="mt-2 leading-relaxed">
-              Install the <span className="font-semibold text-slate-800">KiwiJob</span> Chrome extension, open a job page (e.g. SEEK{" "}
-              <span className="font-mono text-xs">/job/…</span>), then use <span className="font-semibold">Save job</span> in the side panel.
+              Paste a public job URL. KiwiJob will fetch structured posting data from the page and save it to your tracker.
             </p>
+            <form className="mt-4 space-y-3" onSubmit={(e) => void extractAndSaveJob(e)}>
+              <input
+                type="url"
+                required
+                placeholder="https://www.seek.co.nz/job/..."
+                className="w-full rounded-xl border border-brand-100 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                value={jobUrl}
+                onChange={(e) => setJobUrl(e.target.value)}
+              />
+              {extractFeedback ? <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-900">{extractFeedback}</div> : null}
+              <button
+                type="submit"
+                disabled={extractBusy || !jobUrl.trim()}
+                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {extractBusy ? "Fetching job…" : "Fetch and save job"}
+              </button>
+            </form>
           </div>
         </details>
       </div>
@@ -319,12 +365,13 @@ export default function JobsPage() {
       <div className="space-y-8">
         <PageHeader title={pageTitle} subtitle={pageSubtitle} actions={headerActions} />
         <DashboardHero />
+        {isTrackerRoute ? toolbar : null}
         <div className="flex flex-col items-center justify-center rounded-[28px] border border-dashed border-brand-200 bg-white/68 px-6 py-16 text-center shadow-[0_20px_58px_-50px_rgba(109,63,195,0.72)] backdrop-blur">
           <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white text-4xl shadow-sm">📋</div>
           <h2 className="mt-6 text-xl font-semibold text-slate-900">Add your first job application</h2>
           <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-600">
-            Use the KiwiJob extension on a job posting, or connect the API and refresh. Everything you save shows up here with status and match
-            tools.
+            Paste a real job posting URL above, or use the KiwiJob extension on a live job page. Everything you save shows up here with status
+            and match tools.
           </p>
         </div>
       </div>
