@@ -89,6 +89,7 @@ class JobSearchResultOut(BaseModel):
     source_name: str
     search_url: str
     job: JobSaveIn
+    company_logo_url: Optional[str] = None
 
 
 class JobPostOut(BaseModel):

@@ -39,6 +39,7 @@ export type JobSearchResult = {
   source_name: string;
   search_url: string;
   job: JobSavePayload;
+  company_logo_url?: string | null;
 };
 
 export function getApiBaseUrl(): string {
@@ -69,6 +70,9 @@ function headers(): HeadersInit {
 function formatErrorBody(text: string): string {
   const raw = text.trim();
   if (!raw) return "Request failed";
+  if (/^Method Not Allowed$/i.test(raw)) {
+    return "API endpoint is outdated (missing /jobs/search). Restart the backend service and try again.";
+  }
   try {
     const j = JSON.parse(raw) as { detail?: unknown };
     const d = j.detail;

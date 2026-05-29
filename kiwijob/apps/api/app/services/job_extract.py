@@ -158,6 +158,20 @@ def _url_from_value(value: Any) -> str | None:
     return urls[0] if urls else None
 
 
+def _logo_url_from_org(org: Any) -> str | None:
+    if isinstance(org, list):
+        for item in org:
+            logo = _logo_url_from_org(item)
+            if logo:
+                return logo
+        return None
+    if isinstance(org, dict):
+        return _url_from_value(org.get("logo")) or _url_from_value(org.get("image")) or _url_from_value(org.get("url"))
+    if isinstance(org, str):
+        return None
+    return None
+
+
 def _postal_address(value: Any) -> str | None:
     if isinstance(value, str):
         return value.strip() or None
@@ -434,6 +448,8 @@ def _parse_seek_results(raw_html: str, search_url: str, limit: int) -> list[JobS
         salary = _first_text(card, r'data-automation="jobSalary"[^>]*>(.*?)</span>')
         teaser = _first_text(card, r'data-automation="jobShortDescription"[^>]*>(.*?)</span>')
         listed = _first_text(card, r'aria-label="Listed[^"]*"[^>]*>(.*?)</div>')
+        logo_match = re.search(r'data-automation="company-logo"[^>]*>\s*<img[^>]*src="([^"]+)"', card, re.I | re.S)
+        company_logo_url = html.unescape(logo_match.group(1)) if logo_match else None
         job = JobSaveIn(
             title=title,
             company=company,
@@ -447,7 +463,15 @@ def _parse_seek_results(raw_html: str, search_url: str, limit: int) -> list[JobS
             source_website="seek.co.nz",
             status="Saved",
         )
-        results.append(JobSearchResultOut(source_id="seek", source_name=SOURCE_NAMES["seek"], search_url=search_url, job=job))
+        results.append(
+            JobSearchResultOut(
+                source_id="seek",
+                source_name=SOURCE_NAMES["seek"],
+                search_url=search_url,
+                job=job,
+                company_logo_url=company_logo_url,
+            )
+        )
         if len(results) >= limit:
             break
     return results
@@ -474,12 +498,14 @@ def _parse_generic_json_ld_results(raw_html: str, search_url: str, source_id: st
         payload = _job_from_json_ld([json.dumps(node)], page_url)
         if not payload:
             continue
+        company_logo_url = _logo_url_from_org(node.get("hiringOrganization"))
         results.append(
             JobSearchResultOut(
                 source_id=source_id,
                 source_name=SOURCE_NAMES.get(source_id, source_id),
                 search_url=search_url,
                 job=JobSaveIn(**payload),
+                company_logo_url=company_logo_url,
             )
         )
         if len(results) >= limit:

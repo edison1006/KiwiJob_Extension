@@ -3,7 +3,7 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import { getApiBaseUrl } from "../lib/api";
 
-export default function AuthPage() {
+function AuthPage() {
   const { user, login, loginWithOAuth, register } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -19,6 +19,7 @@ export default function AuthPage() {
   const appleClientId = import.meta.env.VITE_APPLE_CLIENT_ID?.trim();
 
   const from = (location.state as { from?: string } | null)?.from || "/";
+  const inPageModal = new URLSearchParams(location.search).get("auth") === "login";
 
   useEffect(() => {
     if (!googleClientId || !googleButtonRef.current) return;
@@ -122,80 +123,51 @@ export default function AuthPage() {
     }
   }
 
+  function closeAuthModal() {
+    if (inPageModal) {
+      const next = new URLSearchParams(location.search);
+      next.delete("auth");
+      next.delete("mode");
+      const search = next.toString();
+      navigate({ pathname: location.pathname, search: search ? `?${search}` : "" }, { replace: true });
+      return;
+    }
+    if (window.history.length > 1) navigate(-1);
+    else navigate("/privacy", { replace: true });
+  }
+
+  if (user && inPageModal) {
+    const next = new URLSearchParams(location.search);
+    next.delete("auth");
+    next.delete("mode");
+    const search = next.toString();
+    return <Navigate to={{ pathname: location.pathname, search: search ? `?${search}` : "" }} replace />;
+  }
   if (user) return <Navigate to={from} replace />;
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f7f2ff] px-4 py-10 text-slate-950">
-      <div className="pointer-events-none absolute -top-40 left-1/2 h-[34rem] w-[34rem] -translate-x-1/2 rounded-full bg-brand-300/35 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-[-18rem] right-[-12rem] h-[36rem] w-[36rem] rounded-full bg-fuchsia-200/45 blur-3xl" />
-      <div className="pointer-events-none absolute inset-0 opacity-[0.24] [background-image:linear-gradient(rgba(109,63,195,0.16)_1px,transparent_1px),linear-gradient(90deg,rgba(109,63,195,0.16)_1px,transparent_1px)] [background-size:72px_72px]" />
-      <section className="relative grid w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/70 bg-white/70 shadow-[0_40px_120px_-80px_rgba(85,44,159,0.75)] backdrop-blur-xl lg:grid-cols-[1fr_440px]">
-        <div className="relative hidden min-h-[600px] flex-col justify-between border-r border-brand-100/80 bg-gradient-to-br from-brand-900 via-brand-700 to-[#7b3fc9] p-10 text-white lg:flex">
-          <div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent" />
-          <div>
-            <div className="mb-14 flex items-center gap-3">
-              <span className="grid h-12 w-12 place-items-center overflow-hidden rounded-2xl border border-white/20 bg-white/10">
-                <img src="/kiwijob-logo.png" alt="KiwiJob" className="h-full w-full object-cover" />
-              </span>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight text-white">KiwiJob</h1>
-                <p className="text-xs text-brand-100/80">Career command center</p>
-              </div>
-            </div>
-            <p className="text-sm font-medium uppercase tracking-[0.24em] text-brand-100">Dashboard sync</p>
-            <h2 className="mt-4 max-w-md bg-gradient-to-br from-white to-brand-100 bg-clip-text text-5xl font-bold tracking-tight text-transparent">
-              Keep your job search data connected.
-            </h2>
-            <p className="mt-5 max-w-md text-base leading-7 text-brand-50/85">
-              Sign in once to share resumes, matches, applications, and insights between the dashboard and the Chrome extension.
-            </p>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {["CV", "Jobs", "Match"].map((item) => (
-              <div key={item} className="rounded-2xl border border-white/15 bg-white/10 p-4">
-                <div className="h-1 w-10 rounded-full bg-gradient-to-r from-brand-100 to-fuchsia-200" />
-                <div className="mt-4 text-sm font-semibold text-white">{item}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+    <main className="fixed inset-0 z-[120] flex items-center justify-center bg-black/25 px-4 py-10 text-slate-900 backdrop-blur-[1px]">
+      <section className="relative w-full max-w-[430px] rounded-3xl border border-slate-200 bg-white/95 p-7 shadow-[0_36px_100px_-62px_rgba(15,23,42,0.78)] backdrop-blur">
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={closeAuthModal}
+          className="absolute right-4 top-4 rounded-full p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+        >
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M6 6l12 12M18 6l-12 12" strokeLinecap="round" />
+          </svg>
+        </button>
 
-        <div className="p-6 sm:p-8">
-          <div className="mb-6 flex items-center gap-3 lg:hidden">
-            <img src="/kiwijob-logo.png" alt="KiwiJob" className="h-12 w-12 rounded-xl object-cover" />
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-950">KiwiJob</h1>
-              <p className="text-sm text-slate-500">Sign in to sync dashboard and extension data.</p>
-            </div>
-          </div>
+        <h1 className="text-[35px] font-semibold tracking-tight text-slate-900">Log in or create account</h1>
+        <p className="mt-1 text-sm leading-relaxed text-slate-600">Learn on your own time from top universities and businesses.</p>
 
-          <div className="mb-5 grid grid-cols-2 rounded-full border border-brand-100 bg-brand-50/70 p-1 text-sm font-semibold">
-          <button
-            type="button"
-            className={`rounded-full px-3 py-2 transition ${
-              mode === "login" ? "bg-white text-brand-900 shadow-sm" : "text-brand-700/65 hover:text-brand-900"
-            }`}
-            onClick={() => setMode("login")}
-          >
-            Login
-          </button>
-          <button
-            type="button"
-            className={`rounded-full px-3 py-2 transition ${
-              mode === "register" ? "bg-white text-brand-900 shadow-sm" : "text-brand-700/65 hover:text-brand-900"
-            }`}
-            onClick={() => setMode("register")}
-          >
-            Register
-          </button>
-        </div>
-
-        <form className="space-y-4" onSubmit={submit}>
+        <form className="mt-7 space-y-3" onSubmit={submit}>
           {mode === "register" ? (
             <label className="block text-sm font-semibold text-slate-700">
               Name
               <input
-                className="mt-1 w-full rounded-xl border border-brand-100 bg-[#fbf9ff] px-3 py-2.5 text-slate-950 shadow-sm outline-none placeholder:text-slate-400 focus:border-brand-300 focus:ring-2 focus:ring-brand-300/20"
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-950 outline-none placeholder:text-slate-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 autoComplete="name"
@@ -203,10 +175,11 @@ export default function AuthPage() {
             </label>
           ) : null}
           <label className="block text-sm font-semibold text-slate-700">
-            Email
+            Email <span className="text-rose-600">*</span>
             <input
-              className="mt-1 w-full rounded-xl border border-brand-100 bg-[#fbf9ff] px-3 py-2.5 text-slate-950 shadow-sm outline-none placeholder:text-slate-400 focus:border-brand-300 focus:ring-2 focus:ring-brand-300/20"
+              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-950 outline-none placeholder:text-slate-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20"
               type="email"
+              placeholder="name@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
@@ -216,7 +189,7 @@ export default function AuthPage() {
           <label className="block text-sm font-semibold text-slate-700">
             Password
             <input
-              className="mt-1 w-full rounded-xl border border-brand-100 bg-[#fbf9ff] px-3 py-2.5 text-slate-950 shadow-sm outline-none placeholder:text-slate-400 focus:border-brand-300 focus:ring-2 focus:ring-brand-300/20"
+              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-950 outline-none placeholder:text-slate-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -231,48 +204,69 @@ export default function AuthPage() {
           <button
             type="submit"
             disabled={busy}
-            className="w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-[0_18px_50px_-25px_rgba(109,63,195,0.95)] transition hover:bg-brand-700 disabled:opacity-50"
+            className="mt-2 w-full rounded-xl bg-[#2459cc] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#1f4eb5] disabled:opacity-50"
           >
-            {busy ? "Please wait..." : mode === "register" ? "Create account" : "Login"}
+            {busy ? "Please wait..." : "Continue"}
           </button>
         </form>
 
-        {mode === "register" ? (
-          <div className="mt-4 space-y-3">
-            <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              <span className="h-px flex-1 bg-brand-100" />
-              register with
-              <span className="h-px flex-1 bg-brand-100" />
-            </div>
-            {googleClientId ? (
-              <div ref={googleButtonRef} className="min-h-10 w-full overflow-hidden rounded-xl" />
-            ) : (
-              <button
-                type="button"
-                disabled
-                title="Set VITE_GOOGLE_CLIENT_ID to enable Google registration."
-                className="flex w-full items-center justify-center rounded-xl border border-brand-100 bg-brand-50/60 px-4 py-2.5 text-sm font-bold text-slate-400"
-              >
-                Continue with Google
-              </button>
-            )}
+        <p className="mt-3 text-center text-xs text-slate-600">
+          {mode === "login" ? "New here?" : "Already have an account?"}{" "}
+          <button
+            type="button"
+            className="font-semibold text-[#2459cc] underline-offset-2 hover:underline"
+            onClick={() => setMode(mode === "login" ? "register" : "login")}
+          >
+            {mode === "login" ? "Create account" : "Log in"}
+          </button>
+        </p>
+
+        <div className="mt-4 flex items-center gap-3 text-xs text-slate-400">
+          <span className="h-px flex-1 bg-slate-200" />
+          or
+          <span className="h-px flex-1 bg-slate-200" />
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {googleClientId ? (
+            <div ref={googleButtonRef} className="min-h-11 w-full overflow-hidden rounded-xl border border-slate-300" />
+          ) : (
             <button
               type="button"
-              disabled={busy || !appleClientId}
-              title={appleClientId ? "Continue with Apple" : "Set VITE_APPLE_CLIENT_ID to enable Apple registration."}
-              className="flex w-full items-center justify-center rounded-xl border border-brand-100 bg-[#fbf9ff] px-4 py-2.5 text-sm font-bold text-slate-950 shadow-sm hover:bg-brand-50 disabled:bg-brand-50/60 disabled:text-slate-400 disabled:shadow-none"
-              onClick={() => void signInWithApple()}
+              disabled
+              title="Set VITE_GOOGLE_CLIENT_ID to enable Google sign-in."
+              className="flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-400"
             >
-              Continue with Apple
+              Continue with Google
             </button>
-          </div>
-        ) : null}
+          )}
 
-        <p className="mt-4 text-xs leading-relaxed text-slate-500">
-          API: <span className="font-medium text-slate-700">{getApiBaseUrl()}</span>
-        </p>
+          <button
+            type="button"
+            disabled
+            title="Facebook sign-in is not enabled in this build."
+            className="flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-500"
+          >
+            Continue with Facebook
+          </button>
+
+          <button
+            type="button"
+            disabled={busy || !appleClientId}
+            title={appleClientId ? "Continue with Apple" : "Set VITE_APPLE_CLIENT_ID to enable Apple sign-in."}
+            className="flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:text-slate-400"
+            onClick={() => void signInWithApple()}
+          >
+            Continue with Apple
+          </button>
         </div>
+
+        <p className="mt-6 text-[11px] leading-relaxed text-slate-500">
+          By continuing, you agree to our Terms of Use and Privacy Notice. API endpoint: <span className="font-medium">{getApiBaseUrl()}</span>
+        </p>
       </section>
     </main>
   );
 }
+
+export default AuthPage;

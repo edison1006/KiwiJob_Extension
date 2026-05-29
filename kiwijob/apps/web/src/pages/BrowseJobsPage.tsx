@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { JobSearchResult } from "../lib/api";
 import { saveJobRemote, searchJobsRemote } from "../lib/api";
@@ -44,6 +44,13 @@ const QUICK_SEARCHES = ["Data Analyst", "Software Engineer", "Business Analyst",
 
 function clean(value: string): string {
   return value.trim();
+}
+
+function logoFallbackText(company: string | null | undefined): string {
+  const value = (company || "").trim();
+  if (!value) return "KJ";
+  const words = value.split(/\s+/).filter(Boolean);
+  return (words[0]?.[0] || "") + (words[1]?.[0] || "");
 }
 
 function joinedQuery(filters: SearchFilters): string {
@@ -212,43 +219,20 @@ export default function BrowseJobsPage() {
     jobType: "",
     minSalary: "",
   });
-  const [enabled, setEnabled] = useState<Set<string>>(() => new Set(SOURCES.map((s) => s.id)));
   const [results, setResults] = useState<JobSearchResult[]>([]);
   const [searchBusy, setSearchBusy] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [savingUrl, setSavingUrl] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
+  const debounceTimerRef = useRef<number | undefined>(undefined);
 
-  const selectedSources = useMemo(() => SOURCES.filter((s) => enabled.has(s.id)), [enabled]);
+  const selectedSources = SOURCES;
   const sourceLinks = useMemo(
     () => selectedSources.map((source) => ({ source, url: source.buildUrl(filters) })),
-    [filters, selectedSources],
+    [filters],
   );
-  const displayTitle = clean(filters.keywords) || "Matching roles";
-  const displayLocation = filters.location === "All New Zealand" ? "New Zealand" : filters.location;
-  const displayType =
-    filters.jobType === "fulltime"
-      ? "Full-Time"
-      : filters.jobType === "parttime"
-        ? "Part-Time"
-        : filters.jobType === "contract"
-          ? "Contract"
-          : filters.jobType === "casual"
-            ? "Casual"
-            : filters.jobType === "remote"
-              ? "Remote"
-              : "All Types";
-
   function update<K extends keyof SearchFilters>(key: K, value: SearchFilters[K]) {
     setFilters((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function toggleSource(id: string) {
-    setEnabled((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
   }
 
   function openAll() {
@@ -257,23 +241,35 @@ export default function BrowseJobsPage() {
     }
   }
 
-  async function fetchRealJobs() {
-    if (!selectedSources.length || searchBusy) return;
+  async function fetchRealJobs(nextFilters: SearchFilters = filters) {
+    if (!selectedSources.length) return;
+    const requestId = ++requestIdRef.current;
     setSearchBusy(true);
     setSearchError(null);
     try {
       const data = await searchJobsRemote({
-        ...filters,
+        ...nextFilters,
         sources: selectedSources.map((source) => source.id),
       });
+      if (requestId !== requestIdRef.current) return;
       setResults(data);
       if (!data.length) setSearchError("No concrete job cards were found. Try SEEK first, broaden your filters, or open the source site.");
     } catch (e) {
+      if (requestId !== requestIdRef.current) return;
       setSearchError(e instanceof Error ? e.message : "Could not fetch job listings.");
     } finally {
+      if (requestId !== requestIdRef.current) return;
       setSearchBusy(false);
     }
   }
+
+  useEffect(() => {
+    window.clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = window.setTimeout(() => {
+      void fetchRealJobs(filters);
+    }, 280);
+    return () => window.clearTimeout(debounceTimerRef.current);
+  }, [filters.keywords, filters.location, filters.jobType, filters.minSalary]);
 
   async function saveResult(result: JobSearchResult) {
     if (savingUrl) return;
@@ -302,10 +298,10 @@ export default function BrowseJobsPage() {
             <button
               type="button"
               disabled={!sourceLinks.length || searchBusy}
-              onClick={() => void fetchRealJobs()}
+              onClick={() => void fetchRealJobs(filters)}
               className="inline-flex items-center justify-center rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {searchBusy ? "Fetching jobs…" : "Fetch real jobs"}
+              {searchBusy ? "Fetching jobs…" : "Refresh jobs"}
             </button>
             <button
               type="button"
@@ -319,8 +315,7 @@ export default function BrowseJobsPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <div className="space-y-4">
+      <section className="space-y-4">
           <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-2 xl:grid-cols-4">
             <label className="space-y-1.5">
               <span className="text-xs font-semibold text-slate-600">Keywords</span>
@@ -399,20 +394,46 @@ export default function BrowseJobsPage() {
             {results.length ? (
               <div className="grid gap-4 xl:grid-cols-2">
                 {results.map((result) => (
-                  <article key={`${result.source_id}-${result.job.url}`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">{result.source_name}</p>
-                        <h3 className="mt-1 text-lg font-bold text-slate-950">{result.job.title}</h3>
-                        <p className="mt-1 text-sm text-slate-600">{result.job.company || "Company not listed"}</p>
+                  <article key={`${result.source_id}-${result.job.url}`} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                        {result.company_logo_url ? (
+                          <img src={result.company_logo_url} alt={result.job.company || result.source_name} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-sm font-bold text-slate-600">
+                            {logoFallbackText(result.job.company)}
+                          </div>
+                        )}
                       </div>
-                      <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                        {result.job.employment_type || "Job"}
-                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Detected</p>
+                        <div className="mt-2 space-y-1 text-sm text-slate-800">
+                          <p>
+                            <span className="mr-2 inline-block w-16 text-slate-500">Title</span>
+                            <a href={result.job.url} target="_blank" rel="noreferrer" className="font-semibold hover:text-brand-700 hover:underline">
+                              {result.job.title}
+                            </a>
+                          </p>
+                          <p>
+                            <span className="mr-2 inline-block w-16 text-slate-500">Salary</span>
+                            {result.job.salary || "—"}
+                          </p>
+                          <p>
+                            <span className="mr-2 inline-block w-16 text-slate-500">Location</span>
+                            {result.job.location || "—"}
+                          </p>
+                          <p>
+                            <span className="mr-2 inline-block w-16 text-slate-500">Company</span>
+                            {result.job.company || "—"}
+                          </p>
+                          <p className="text-xs text-slate-600">
+                            数据来源：{result.source_name}
+                            {result.job.employment_type ? ` · ${result.job.employment_type}` : ""}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <p className="mt-3 text-sm text-slate-600">{result.job.location || "Location not listed"}</p>
-                    {result.job.description ? <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-slate-700">{result.job.description}</p> : null}
-                    {result.job.salary ? <p className="mt-3 text-sm font-semibold text-slate-900">{result.job.salary}</p> : null}
+                    {result.job.description ? <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-slate-600">{result.job.description}</p> : null}
                     <div className="mt-4 flex flex-wrap gap-2">
                       <button
                         type="button"
@@ -428,7 +449,7 @@ export default function BrowseJobsPage() {
                         rel="noreferrer"
                         className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
                       >
-                        Open job
+                        Open JD
                       </a>
                     </div>
                   </article>
@@ -441,89 +462,28 @@ export default function BrowseJobsPage() {
             )}
           </section>
 
-          <div className="grid gap-4 xl:grid-cols-2">
-            {sourceLinks.map(({ source, url }) => (
-              <article key={source.id} className="overflow-hidden rounded-2xl border border-slate-300 bg-slate-50 shadow-sm transition hover:border-slate-400 hover:shadow-md">
-                <div className="p-5 sm:p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-xl font-black tracking-tighter text-slate-950 shadow-sm ring-1 ring-black/5">
-                        {source.logoText}
-                    </div>
-                    <button
-                      type="button"
-                      aria-label={`Save ${source.name} search`}
-                      title="Save search"
-                      className="shrink-0 rounded-lg p-2 text-slate-700 hover:bg-white hover:text-slate-950"
-                    >
-                      <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                        <path d="M6 4h12v17l-6-4-6 4V4z" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  <h2 className="mt-5 text-2xl font-bold leading-tight tracking-tight text-slate-950 sm:text-[1.9rem]">{displayTitle || source.sampleTitle}</h2>
-
-                  <div className="mt-6 flex flex-wrap gap-3">
-                    <span className="inline-flex items-center rounded-full bg-slate-200/70 px-4 py-2 text-lg font-semibold text-slate-600">
-                      {displayType}
-                    </span>
-                    <span className="inline-flex items-center gap-2 rounded-full bg-slate-200/70 px-4 py-2 text-lg font-semibold text-slate-600">
-                      <svg className="h-5 w-5 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 21s7-5.2 7-12A7 7 0 0 0 5 9c0 6.8 7 12 7 12z" />
-                        <circle cx="12" cy="9" r="2.5" />
-                      </svg>
-                      {displayLocation || source.sampleLocation}
-                    </span>
-                    <span className="inline-flex items-center gap-2 rounded-full bg-slate-200/70 px-4 py-2 text-lg font-semibold text-slate-600">
-                      <svg className="h-5 w-5 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16" />
-                        <path d="M16 8h2a2 2 0 0 1 2 2v11" />
-                        <path d="M8 7h.01M12 7h.01M8 11h.01M12 11h.01M8 15h.01M12 15h.01" />
-                      </svg>
-                      {filters.jobType === "remote" ? "Online" : source.sampleMode}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-3 border-t border-slate-200 bg-white/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Source</p>
-                    <p className="truncate text-sm font-semibold text-slate-800">{source.name}</p>
-                  </div>
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex shrink-0 items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-700"
-                  >
-                    View jobs
-                  </a>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-
-        <aside className="space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <h2 className="text-sm font-semibold text-slate-900">Sources</h2>
-            <div className="mt-3 space-y-2">
-              {SOURCES.map((source) => (
-                <label key={source.id} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm shadow-sm">
-                  <span className="font-medium text-slate-700">{source.name}</span>
-                  <input type="checkbox" checked={enabled.has(source.id)} onChange={() => toggleSource(source.id)} />
-                </label>
+          <details className="rounded-2xl border border-slate-200 bg-white/70 p-4 text-sm text-slate-600">
+            <summary className="cursor-pointer font-semibold text-slate-900">Open source search pages</summary>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {sourceLinks.map(({ source, url }) => (
+                <a
+                  key={source.id}
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                >
+                  {source.name} search
+                </a>
               ))}
             </div>
-          </div>
-
+          </details>
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950">
             <h2 className="font-semibold">How this works</h2>
             <p className="mt-2">
               KiwiJob fetches supported search pages, extracts concrete job cards, and lets you save them to your tracker. If a site blocks server-side fetching, open it directly.
             </p>
           </div>
-        </aside>
       </section>
     </div>
   );

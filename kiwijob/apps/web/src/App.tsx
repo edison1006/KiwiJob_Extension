@@ -1,5 +1,4 @@
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
-import { RequireAuth } from "./auth";
 import { AppLayout } from "./layouts/AppLayout";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import AuthPage from "./pages/AuthPage";
@@ -20,11 +19,7 @@ const router = createBrowserRouter([
   { path: "/privacy", element: <PrivacyPage /> },
   {
     path: "/",
-    element: (
-      <RequireAuth>
-        <AppLayout />
-      </RequireAuth>
-    ),
+    element: <AppLayout />,
     children: [
       { index: true, element: <HomePage /> },
       { path: "tracker", element: <JobsPage /> },

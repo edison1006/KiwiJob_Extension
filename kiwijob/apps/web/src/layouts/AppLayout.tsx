@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
+import AuthPage from "../pages/AuthPage";
 import {
   IconBell,
   IconBriefcase,
@@ -37,7 +38,9 @@ const premiumGradientClass =
 export function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem(LS_SIDEBAR_COLLAPSED) === "1");
+  const authModalOpen = new URLSearchParams(location.search).get("auth") === "login";
 
   async function signOut() {
     await logout();
@@ -50,6 +53,13 @@ export function AppLayout() {
       localStorage.setItem(LS_SIDEBAR_COLLAPSED, next ? "1" : "0");
       return next;
     });
+  }
+
+  function openAuthModal(mode: "login" | "register" = "login") {
+    const next = new URLSearchParams(location.search);
+    next.set("auth", "login");
+    next.set("mode", mode);
+    navigate({ pathname: location.pathname, search: `?${next.toString()}` }, { replace: false });
   }
 
   const issuesUrl = import.meta.env.VITE_ISSUES_URL?.trim();
@@ -194,7 +204,17 @@ export function AppLayout() {
             </button>
           </div>
           <div className={`mx-1 h-6 w-px shrink-0 self-center bg-brand-100 ${sidebarCollapsed ? "h-px w-8" : ""}`} aria-hidden />
-          <UserMenu displayName={displayName} onSignOut={signOut} variant="sidebar" compactRow />
+          {user ? (
+            <UserMenu displayName={displayName} onSignOut={signOut} variant="sidebar" compactRow />
+          ) : (
+            <button
+              type="button"
+              className="ml-auto rounded-lg border border-brand-200 bg-white px-3 py-2 text-xs font-semibold text-brand-800 shadow-sm hover:bg-brand-50"
+              onClick={() => openAuthModal("login")}
+            >
+              Log in
+            </button>
+          )}
         </div>
       </aside>
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -204,6 +224,7 @@ export function AppLayout() {
           <Outlet />
         </div>
       </main>
+      {authModalOpen ? <AuthPage /> : null}
     </div>
   );
 }
