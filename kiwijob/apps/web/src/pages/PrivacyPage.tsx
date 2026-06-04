@@ -4,7 +4,7 @@ export default function PrivacyPage() {
       <div>
         <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">Privacy policy</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">KiwiJob data storage and deletion</h1>
-        <p className="mt-3 text-sm leading-6 text-slate-600">Last updated: 17 May 2026</p>
+        <p className="mt-3 text-sm leading-6 text-slate-600">Last updated: 1 June 2026</p>
       </div>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -19,15 +19,16 @@ export default function PrivacyPage() {
         <h2 className="text-lg font-bold text-slate-950">How the data is used</h2>
         <p className="mt-3 text-sm leading-6 text-slate-700">
           Data is used to show your dashboard, keep the Chrome extension and web app in sync, generate job match analysis,
-          support autofill and cover-letter features, and calculate application insights. Each record is tied to your logged-in user id.
+          support cover-letter features, and calculate application insights. Each record is tied to your logged-in user id.
         </p>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-slate-950">Browser extension access</h2>
         <p className="mt-3 text-sm leading-6 text-slate-700">
-          The extension runs only on the configured job-site allowlist and sends detected job information to your KiwiJob API when you save,
-          match, autofill, or track activity. It does not request cookie permission.
+          The extension runs only on the configured job-site allowlist. It reads the active supported job page when you open the panel or click
+          Refresh detection, and sends job information to your KiwiJob API only when you click Save or Run match now. It does not request cookie
+          permission, read email pages, track browsing activity, monitor application clicks, or autofill forms.
         </p>
       </section>
 

@@ -1,9 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import type { ApplicationStatus, CvProfileDTO, InsightsSummary, JobSavePayload, MatchAnalysis, ResumeDTO } from "@kiwijob/shared";
 import { APPLICATION_STATUSES } from "@kiwijob/shared";
-import type { ContentToPanelMessage } from "../messages";
-import type { AutofillResult, AutofillSettings } from "../autofill";
-import { DEFAULT_AUTOFILL_SETTINGS } from "../autofill";
 import { KIWIJOB_CLOSE_DRAWER, KIWIJOB_EXTENSION_SOURCE } from "../pageHost/messages";
 import "./panel.css";
 
@@ -20,7 +17,6 @@ type ExtractResp =
 type AnyResp = { ok: true; data?: unknown } | { ok: false; error: string };
 
 type TabId = "jobs" | "applications" | "profile" | "insights";
-type AutofillFieldKey = keyof AutofillSettings["fields"];
 type InsightRange = "7" | "30" | "90" | "custom";
 type LoadCvProfileOptions = { silent?: boolean; preferLatest?: boolean };
 type AuthUser = { id: number; email: string; display_name: string };
@@ -460,16 +456,6 @@ function CvProfileView({
   );
 }
 
-function mergeAutofillSettings(raw: unknown): AutofillSettings {
-  if (!raw || typeof raw !== "object") return DEFAULT_AUTOFILL_SETTINGS;
-  const o = raw as Partial<AutofillSettings>;
-  return {
-    ...DEFAULT_AUTOFILL_SETTINGS,
-    ...o,
-    fields: { ...DEFAULT_AUTOFILL_SETTINGS.fields, ...(o.fields || {}) },
-  };
-}
-
 export function KiwiJobPanel() {
   const [tab, setTab] = useState<TabId>("jobs");
   const [apiBase, setApiBase] = useState("http://localhost:8000");
@@ -488,8 +474,6 @@ export function KiwiJobPanel() {
   const [msg, setMsg] = useState<string | null>(null);
   const [lastId, setLastId] = useState<number | null>(null);
   const [apiHealth, setApiHealth] = useState<"idle" | "checking" | "ok" | "offline">("idle");
-  const [autofillSettings, setAutofillSettings] = useState<AutofillSettings>(DEFAULT_AUTOFILL_SETTINGS);
-  const [autofillResult, setAutofillResult] = useState<AutofillResult | null>(null);
   const [insightRange, setInsightRange] = useState<InsightRange>("7");
   const [customStart, setCustomStart] = useState(() => isoDate(30));
   const [customEnd, setCustomEnd] = useState(() => isoDate(0));
@@ -502,13 +486,10 @@ export function KiwiJobPanel() {
   const [selectedResumeId, setSelectedResumeId] = useState<number | null>(null);
   const [cvProfileLoading, setCvProfileLoading] = useState(false);
   const [cvProfileError, setCvProfileError] = useState<string | null>(null);
-  const autoMatchedJobKey = useRef("");
-
   useEffect(() => {
-    void chrome.storage.sync.get(["apiBase", "webAppUrl", "autofillSettings"]).then((v) => {
+    void chrome.storage.sync.get(["apiBase", "webAppUrl"]).then((v) => {
       if (typeof v.apiBase === "string" && v.apiBase) setApiBase(v.apiBase);
       if (typeof v.webAppUrl === "string" && v.webAppUrl.trim()) setWebAppUrl(normalizeWebAppUrl(v.webAppUrl));
-      setAutofillSettings(mergeAutofillSettings(v.autofillSettings));
     });
     void chrome.runtime.sendMessage({ type: "AUTH_STATE" }).then((resp: AnyResp) => {
       if (resp.ok) setAuth(resp.data as AuthState);
@@ -637,21 +618,6 @@ export function KiwiJobPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    const listener = (message: ContentToPanelMessage) => {
-      if (message?.type !== "KIWIJOB_JOB_CHANGED") return;
-      const payload = message.payload as JobSavePayload;
-      if (!payload?.title || !payload?.url) return;
-      setDraft({ ...payload, status });
-      setLastId(null);
-      setMatchResult(null);
-      setMatchError(null);
-      setMsg(null);
-    };
-    chrome.runtime.onMessage.addListener(listener);
-    return () => chrome.runtime.onMessage.removeListener(listener);
-  }, [status]);
-
   async function persistSettings(nextApi: string) {
     const web = normalizeWebAppUrl(webAppUrl);
     setWebAppUrl(web);
@@ -659,19 +625,6 @@ export function KiwiJobPanel() {
       apiBase: nextApi,
       webAppUrl: web,
     });
-  }
-
-  async function persistAutofillSettings(next: AutofillSettings) {
-    setAutofillSettings(next);
-    await setSyncStorage({ autofillSettings: next });
-  }
-
-  function updateAutofillFlag(key: "aiUniqueQuestions" | "continuous", value: boolean) {
-    void persistAutofillSettings({ ...autofillSettings, [key]: value });
-  }
-
-  function updateAutofillField(key: AutofillFieldKey, value: boolean) {
-    void persistAutofillSettings({ ...autofillSettings, fields: { ...autofillSettings.fields, [key]: value } });
   }
 
   function openWebDashboard() {
@@ -743,17 +696,6 @@ export function KiwiJobPanel() {
       setBusy(false);
     }
   }
-
-  useEffect(() => {
-    if (!draft?.url || !draft.title) return;
-    if (/open one seek job posting/i.test(draft.title)) return;
-    const key = `${draft.url}::${draft.title}`;
-    if (autoMatchedJobKey.current === key) return;
-    autoMatchedJobKey.current = key;
-    const timer = window.setTimeout(() => void onPreviewMatch(true), 600);
-    return () => window.clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft?.url, draft?.title]);
 
   async function onAnalyze() {
     const id = lastId;
@@ -839,35 +781,6 @@ export function KiwiJobPanel() {
     setSelectedResumeId(id);
     void setLocalStorage({ selectedResumeId: id });
     void loadCvProfile(id, { preferLatest: false });
-  }
-
-  async function onAutofillActiveTab() {
-    setBusy(true);
-    setMsg(null);
-    setAutofillResult(null);
-    try {
-      const expired = extensionContextError();
-      if (expired) {
-        setMsg(expired);
-        setAutofillResult({ filled: [], skippedEmpty: [expired] });
-        return;
-      }
-      await persistSettings(apiBase);
-      await persistAutofillSettings(autofillSettings);
-      const resp = await sendRuntimeMessage({ type: "AUTOFILL_ACTIVE_TAB" });
-      if (!resp.ok) {
-        setMsg(resp.error);
-        setAutofillResult({ filled: [], skippedEmpty: [resp.error] });
-        return;
-      }
-      const result = resp.data as AutofillResult;
-      setAutofillResult(result);
-      setMsg(result.filled.length ? `Autofilled ${result.filled.length} field group(s).` : "No matching fields found on this page.");
-    } catch (e) {
-      setMsg((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
   }
 
   async function loadInsights(range = insightRange) {
@@ -1164,7 +1077,7 @@ export function KiwiJobPanel() {
                 <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-700">
                   <div className="font-semibold text-slate-800">AI Match / Resume Optimization</div>
                   <p className="mt-2 leading-relaxed">
-                    Match runs automatically when a job is detected. Saving to your tracker stays manual.
+                    Match runs only when you click the button. Saving to your tracker also stays manual.
                   </p>
                   {matchError ? <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-900">{matchError}</div> : null}
                 </div>
@@ -1173,7 +1086,7 @@ export function KiwiJobPanel() {
                   <MatchSummary data={matchResult} />
                 ) : (
                   <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-center text-xs text-slate-600">
-                    {busy ? "Calculating match for this job…" : "Open a job page to automatically show your match score here."}
+                    {busy ? "Calculating match for this job…" : "Open a supported job page, then click Run match now."}
                   </div>
                 )}
 
@@ -1268,21 +1181,6 @@ export function KiwiJobPanel() {
                   <div className="mt-1 text-xs text-slate-500">Track saved jobs</div>
                 </button>
               </div>
-
-              <button
-                type="button"
-                disabled={busy}
-                className="w-full rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
-                onClick={() => void onAutofillActiveTab()}
-              >
-                {busy ? "Autofilling…" : "Autofill this page"}
-              </button>
-              {autofillResult ? (
-                <div className="rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-800">
-                  <div className="font-semibold">Filled: {autofillResult.filled.length ? autofillResult.filled.join(", ") : "—"}</div>
-                  {autofillResult.skippedEmpty.length ? <div className="mt-1">Missing profile data: {autofillResult.skippedEmpty.join(", ")}</div> : null}
-                </div>
-              ) : null}
 
               <CvProfileView
                 profile={cvProfile}

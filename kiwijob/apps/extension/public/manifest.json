@@ -19,7 +19,7 @@
       "128": "icons/icon-128.png"
     }
   },
-  "permissions": ["storage", "activeTab", "sidePanel", "contextMenus"],
+  "permissions": ["storage", "activeTab", "sidePanel"],
   "side_panel": {
     "default_path": "page-sidebar.html"
   },
@@ -39,23 +39,40 @@
         "icons/icon-128.png"
       ],
       "matches": [
-        "https://*/*",
-        "http://*/*"
+        "https://*.seek.co.nz/*",
+        "https://*.seek.com.au/*",
+        "https://*.linkedin.com/jobs/*",
+        "https://*.trademe.co.nz/a/jobs/*",
+        "https://*.trademe.co.nz/jobs/*",
+        "https://*.indeed.com/*",
+        "https://*.indeed.co.nz/*",
+        "https://nz.jora.com/*",
+        "https://jobs.govt.nz/*",
+        "https://boards.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*",
+        "https://jobs.lever.co/*",
+        "https://*.myworkdayjobs.com/*",
+        "https://*.smartrecruiters.com/*",
+        "https://*.ashbyhq.com/*"
       ]
     }
   ],
-  "commands": {
-    "kiwijob-autofill": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+Y",
-        "mac": "Command+Shift+Y"
-      },
-      "description": "Fill application form with KiwiJob profile"
-    }
-  },
   "host_permissions": [
-    "https://*/*",
-    "http://*/*"
+    "https://*.seek.co.nz/*",
+    "https://*.seek.com.au/*",
+    "https://*.linkedin.com/jobs/*",
+    "https://*.trademe.co.nz/a/jobs/*",
+    "https://*.trademe.co.nz/jobs/*",
+    "https://*.indeed.com/*",
+    "https://*.indeed.co.nz/*",
+    "https://nz.jora.com/*",
+    "https://jobs.govt.nz/*",
+    "https://boards.greenhouse.io/*",
+    "https://job-boards.greenhouse.io/*",
+    "https://jobs.lever.co/*",
+    "https://*.myworkdayjobs.com/*",
+    "https://*.smartrecruiters.com/*",
+    "https://*.ashbyhq.com/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -64,8 +81,21 @@
   "content_scripts": [
     {
       "matches": [
-        "https://*/*",
-        "http://*/*"
+        "https://*.seek.co.nz/*",
+        "https://*.seek.com.au/*",
+        "https://*.linkedin.com/jobs/*",
+        "https://*.trademe.co.nz/a/jobs/*",
+        "https://*.trademe.co.nz/jobs/*",
+        "https://*.indeed.com/*",
+        "https://*.indeed.co.nz/*",
+        "https://nz.jora.com/*",
+        "https://jobs.govt.nz/*",
+        "https://boards.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*",
+        "https://jobs.lever.co/*",
+        "https://*.myworkdayjobs.com/*",
+        "https://*.smartrecruiters.com/*",
+        "https://*.ashbyhq.com/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"

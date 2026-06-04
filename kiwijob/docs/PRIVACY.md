@@ -1,6 +1,6 @@
 # KiwiJob — Privacy policy (extension & companion services)
 
-**Last updated:** 2026-05-14
+**Last updated:** 2026-06-01
 
 KiwiJob is an open-source job application tracker. It includes a **Chrome extension** (side panel) and optional **self-hosted** web app and API. This document describes what data can be processed and how you control it.
 
@@ -12,9 +12,10 @@ If you use someone else’s deployment, that operator’s terms apply in additio
 
 ## What the extension can access
 
-- **Active tab / job pages:** The extension reads the **URL and visible page content** of the tab you use it on, so it can extract job title, company, and description. It does not read unrelated tabs in the background for tracking purposes.
-- **Storage (`chrome.storage`):** Settings such as your **API base URL** and **mock user id** are stored locally in the browser.
-- **Network:** The extension sends extracted job data and requests (for example save job, match analysis) **only to the API base URL you configure**. It does not send that data to the extension authors by default.
+- **Supported active job pages:** The extension runs only on the job-site allowlist declared in its manifest. It reads the active supported job page when you open the panel or click **Refresh detection**, so it can extract the job title, company, description, and related listing details.
+- **No background activity tracking:** The store build does not scan email pages, monitor unrelated browsing, detect application-button clicks, or autofill forms.
+- **Storage (`chrome.storage`):** Settings such as your API base URL, web app URL, authentication state, and selected resume id are stored in the browser.
+- **Network:** Extracted job data is sent to your configured KiwiJob API only when you click **Save to job tracker** or **Run match now**. It does not send job-page data merely because you visited a page.
 
 ## What the API may process (when you use it)
 

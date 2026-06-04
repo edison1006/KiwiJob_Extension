@@ -1,8 +1,4 @@
 import type { BgRequest, BgResponse } from "./messages";
-import type { ApplicantAutofillProfile, CvProfileDTO } from "@kiwijob/shared";
-import { EMPTY_APPLICANT_AUTOFILL_PROFILE } from "@kiwijob/shared";
-import type { AutofillSettings, AutofillResult } from "./autofill";
-import { DEFAULT_AUTOFILL_SETTINGS } from "./autofill";
 
 const DEFAULT_API = "http://localhost:8000";
 
@@ -20,153 +16,8 @@ chrome.action.onClicked.addListener((tab) => {
   }
 });
 
-const CTX_FILL = "kiwijob-fill-application-form";
-
-function parseApplicantProfileJson(data: unknown): ApplicantAutofillProfile {
-  const e = EMPTY_APPLICANT_AUTOFILL_PROFILE;
-  if (!data || typeof data !== "object") return { ...e };
-  const o = data as Record<string, unknown>;
-  const s = (k: keyof ApplicantAutofillProfile) => (typeof o[k] === "string" ? o[k] : "") || "";
-  return {
-    fullName: s("fullName"),
-    email: s("email"),
-    phone: s("phone"),
-    linkedInUrl: s("linkedInUrl"),
-    portfolioUrl: s("portfolioUrl"),
-    githubUrl: s("githubUrl"),
-    city: s("city"),
-    country: s("country"),
-    workAuthorization: s("workAuthorization"),
-    sponsorship: s("sponsorship"),
-    salaryExpectation: s("salaryExpectation"),
-    noticePeriod: s("noticePeriod"),
-    skills: s("skills"),
-    summary: s("summary"),
-    coverLetter: s("coverLetter"),
-  };
-}
-
-function profileFromCv(data: CvProfileDTO | null): Partial<ApplicantAutofillProfile> {
-  if (!data?.upload) return {};
-  return {
-    fullName: data.full_name || "",
-    email: data.email || "",
-    phone: data.phone || "",
-    skills: data.skills.join(", "),
-    linkedInUrl: data.links.find((x) => /linkedin/i.test(x)) || "",
-    portfolioUrl: data.links.find((x) => !/linkedin|github/i.test(x)) || "",
-    githubUrl: data.links.find((x) => /github/i.test(x)) || "",
-    summary: [
-      data.experience[0]?.title ? `Most recent role: ${data.experience[0].title}` : "",
-      data.education[0]?.school ? `Education: ${data.education[0].school}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n"),
-  };
-}
-
-function mergeAutofillSettings(raw: unknown): AutofillSettings {
-  if (!raw || typeof raw !== "object") return DEFAULT_AUTOFILL_SETTINGS;
-  const o = raw as Partial<AutofillSettings>;
-  return {
-    ...DEFAULT_AUTOFILL_SETTINGS,
-    ...o,
-    fields: { ...DEFAULT_AUTOFILL_SETTINGS.fields, ...(o.fields || {}) },
-  };
-}
-
-async function getAutofillSettings(): Promise<AutofillSettings> {
-  const v = await chrome.storage.sync.get(["autofillSettings"]);
-  return mergeAutofillSettings(v.autofillSettings);
-}
-
-async function buildAutofillProfileForTab(tabUrl: string): Promise<ApplicantAutofillProfile> {
-  const api = await getApiBase();
-  let apiProfile = { ...EMPTY_APPLICANT_AUTOFILL_PROFILE };
-  try {
-    const res = await fetch(`${api}/me/applicant-profile`, { method: "GET", credentials: "include", headers: await authHeaders() });
-    if (res.ok) {
-      apiProfile = parseApplicantProfileJson(await res.json());
-    }
-  } catch {
-    /* offline API — CV profile may still be available if the API comes back later. */
-  }
-  try {
-    const local = await chrome.storage.local.get(["selectedResumeId"]);
-    const resumeId = typeof local.selectedResumeId === "number" ? local.selectedResumeId : undefined;
-    const path = resumeId ? `/resumes/${resumeId}/profile` : "/resumes/profile";
-    const res = await fetch(`${api}${path}`, { method: "GET", credentials: "include", headers: await authHeaders() });
-    if (res.ok) {
-      apiProfile = { ...apiProfile, ...profileFromCv((await res.json()) as CvProfileDTO) };
-    }
-  } catch {
-    /* CV profile is best-effort; manual applicant profile remains valid. */
-  }
-  void tabUrl;
-  return apiProfile;
-}
-
-function isInjectableUrl(url: string | undefined): boolean {
-  if (!url) return false;
-  if (url.startsWith("chrome://") || url.startsWith("edge://") || url.startsWith("about:") || url.startsWith("devtools:")) {
-    return false;
-  }
-  if (url.startsWith("chrome-extension://")) return false;
-  return url.startsWith("http://") || url.startsWith("https://");
-}
-
-async function runAutofillActiveTab(): Promise<AutofillResult> {
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  const tab = tabs[0];
-  const tabId = tab?.id;
-  const url = tab?.url;
-  if (typeof tabId !== "number" || !url || !isInjectableUrl(url)) {
-    return { filled: [], skippedEmpty: ["active tab"] };
-  }
-  const profile = await buildAutofillProfileForTab(url);
-  const settings = await getAutofillSettings();
-  try {
-    return (await chrome.tabs.sendMessage(tabId, { type: "AUTOFILL_TAB", profile, settings })) as AutofillResult;
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    return { filled: [], skippedEmpty: [`page script: ${message || "not reachable"}`] };
-  }
-}
-
-function installContextMenu(): void {
-  if (!chrome.contextMenus) return;
-  chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({
-      id: CTX_FILL,
-      title: "Fill form with KiwiJob profile",
-      contexts: ["page", "frame", "editable"],
-    });
-  });
-}
-
 chrome.runtime.onInstalled.addListener(() => {
-  installContextMenu();
   syncSidePanelEntry();
-});
-
-chrome.contextMenus?.onClicked.addListener((info, tab) => {
-  if (info.menuItemId !== CTX_FILL || typeof tab?.id !== "number" || !tab.url) return;
-  if (!isInjectableUrl(tab.url)) return;
-  void (async () => {
-    const profile = await buildAutofillProfileForTab(tab.url!);
-    const settings = await getAutofillSettings();
-    try {
-      await chrome.tabs.sendMessage(tab.id!, { type: "AUTOFILL_TAB", profile, settings });
-    } catch {
-      /* ignore */
-    }
-  })();
-});
-
-chrome.commands?.onCommand.addListener((command) => {
-  if (command === "kiwijob-autofill") {
-    void runAutofillActiveTab();
-  }
 });
 
 /** Turn FastAPI `{"detail": ...}` bodies into a short user-facing string. */
@@ -288,10 +139,6 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         sendResponse({ ok: true, data: { token: "", user: null } });
         return;
       }
-      if (request.type === "AUTOFILL_ACTIVE_TAB") {
-        sendResponse({ ok: true, data: await runAutofillActiveTab() });
-        return;
-      }
       if (request.type === "SAVE_JOB") {
         const api = await getApiBase();
         let res: Response;
@@ -319,39 +166,6 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         }
         const data = await res.json();
         await chrome.storage.local.set({ lastApplicationId: data.id });
-        sendResponse({ ok: true, data });
-        return;
-      }
-      if (request.type === "TRACK_EVENT") {
-        const api = await getApiBase();
-        let res: Response;
-        try {
-          res = await fetch(`${api}/events/track`, {
-            method: "POST",
-            credentials: "include",
-            headers: await jsonHeaders(),
-            body: JSON.stringify(request.payload),
-          });
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          sendResponse({
-            ok: false,
-            error:
-              msg.includes("Failed to fetch") || msg.includes("NetworkError")
-                ? `Cannot reach API at ${api}. Start the backend and check ${api}/health.`
-                : msg,
-          });
-          return;
-        }
-        if (!res.ok) {
-          sendResponse({ ok: false, error: await formatApiError(res) });
-          return;
-        }
-        const data = await res.json();
-        const id = (data as { application?: { id?: unknown } }).application?.id;
-        if (typeof id === "number") {
-          await chrome.storage.local.set({ lastApplicationId: id });
-        }
         sendResponse({ ok: true, data });
         return;
       }

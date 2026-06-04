@@ -8,7 +8,7 @@ Included in the first production-capable release:
 
 - **API**: FastAPI + SQLModel; `/health`; jobs save/list/detail/update/delete; resumes upload/list; match analyze + read; analytics summary; PostgreSQL via `DATABASE_URL`; Alembic migrations; `CORS_ORIGINS` + `ENVIRONMENT`; Docker Compose with Postgres + API **healthchecks**.
 - **Web**: Applications table, job detail (status, JD, match), CV upload, analytics; layout footer shows **API reachability**, base URL link to `/health`, and **Mock user id** (`localStorage` → `X-Mock-User-Id`, consistent with the extension).
-- **Extension (MV3, Chrome 114+)**: Side panel; page extraction with SEEK **non–job-detail** guard; optional **native SEEK Save** sync; background calls to the same API.
+- **Extension (MV3, Chrome 114+)**: Side panel; allowlisted job-site extraction after user action; manual Save and Match calls to the same API.
 
 Explicitly **out of scope for 1.0**: ATS one-click autofill, referral/network graph, personalised job recommendations, real user auth.
 
@@ -45,10 +45,10 @@ Explicitly **out of scope for 1.0**: ATS one-click autofill, referral/network gr
   **Single purpose:** Help job seekers capture a job posting from the active tab, send it to their own KiwiJob backend for tracking, and optionally request a match score between the job description and an uploaded CV.
 
   **Permissions (plain language for reviewers):**
-  - `storage`: remember your API base URL and optional mock user id.
-  - `activeTab` + `scripting`: read the current tab’s URL and DOM only when you use the side panel / save actions on **http(s)** pages you opened (not on `chrome://` pages).
+  - `storage`: remember your API base URL, web app URL, sign-in state, and selected resume.
+  - `activeTab`: read the current supported job tab after you open KiwiJob or click Refresh detection.
   - `sidePanel`: show KiwiJob in Chrome’s side panel (Chrome 114+).
-  - Broad `http://*/*` and `https://*/*`: lets the extension call **whatever API base URL you enter** (localhost or your hosted server) and work on common job boards. Data is sent only to that URL, not to the extension author by default.
+  - Job-site allowlist: inject the fixed content script only on the job boards and ATS hosts declared in `manifest.json`.
 
   **Host permissions / remote code:** You ship a fixed MV3 bundle; the extension does not fetch and execute arbitrary remote code. Network calls go to user-configured API endpoints.
 
