@@ -829,10 +829,10 @@ export function KiwiJobPanel() {
   }, [tab, apiBase, auth.token]);
 
   const tabs: { id: TabId; label: string; description: string }[] = [
-    { id: "jobs", label: "Jobs", description: "职位列表、实时抓取" },
-    { id: "applications", label: "Applications", description: "已申请职位追踪" },
-    { id: "profile", label: "Profile", description: "CV、技能、签证、偏好" },
-    { id: "insights", label: "Insights", description: "数据分析（成功率、市场趋势）" },
+    { id: "jobs", label: "Jobs", description: "Job list and live detection" },
+    { id: "applications", label: "Applications", description: "Applied job tracking" },
+    { id: "profile", label: "Profile", description: "CV, skills, visa, and preferences" },
+    { id: "insights", label: "Insights", description: "Analytics, success rate, and market trends" },
   ];
 
   return (
@@ -1044,7 +1044,7 @@ export function KiwiJobPanel() {
                   ) : null}
                 </dl>
                 {detectedSecondary ? (
-                  <div className="mt-2 line-clamp-2 text-[11px] text-slate-600">数据来源：{detectedSecondary}</div>
+                  <div className="mt-2 line-clamp-2 text-[11px] text-slate-600">Data source: {detectedSecondary}</div>
                 ) : null}
                 <button
                   type="button"

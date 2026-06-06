@@ -427,7 +427,7 @@ export default function BrowseJobsPage() {
                             {result.job.company || "—"}
                           </p>
                           <p className="text-xs text-slate-600">
-                            数据来源：{result.source_name}
+                            Data source: {result.source_name}
                             {result.job.employment_type ? ` · ${result.job.employment_type}` : ""}
                           </p>
                         </div>

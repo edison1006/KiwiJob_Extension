@@ -146,7 +146,7 @@ Mock auth: send `X-Mock-User-Id` (optional). Default user `1` is auto-created.
 - `GET /jobs`, `GET /jobs/{job_id}`, `PUT /jobs/{job_id}`, `DELETE /jobs/{job_id}`  
   (`job_id` is the **application / tracker row id**)
 - `POST /resumes/upload`, `GET /resumes`
-- `POST /match/analyze` — body `{ "job_id": <applicationId> }`. If `OPENAI_API_KEY` is **unset or blank**, the mock scorer runs on the **JD alone** (no CV required). If a **non-empty** key is set, a resume with extracted text is required.
+- `POST /match/analyze` — body `{ "job_id": <applicationId> }`. If `` is **unset or blank**, the mock scorer runs on the **JD alone** (no CV required). If a **non-empty** key is set, a resume with extracted text is required.
 - `GET /match/{job_id}` — latest stored match JSON
 - `POST /copilot/answer` — answer one application-form question from the saved application profile + optional saved job context
 - `POST /copilot/autofill-plan` — generate answers for multiple detected form fields

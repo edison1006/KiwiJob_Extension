@@ -46,6 +46,10 @@ def create_app() -> FastAPI:
     def health():
         return {"status": "ok"}
 
+    @app.get("/")
+    def root():
+        return {"status": "ok", "service": "KiwiJob API"}
+
     return app
 
 
