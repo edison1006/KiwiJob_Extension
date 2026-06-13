@@ -18,9 +18,11 @@ type AnyResp = { ok: true; data?: unknown } | { ok: false; error: string };
 
 type TabId = "jobs" | "applications" | "profile" | "insights";
 type InsightRange = "7" | "30" | "90" | "custom";
+type AuthStep = "email" | "password";
 type LoadCvProfileOptions = { silent?: boolean; preferLatest?: boolean };
 type AuthUser = { id: number; email: string; display_name: string };
 type AuthState = { token: string; user: AuthUser | null };
+type ActiveTabInfo = { id: number; url?: string };
 
 type RequirementMatch = {
   label: string;
@@ -29,7 +31,14 @@ type RequirementMatch = {
   note: string;
 };
 
-async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
+async function getActiveTab(): Promise<chrome.tabs.Tab | ActiveTabInfo | undefined> {
+  try {
+    const resp = (await chrome.runtime.sendMessage({ type: "GET_ACTIVE_JOB_TAB" })) as AnyResp;
+    const data = resp.ok ? (resp.data as ActiveTabInfo | null | undefined) : null;
+    if (data && typeof data.id === "number") return data;
+  } catch {
+    /* Fall back to direct tab query below. */
+  }
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   return tabs[0];
 }
@@ -55,9 +64,11 @@ function isInjectablePage(url: string | undefined): { ok: true } | { ok: false; 
 
 export function normalizeApiBase(raw: string): string {
   const t = raw.trim().replace(/\/+$/, "");
-  return t.length ? t : "http://localhost:8000";
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(t)) return DEFAULT_API_BASE;
+  return t.length ? t : DEFAULT_API_BASE;
 }
 
+const DEFAULT_API_BASE = "http://kiwijob-api.ap-southeast-2.elasticbeanstalk.com";
 const DEFAULT_WEB_APP_URL =
   (typeof import.meta.env !== "undefined" && import.meta.env.VITE_WEB_APP_URL?.trim()) || "http://localhost:5173";
 
@@ -77,6 +88,19 @@ function sourceLabel(raw: string): string {
   if (s.includes("indeed")) return "Indeed";
   if (s.includes("jora")) return "Jora";
   if (s.includes("jobs.govt.nz")) return "NZ Govt Jobs";
+  if (s.includes("careers.govt.nz")) return "Careers NZ";
+  if (s.includes("studentjobsearch") || s === "sjs.co.nz" || s.endsWith(".sjs.co.nz")) return "Student Job Search";
+  if (s.includes("myjobspace")) return "MyJobSpace";
+  if (s.includes("kiwihealthjobs")) return "Kiwi Health Jobs";
+  if (s.includes("maoripacificjobs")) return "Maori Pacific Jobs";
+  if (s.includes("workingin")) return "Working In NZ";
+  if (s.includes("talent.com")) return "Talent";
+  if (s.includes("careerjet")) return "Careerjet";
+  if (s.includes("adzuna")) return "Adzuna";
+  if (s.includes("glassdoor")) return "Glassdoor";
+  if (s.includes("whatjobs")) return "WhatJobs";
+  if (s.includes("grabjobs")) return "GrabJobs";
+  if (s.includes("workhere")) return "Workhere";
   return raw.replace(/^www\./i, "").split(".")[0] || raw;
 }
 
@@ -97,16 +121,13 @@ function isoDate(daysAgo: number): string {
 }
 
 async function probeApiHealth(base: string): Promise<boolean> {
-  const root = normalizeApiBase(base);
-  const ctrl = new AbortController();
-  const tid = window.setTimeout(() => ctrl.abort(), 5000);
   try {
-    const res = await fetch(`${root}/health`, { method: "GET", signal: ctrl.signal });
-    return res.ok;
+    await setSyncStorage({ apiBase: normalizeApiBase(base) });
+    const resp = await sendRuntimeMessage({ type: "API_HEALTH" });
+    const body = resp.ok ? (resp.data as { reachable?: boolean } | undefined) : null;
+    return Boolean(body?.reachable);
   } catch {
     return false;
-  } finally {
-    window.clearTimeout(tid);
   }
 }
 
@@ -458,11 +479,12 @@ function CvProfileView({
 
 export function KiwiJobPanel() {
   const [tab, setTab] = useState<TabId>("jobs");
-  const [apiBase, setApiBase] = useState("http://localhost:8000");
+  const [apiBase, setApiBase] = useState(DEFAULT_API_BASE);
   const [webAppUrl, setWebAppUrl] = useState(DEFAULT_WEB_APP_URL);
   const [auth, setAuth] = useState<AuthState>({ token: "", user: null });
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [authOpen, setAuthOpen] = useState(false);
+  const [authStep, setAuthStep] = useState<AuthStep>("email");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authName, setAuthName] = useState("");
@@ -488,7 +510,9 @@ export function KiwiJobPanel() {
   const [cvProfileError, setCvProfileError] = useState<string | null>(null);
   useEffect(() => {
     void chrome.storage.sync.get(["apiBase", "webAppUrl"]).then((v) => {
-      if (typeof v.apiBase === "string" && v.apiBase) setApiBase(v.apiBase);
+      const nextApi = typeof v.apiBase === "string" ? normalizeApiBase(v.apiBase) : DEFAULT_API_BASE;
+      setApiBase(nextApi);
+      if (nextApi !== v.apiBase) void chrome.storage.sync.set({ apiBase: nextApi });
       if (typeof v.webAppUrl === "string" && v.webAppUrl.trim()) setWebAppUrl(normalizeWebAppUrl(v.webAppUrl));
     });
     void chrome.runtime.sendMessage({ type: "AUTH_STATE" }).then((resp: AnyResp) => {
@@ -552,12 +576,24 @@ export function KiwiJobPanel() {
 
   const saveLabel = lastId ? `Saved #${lastId}` : "Not saved";
 
-  async function submitAuth() {
+  function continueAuthEmail() {
+    setAuthError(null);
+    const email = authEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setAuthError("Enter a valid email address.");
+      return;
+    }
+    setAuthEmail(email);
+    setAuthStep("password");
+  }
+
+  async function submitAuth(mode = authMode) {
     setAuthBusy(true);
     setAuthError(null);
+    setAuthMode(mode);
     try {
       const resp = (await chrome.runtime.sendMessage(
-        authMode === "login"
+        mode === "login"
           ? { type: "AUTH_LOGIN", email: authEmail, password: authPassword }
           : { type: "AUTH_REGISTER", email: authEmail, password: authPassword, displayName: authName },
       )) as AnyResp;
@@ -568,6 +604,7 @@ export function KiwiJobPanel() {
       const body = resp.data as { access_token?: string; user?: AuthUser };
       setAuth({ token: body.access_token || "", user: body.user || null });
       setAuthPassword("");
+      setAuthOpen(false);
     } catch (e) {
       setAuthError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -1373,8 +1410,8 @@ export function KiwiJobPanel() {
             ) : null}
             {apiHealth === "offline" ? (
               <p className="text-[11px] leading-snug text-amber-900">
-                API unreachable at <code className="rounded bg-amber-50 px-0.5">{normalizeApiBase(apiBase)}</code>. Start the backend and open{" "}
-                <code className="rounded bg-amber-50 px-0.5">{normalizeApiBase(apiBase)}/health</code> in a tab to verify.
+                API status check failed for <code className="rounded bg-amber-50 px-0.5">{normalizeApiBase(apiBase)}</code>. If{" "}
+                <code className="rounded bg-amber-50 px-0.5">/health</code> opens in a tab, continue signing in or saving to verify.
               </p>
             ) : null}
             {msg ? <div className="rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-800">{msg}</div> : null}

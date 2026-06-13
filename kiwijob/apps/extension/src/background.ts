@@ -1,6 +1,99 @@
 import type { BgRequest, BgResponse } from "./messages";
 
-const DEFAULT_API = "http://localhost:8000";
+const DEFAULT_API = "http://kiwijob-api.ap-southeast-2.elasticbeanstalk.com";
+const SUPPORTED_JOB_HOSTS = [
+  "seek.co.nz",
+  "seek.com.au",
+  "seek.com",
+  "linkedin.com",
+  "trademe.co.nz",
+  "indeed.com",
+  "indeed.co.nz",
+  "nz.jora.com",
+  "jobs.govt.nz",
+  "careers.govt.nz",
+  "studentjobsearch.co.nz",
+  "sjs.co.nz",
+  "myjobspace.co.nz",
+  "job.co.nz",
+  "kiwihealthjobs.com",
+  "maoripacificjobs.co.nz",
+  "workingin-newzealand.com",
+  "workingin.com",
+  "talent.com",
+  "careerjet.co.nz",
+  "adzuna.co.nz",
+  "jobted.co.nz",
+  "recruit.net",
+  "glassdoor.co.nz",
+  "whatjobs.com",
+  "grabjobs.co",
+  "workhere.co.nz",
+  "seasonaljobs.co.nz",
+  "backpackerboard.co.nz",
+  "boards.greenhouse.io",
+  "job-boards.greenhouse.io",
+  "jobs.lever.co",
+  "myworkdayjobs.com",
+  "smartrecruiters.com",
+  "ashbyhq.com",
+  "workable.com",
+  "bamboohr.com",
+  "breezy.hr",
+  "jobvite.com",
+  "recruitee.com",
+  "successfactors.com",
+  "jobs2web.com",
+  "oraclecloud.com",
+  "taleo.net",
+];
+
+type ActiveJobTab = { id: number; url?: string };
+
+let lastJobTab: ActiveJobTab | null = null;
+
+function normalizeApiBase(raw: string): string {
+  const value = raw.trim().replace(/\/+$/, "");
+  if (!value || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(value)) {
+    return DEFAULT_API;
+  }
+  return value;
+}
+
+function isSupportedJobUrl(raw: string | undefined): raw is string {
+  if (!raw) return false;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+    const host = url.hostname.replace(/^www\./i, "").toLowerCase();
+    return SUPPORTED_JOB_HOSTS.some((supported) => host === supported || host.endsWith(`.${supported}`));
+  } catch {
+    return false;
+  }
+}
+
+function rememberJobTab(tab: chrome.tabs.Tab): ActiveJobTab | null {
+  if (typeof tab.id !== "number" || !isSupportedJobUrl(tab.url)) return null;
+  lastJobTab = { id: tab.id, url: tab.url };
+  return lastJobTab;
+}
+
+async function queryActiveJobTab(query: chrome.tabs.QueryInfo): Promise<ActiveJobTab | null> {
+  const tabs = await chrome.tabs.query(query);
+  for (const tab of tabs) {
+    const remembered = rememberJobTab(tab);
+    if (remembered) return remembered;
+  }
+  return null;
+}
+
+async function getActiveJobTab(): Promise<ActiveJobTab | null> {
+  return (
+    (await queryActiveJobTab({ active: true, currentWindow: true })) ||
+    (await queryActiveJobTab({ active: true, lastFocusedWindow: true })) ||
+    lastJobTab
+  );
+}
 
 function syncSidePanelEntry(): void {
   if (!chrome.sidePanel?.setOptions) return;
@@ -18,6 +111,21 @@ chrome.action.onClicked.addListener((tab) => {
 
 chrome.runtime.onInstalled.addListener(() => {
   syncSidePanelEntry();
+});
+
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  void chrome.tabs
+    .get(tabId)
+    .then((tab) => {
+      rememberJobTab(tab);
+    })
+    .catch(() => {});
+});
+
+chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+  if (changeInfo.status === "complete" || changeInfo.url) {
+    rememberJobTab(tab);
+  }
 });
 
 /** Turn FastAPI `{"detail": ...}` bodies into a short user-facing string. */
@@ -43,7 +151,25 @@ async function formatApiError(res: Response): Promise<string> {
 
 async function getApiBase(): Promise<string> {
   const v = await chrome.storage.sync.get(["apiBase"]);
-  return typeof v.apiBase === "string" && v.apiBase.length ? v.apiBase.replace(/\/$/, "") : DEFAULT_API;
+  const api = typeof v.apiBase === "string" ? normalizeApiBase(v.apiBase) : DEFAULT_API;
+  if (api !== v.apiBase) {
+    await chrome.storage.sync.set({ apiBase: api });
+  }
+  return api;
+}
+
+async function apiHealth(): Promise<{ reachable: boolean; api: string; error?: string }> {
+  const api = await getApiBase();
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), 5000);
+  try {
+    const res = await fetch(`${api}/health`, { method: "GET", signal: ctrl.signal });
+    return { reachable: res.ok, api, error: res.ok ? undefined : `HTTP ${res.status}` };
+  } catch (e) {
+    return { reachable: false, api, error: e instanceof Error ? e.message : String(e) };
+  } finally {
+    clearTimeout(tid);
+  }
 }
 
 async function authState(): Promise<{ token: string; user: { id: number; email: string; display_name: string } | null }> {
@@ -83,6 +209,14 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
     try {
       if (request.type === "GET_API_BASE") {
         sendResponse({ ok: true, data: await getApiBase() });
+        return;
+      }
+      if (request.type === "GET_ACTIVE_JOB_TAB") {
+        sendResponse({ ok: true, data: await getActiveJobTab() });
+        return;
+      }
+      if (request.type === "API_HEALTH") {
+        sendResponse({ ok: true, data: await apiHealth() });
         return;
       }
       if (request.type === "SET_API_BASE") {

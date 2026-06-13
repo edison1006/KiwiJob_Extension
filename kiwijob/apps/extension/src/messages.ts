@@ -10,6 +10,8 @@ export type BgRequest =
   | { type: "GET_INSIGHTS"; days: number; start?: string; end?: string }
   | { type: "GET_RESUMES" }
   | { type: "GET_CV_PROFILE"; resumeId?: number }
+  | { type: "GET_ACTIVE_JOB_TAB" }
+  | { type: "API_HEALTH" }
   | { type: "GET_API_BASE" }
   | { type: "SET_API_BASE"; apiBase: string };
 

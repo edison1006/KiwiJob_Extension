@@ -11,7 +11,8 @@ import type {
   ResumeDTO,
 } from "@kiwijob/shared";
 
-const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/+$/, "");
+const DEFAULT_API_URL = "http://kiwijob-api.ap-southeast-2.elasticbeanstalk.com";
+const API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, "");
 const AUTH_TOKEN_KEY = "kiwijob_auth_token";
 
 export type UserDTO = {
