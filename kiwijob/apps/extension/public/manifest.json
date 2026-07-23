@@ -3,7 +3,7 @@
   "minimum_chrome_version": "114",
   "name": "KiwiJob",
   "description": "Save job postings, track applications, and run CV match analysis with KiwiJob.",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -87,8 +87,7 @@
     }
   ],
   "host_permissions": [
-    "http://kiwijob-api.ap-southeast-2.elasticbeanstalk.com/*",
-    "https://kiwijob-api.ap-southeast-2.elasticbeanstalk.com/*",
+    "https://d3qngwzf3gjrpb.cloudfront.net/*",
     "https://*.seek.co.nz/*",
     "https://*.seek.com.au/*",
     "https://*.seek.com/*",

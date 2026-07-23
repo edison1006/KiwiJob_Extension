@@ -1,6 +1,6 @@
 import type { BgRequest, BgResponse } from "./messages";
 
-const DEFAULT_API = "http://kiwijob-api.ap-southeast-2.elasticbeanstalk.com";
+const DEFAULT_API = "https://d3qngwzf3gjrpb.cloudfront.net";
 const SUPPORTED_JOB_HOSTS = [
   "seek.co.nz",
   "seek.com.au",

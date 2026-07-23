@@ -115,7 +115,7 @@ def change_password(
 @router.delete("/account", status_code=204)
 def delete_account(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     from app.models import Application, ApplicationEvent, CvOptimization, EmailEvent, Notification, Resume
-    import os
+    from app.services.resume_parse import delete_resume_file
 
     user_id = user.id
     assert user_id is not None
@@ -124,8 +124,8 @@ def delete_account(user: User = Depends(get_current_user), session: Session = De
     for row in session.exec(select(Resume).where(Resume.user_id == user_id)).all():
         if row.stored_path:
             try:
-                os.remove(row.stored_path)
-            except OSError:
+                delete_resume_file(row.stored_path)
+            except Exception:  # noqa: BLE001
                 pass
         session.delete(row)
     for model in (ApplicationEvent, EmailEvent, Notification, Application):

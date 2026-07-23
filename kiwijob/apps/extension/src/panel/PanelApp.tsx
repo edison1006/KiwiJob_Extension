@@ -68,9 +68,9 @@ export function normalizeApiBase(raw: string): string {
   return t.length ? t : DEFAULT_API_BASE;
 }
 
-const DEFAULT_API_BASE = "http://kiwijob-api.ap-southeast-2.elasticbeanstalk.com";
+const DEFAULT_API_BASE = "https://d3qngwzf3gjrpb.cloudfront.net";
 const DEFAULT_WEB_APP_URL =
-  (typeof import.meta.env !== "undefined" && import.meta.env.VITE_WEB_APP_URL?.trim()) || "http://localhost:5173";
+  (typeof import.meta.env !== "undefined" && import.meta.env.VITE_WEB_APP_URL?.trim()) || "https://d1e26b7m2m2gck.cloudfront.net";
 
 function normalizeWebAppUrl(raw: string): string {
   let t = raw.trim().replace(/\/+$/, "");

@@ -13,4 +13,5 @@ pydantic-settings==2.6.1
 eval-type-backport==0.2.2
 google-auth==2.36.0
 PyJWT[crypto]==2.10.1
+boto3==1.35.90
 pytest==8.3.4

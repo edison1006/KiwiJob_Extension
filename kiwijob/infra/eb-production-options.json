@@ -1,0 +1,12 @@
+[
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "CORS_ORIGINS",
+    "Value": "https://d1e26b7m2m2gck.cloudfront.net,https://app.kiwijob.co.nz"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "CORS_ORIGIN_REGEX",
+    "Value": "^chrome-extension://[a-p]{32}$"
+  }
+]

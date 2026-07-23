@@ -1,0 +1,19 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowCloudFrontReadOnly",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "cloudfront.amazonaws.com"
+      },
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::kiwijob-web-100110343159-ap-southeast-2/*",
+      "Condition": {
+        "StringEquals": {
+          "AWS:SourceArn": "arn:aws:cloudfront::100110343159:distribution/E3HGRQ09XN01YA"
+        }
+      }
+    }
+  ]
+}

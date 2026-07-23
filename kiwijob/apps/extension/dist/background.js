@@ -1,4 +1,4 @@
-const w = "http://kiwijob-api.ap-southeast-2.elasticbeanstalk.com", b = [
+const w = "https://d3qngwzf3gjrpb.cloudfront.net", g = [
   "seek.co.nz",
   "seek.com.au",
   "seek.com",
@@ -45,7 +45,7 @@ const w = "http://kiwijob-api.ap-southeast-2.elasticbeanstalk.com", b = [
   "taleo.net"
 ];
 let d = null;
-function g(t) {
+function b(t) {
   const n = t.trim().replace(/\/+$/, "");
   return !n || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(n) ? w : n;
 }
@@ -55,7 +55,7 @@ function p(t) {
     const n = new URL(t);
     if (n.protocol !== "http:" && n.protocol !== "https:") return !1;
     const e = n.hostname.replace(/^www\./i, "").toLowerCase();
-    return b.some((a) => e === a || e.endsWith(`.${a}`));
+    return g.some((a) => e === a || e.endsWith(`.${a}`));
   } catch {
     return !1;
   }
@@ -108,7 +108,7 @@ async function h(t) {
   return n.slice(0, 800);
 }
 async function c() {
-  const t = await chrome.storage.sync.get(["apiBase"]), n = typeof t.apiBase == "string" ? g(t.apiBase) : w;
+  const t = await chrome.storage.sync.get(["apiBase"]), n = typeof t.apiBase == "string" ? b(t.apiBase) : w;
   return n !== t.apiBase && await chrome.storage.sync.set({ apiBase: n }), n;
 }
 async function E() {

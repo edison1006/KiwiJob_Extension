@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlmodel import Session, select
 
@@ -9,7 +7,7 @@ from app.deps import get_current_user
 from app.db.session import get_session
 from app.models import Resume, User
 from app.schemas import CvProfileOut, ResumeOut
-from app.services.resume_parse import extract_cv_text, parse_cv_profile, store_resume_file
+from app.services.resume_parse import delete_resume_file, extract_cv_text, parse_cv_profile, store_resume_file
 
 router = APIRouter(prefix="/resumes", tags=["resumes"])
 
@@ -112,7 +110,7 @@ def delete_resume(
     session.commit()
     if stored_path:
         try:
-            os.remove(stored_path)
-        except OSError:
+            delete_resume_file(stored_path)
+        except Exception:  # noqa: BLE001
             pass
     return None

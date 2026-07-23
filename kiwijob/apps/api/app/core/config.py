@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     jwt_expires_minutes: int = 60 * 24 * 14
     secure_auth_cookie: bool = False
     resume_storage_dir: str = "./data/resumes"
+    resume_s3_bucket: str | None = None
     # Comma-separated dashboard / API client origins. Keep explicit origins when cookies are enabled.
     cors_origins: str = "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174"
     # Regex for dev extension origins. In production, prefer exact chrome-extension://<extension-id> in CORS_ORIGINS.

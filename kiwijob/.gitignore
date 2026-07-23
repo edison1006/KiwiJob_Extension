@@ -6,3 +6,4 @@
 apps/api/data/
 .env
 apps/web/.env.local
+releases/*.zip

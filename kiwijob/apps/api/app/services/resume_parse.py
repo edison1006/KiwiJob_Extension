@@ -37,14 +37,46 @@ def extract_cv_text(filename: str, data: bytes) -> str:
 
 
 def store_resume_file(user_id: int, filename: str, data: bytes) -> str:
+    bucket = get_settings().resume_s3_bucket
+    ext = os.path.splitext(filename)[1] or ".bin"
+    safe_name = f"{user_id}/{uuid.uuid4().hex}{ext}"
+    if bucket:
+        import boto3
+
+        boto3.client("s3").put_object(
+            Bucket=bucket,
+            Key=f"resumes/{safe_name}",
+            Body=data,
+            ContentType=(
+                "application/pdf"
+                if ext.lower() == ".pdf"
+                else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            ),
+            ServerSideEncryption="AES256",
+        )
+        return f"s3://{bucket}/resumes/{safe_name}"
+
     base = get_settings().resume_storage_dir
     os.makedirs(base, exist_ok=True)
-    ext = os.path.splitext(filename)[1] or ".bin"
     safe_name = f"{user_id}_{uuid.uuid4().hex}{ext}"
     path = os.path.join(base, safe_name)
     with open(path, "wb") as f:
         f.write(data)
     return path
+
+
+def delete_resume_file(stored_path: str) -> None:
+    if stored_path.startswith("s3://"):
+        import boto3
+
+        bucket, _, key = stored_path[5:].partition("/")
+        if bucket and key:
+            boto3.client("s3").delete_object(Bucket=bucket, Key=key)
+        return
+    try:
+        os.remove(stored_path)
+    except OSError:
+        pass
 
 
 SKILL_KEYWORDS = [
