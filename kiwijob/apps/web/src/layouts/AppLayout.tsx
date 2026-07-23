@@ -152,6 +152,16 @@ export function AppLayout() {
               </>
             )}
           </NavLink>
+          <NavLink to="/cv-optimizer" className={({ isActive }) => `${linkClass({ isActive, collapsed: sidebarCollapsed })}`} title="CV Optimizer">
+            {({ isActive }) => (
+              <>
+                <span className={navIconClass(isActive, sidebarCollapsed)}>
+                  <IconHeart />
+                </span>
+                <span className={sidebarCollapsed ? "hidden" : ""}>CV Optimizer</span>
+              </>
+            )}
+          </NavLink>
           <NavLink to="/services" className={({ isActive }) => `${linkClass({ isActive, collapsed: sidebarCollapsed })}`} title="Cover Letter">
             {({ isActive }) => (
               <>

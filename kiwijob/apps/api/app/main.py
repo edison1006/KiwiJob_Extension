@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.cors_util import parse_cors_allow_origins, warn_insecure_cors_if_needed
 from app.db.session import init_db
-from app.routers import analytics, auth, copilot, events, jobs, match, profile, resumes
+from app.routers import analytics, auth, copilot, cv_optimizations, events, jobs, match, profile, resumes
 
 
 @asynccontextmanager
@@ -36,6 +36,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(profile.router)
     app.include_router(copilot.router)
+    app.include_router(cv_optimizations.router)
     app.include_router(jobs.router)
     app.include_router(events.router)
     app.include_router(resumes.router)

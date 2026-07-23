@@ -256,6 +256,38 @@ class MatchAnalysisOut(BaseModel):
     risk_flags: list[str] = Field(default_factory=list)
 
 
+class CvOptimizationCreateIn(BaseModel):
+    application_id: int
+    resume_id: int
+
+
+class CvOptimizationSuggestionOut(BaseModel):
+    id: str
+    section: str
+    original: str = ""
+    suggested: str
+    reason: str = ""
+    accepted: bool = True
+
+
+class CvOptimizationUpdateIn(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=1, max_length=300)
+    optimized_text: Optional[str] = Field(default=None, max_length=100000)
+    suggestions: Optional[list[CvOptimizationSuggestionOut]] = None
+
+
+class CvOptimizationOut(BaseModel):
+    id: int
+    application_id: int
+    resume_id: int
+    title: str
+    match_score: float
+    suggestions: list[CvOptimizationSuggestionOut] = Field(default_factory=list)
+    optimized_text: str
+    created_at: datetime
+    updated_at: datetime
+
+
 class ResumeOut(BaseModel):
     id: int
     filename: str

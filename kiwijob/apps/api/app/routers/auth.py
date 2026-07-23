@@ -114,11 +114,13 @@ def change_password(
 
 @router.delete("/account", status_code=204)
 def delete_account(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    from app.models import Application, ApplicationEvent, EmailEvent, Notification, Resume
+    from app.models import Application, ApplicationEvent, CvOptimization, EmailEvent, Notification, Resume
     import os
 
     user_id = user.id
     assert user_id is not None
+    for row in session.exec(select(CvOptimization).where(CvOptimization.user_id == user_id)).all():
+        session.delete(row)
     for row in session.exec(select(Resume).where(Resume.user_id == user_id)).all():
         if row.stored_path:
             try:

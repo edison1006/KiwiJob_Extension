@@ -78,6 +78,25 @@ class Resume(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     user: User = Relationship(back_populates="resumes")
+    optimizations: list["CvOptimization"] = Relationship(
+        back_populates="resume",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+
+
+class CvOptimization(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    resume_id: int = Field(foreign_key="resume.id", index=True)
+    application_id: int = Field(foreign_key="application.id", index=True)
+    title: str = Field(default="Optimized CV")
+    match_score: float = Field(default=0)
+    suggestions: list[dict[str, Any]] = Field(sa_column=Column(JSON), default_factory=list)
+    optimized_text: str = Field(default="")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    resume: Resume = Relationship(back_populates="optimizations")
 
 
 class MatchResult(SQLModel, table=True):

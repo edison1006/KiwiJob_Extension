@@ -162,6 +162,27 @@ export interface ResumeDTO {
   text_preview: string;
 }
 
+export interface CvOptimizationSuggestion {
+  id: string;
+  section: string;
+  original: string;
+  suggested: string;
+  reason: string;
+  accepted: boolean;
+}
+
+export interface CvOptimization {
+  id: number;
+  application_id: number;
+  resume_id: number;
+  title: string;
+  match_score: number;
+  suggestions: CvOptimizationSuggestion[];
+  optimized_text: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CvProfileEducation {
   school: string;
   degree: string;

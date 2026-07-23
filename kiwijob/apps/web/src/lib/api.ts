@@ -5,6 +5,8 @@ import type {
   ApplicationListItem,
   ApplicationNote,
   ApplicationStatus,
+  CvOptimization,
+  CvOptimizationSuggestion,
   JobPostUpdatePayload,
   JobSavePayload,
   MatchAnalysis,
@@ -299,6 +301,45 @@ export async function uploadResume(file: File): Promise<ResumeDTO> {
 export async function deleteResume(id: number): Promise<void> {
   const res = await fetch(`${API_URL}/resumes/${id}`, { method: "DELETE", credentials: "include", headers: headers() });
   if (!res.ok) throw new Error(formatErrorBody(await res.text()));
+}
+
+export async function createCvOptimization(applicationId: number, resumeId: number): Promise<CvOptimization> {
+  const res = await fetch(`${API_URL}/cv-optimizations`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...headers() },
+    body: JSON.stringify({ application_id: applicationId, resume_id: resumeId }),
+  });
+  return parseJson(res);
+}
+
+export async function fetchCvOptimizations(): Promise<CvOptimization[]> {
+  const res = await fetch(`${API_URL}/cv-optimizations`, { credentials: "include", headers: headers() });
+  return parseJson(res);
+}
+
+export async function updateCvOptimization(
+  id: number,
+  payload: { title?: string; optimized_text?: string; suggestions?: CvOptimizationSuggestion[] },
+): Promise<CvOptimization> {
+  const res = await fetch(`${API_URL}/cv-optimizations/${id}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...headers() },
+    body: JSON.stringify(payload),
+  });
+  return parseJson(res);
+}
+
+export async function downloadCvOptimization(id: number, filename: string): Promise<void> {
+  const res = await fetch(`${API_URL}/cv-optimizations/${id}/download`, { credentials: "include", headers: headers() });
+  if (!res.ok) throw new Error(formatErrorBody(await res.text()));
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${filename.replace(/[^a-z0-9_-]+/gi, "-") || "optimized-cv"}.docx`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export async function fetchAnalytics(): Promise<AnalyticsSummary> {

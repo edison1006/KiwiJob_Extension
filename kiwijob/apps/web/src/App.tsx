@@ -4,6 +4,7 @@ import AnalyticsPage from "./pages/AnalyticsPage";
 import AuthPage from "./pages/AuthPage";
 import BrowseJobsPage from "./pages/BrowseJobsPage";
 import CvUploadPage from "./pages/CvUploadPage";
+import CvOptimizerPage from "./pages/CvOptimizerPage";
 import HomePage from "./pages/HomePage";
 import InterviewAssistantPage from "./pages/InterviewAssistantPage";
 import JobDetailPage from "./pages/JobDetailPage";
@@ -27,6 +28,7 @@ const router = createBrowserRouter([
       { path: "matches", element: <JobsPage /> },
       { path: "browse", element: <BrowseJobsPage /> },
       { path: "documents", element: <CvUploadPage /> },
+      { path: "cv-optimizer", element: <CvOptimizerPage /> },
       { path: "cv", element: <Navigate to="/documents" replace /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "services", element: <ServicesPage /> },
