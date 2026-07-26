@@ -2,6 +2,11 @@
   "CallerReference": "kiwijob-api-20260723-v1",
   "Comment": "KiwiJob API HTTPS edge",
   "Enabled": true,
+  "Aliases": {
+    "Quantity": 1,
+    "Items": ["api.kiwijob.co.nz"]
+  },
+  "DefaultRootObject": "",
   "HttpVersion": "http2and3",
   "IsIPV6Enabled": true,
   "PriceClass": "PriceClass_100",
@@ -26,10 +31,12 @@
         },
         "ConnectionAttempts": 3,
         "ConnectionTimeout": 10,
-        "OriginShield": { "Enabled": false }
+        "OriginShield": { "Enabled": false },
+        "OriginAccessControlId": ""
       }
     ]
   },
+  "OriginGroups": { "Quantity": 0 },
   "DefaultCacheBehavior": {
     "TargetOriginId": "kiwijob-eb-api",
     "TrustedSigners": { "Enabled": false, "Quantity": 0 },
@@ -49,10 +56,17 @@
     "FunctionAssociations": { "Quantity": 0 },
     "FieldLevelEncryptionId": "",
     "CachePolicyId": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
-    "OriginRequestPolicyId": "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+    "OriginRequestPolicyId": "b689b0a8-53d0-40ab-baf2-68738e2966ac",
+    "GrpcConfig": { "Enabled": false }
   },
   "CacheBehaviors": { "Quantity": 0 },
   "CustomErrorResponses": { "Quantity": 0 },
+  "Logging": {
+    "Enabled": false,
+    "IncludeCookies": false,
+    "Bucket": "",
+    "Prefix": ""
+  },
   "Restrictions": {
     "GeoRestriction": {
       "RestrictionType": "none",
@@ -60,9 +74,12 @@
     }
   },
   "ViewerCertificate": {
-    "CloudFrontDefaultCertificate": true,
-    "MinimumProtocolVersion": "TLSv1",
-    "CertificateSource": "cloudfront"
+    "CloudFrontDefaultCertificate": false,
+    "ACMCertificateArn": "arn:aws:acm:us-east-1:100110343159:certificate/1ab1ecef-9f5e-4bee-a92f-b9605dfe2709",
+    "SSLSupportMethod": "sni-only",
+    "MinimumProtocolVersion": "TLSv1.2_2021"
   },
-  "WebACLId": ""
+  "WebACLId": "",
+  "ContinuousDeploymentPolicyId": "",
+  "Staging": false
 }

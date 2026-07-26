@@ -68,9 +68,9 @@ export function normalizeApiBase(raw: string): string {
   return t.length ? t : DEFAULT_API_BASE;
 }
 
-const DEFAULT_API_BASE = "https://d3qngwzf3gjrpb.cloudfront.net";
+const DEFAULT_API_BASE = "https://api.kiwijob.co.nz";
 const DEFAULT_WEB_APP_URL =
-  (typeof import.meta.env !== "undefined" && import.meta.env.VITE_WEB_APP_URL?.trim()) || "https://d1e26b7m2m2gck.cloudfront.net";
+  (typeof import.meta.env !== "undefined" && import.meta.env.VITE_WEB_APP_URL?.trim()) || "https://app.kiwijob.co.nz";
 
 function normalizeWebAppUrl(raw: string): string {
   let t = raw.trim().replace(/\/+$/, "");

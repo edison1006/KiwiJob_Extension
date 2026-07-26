@@ -13,7 +13,7 @@ import type {
   ResumeDTO,
 } from "@kiwijob/shared";
 
-const DEFAULT_API_URL = "https://d3qngwzf3gjrpb.cloudfront.net";
+const DEFAULT_API_URL = "https://api.kiwijob.co.nz";
 const API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, "");
 const AUTH_TOKEN_KEY = "kiwijob_auth_token";
 

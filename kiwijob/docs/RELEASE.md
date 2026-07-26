@@ -4,15 +4,17 @@ Use this when preparing a production cut (web + API + Chrome extension).
 
 ## Current production endpoints
 
-- Web: `https://d1e26b7m2m2gck.cloudfront.net`
-- API: `https://d3qngwzf3gjrpb.cloudfront.net`
+- Web: `https://app.kiwijob.co.nz`
+- API: `https://api.kiwijob.co.nz`
+- CloudFront web endpoint: `https://d1e26b7m2m2gck.cloudfront.net`
+- CloudFront API endpoint: `https://d3qngwzf3gjrpb.cloudfront.net`
 - API origin: Elastic Beanstalk environment `Kiwijob-api-env`
 - Resume storage: private S3 bucket with public access blocked and server-side encryption
-- Extension release artifact: `releases/kiwijob-extension-0.2.0.zip` (generated locally; ZIP files are not committed)
+- Extension release artifact: `releases/kiwijob-extension-0.2.1.zip` (generated locally; ZIP files are not committed)
 
-The CloudFront endpoints provide production HTTPS. `app.kiwijob.co.nz` and
-`api.kiwijob.co.nz` can replace them after DNS access is available and ACM
-certificate validation records have been added.
+The custom domains use CloudFront with an ACM certificate covering both
+`app.kiwijob.co.nz` and `api.kiwijob.co.nz`. Keep the ACM DNS validation
+CNAME records in place so AWS can renew the certificate automatically.
 
 ## KiwiJob 1.0 (product scope)
 
