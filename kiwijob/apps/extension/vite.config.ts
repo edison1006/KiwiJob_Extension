@@ -8,7 +8,7 @@ export default defineConfig({
   publicDir: "public",
   resolve: {
     alias: {
-      "@kiwijob/shared": path.resolve(__dirname, "../../packages/shared/src/index.ts"),
+      "@kiwijob/shared": path.resolve(import.meta.dirname, "../../packages/shared/src/index.ts"),
     },
   },
   build: {
@@ -16,7 +16,7 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        "page-sidebar": path.resolve(__dirname, "page-sidebar.html"),
+        "page-sidebar": path.resolve(import.meta.dirname, "page-sidebar.html"),
       },
       output: {
         entryFileNames: "[name].js",

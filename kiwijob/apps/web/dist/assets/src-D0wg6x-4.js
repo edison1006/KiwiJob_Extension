@@ -1,0 +1,1 @@
+var e=[`Saved`,`Applied`,`Assessment`,`Reply`,`Interview`,`Rejected`,`Offer`,`Withdrawn`],t={fullName:``,email:``,phone:``,linkedInUrl:``,portfolioUrl:``,githubUrl:``,city:``,country:``,workAuthorization:``,sponsorship:``,salaryExpectation:``,noticePeriod:``,skills:``,summary:``,coverLetter:``};export{t as n,e as t};
