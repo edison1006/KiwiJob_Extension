@@ -1,48 +1,47 @@
-# KiwiJob — Privacy policy (extension & companion services)
+# KiwiJob privacy notice
 
-**Last updated:** 2026-06-01
+**Last updated:** 4 August 2026
 
-KiwiJob is an open-source job application tracker. It includes a **Chrome extension** (side panel) and optional **self-hosted** web app and API. This document describes what data can be processed and how you control it.
+This notice covers the hosted service at `app.kiwijob.co.nz`, its API, and the official KiwiJob Chrome extension. KiwiJob is also open source. If you configure the extension to use another API, that deployment's operator is responsible for the information stored there and its privacy terms also apply.
 
-## Who is responsible
+## Information KiwiJob processes
 
-If you install the extension and connect it to **your own** KiwiJob API, **you** (or the organization running that API) are the data controller for data stored on that server.
+Depending on how you use the service, KiwiJob may process:
 
-If you use someone else’s deployment, that operator’s terms apply in addition to this description.
+- Account email, display name, authentication identifiers, and encrypted password credentials.
+- CV files, extracted CV text, profile fields, skills, links, work preferences, and application answers.
+- Job URLs, posting content, companies, notes, application status, timeline events, and match results.
+- Technical service information such as request time, IP address, browser information, and error details.
+- Extension settings stored in Chrome, including API and web addresses, authentication state, and selected CV id.
 
-## What the extension can access
+## Purposes
 
-- **Supported active job pages:** The extension runs only on the job-site allowlist declared in its manifest. It reads the active supported job page when you open the panel or click **Refresh detection**, so it can extract the job title, company, description, and related listing details.
-- **No background activity tracking:** The store build does not scan email pages, monitor unrelated browsing, detect application-button clicks, or autofill forms.
-- **Storage (`chrome.storage`):** Settings such as your API base URL, web app URL, authentication state, and selected resume id are stored in the browser.
-- **Network:** Extracted job data is sent to your configured KiwiJob API only when you click **Save to job tracker** or **Run match now**. It does not send job-page data merely because you visited a page.
+KiwiJob uses this information to authenticate you, provide and synchronize the dashboard and extension, store your job-search history, generate features you request, calculate application insights, prevent abuse, troubleshoot errors, and secure the service. KiwiJob does not sell personal information or use the extension to inject advertising or track unrelated browsing.
 
-## What the API may process (when you use it)
+## Browser extension access
 
-Depending on how you use KiwiJob, the self-hosted API may process:
+The extension runs on the job-site allowlist declared in its manifest. It reads a supported active job page when you open the panel or request a refresh. It sends job information to your configured KiwiJob API only when you choose **Save** or **Run match now**. It does not read email pages, monitor unrelated browsing, or automatically submit job applications.
 
-- **Job postings:** URL, title, company, job description text, and application status you set.
-- **Resumes / CVs:** Files or text you upload for parsing and match scoring.
-- **Match results:** Outputs from analysis (which may use a configured AI provider on the **server**, not inside the extension).
+## AI, hosting, and other providers
 
-The extension **does not** embed your OpenAI key; server operators configure keys on the API if they enable AI features.
+- **Amazon Web Services** provides application, database, file-storage, and delivery infrastructure for the hosted service.
+- **OpenAI** may receive the relevant job description, CV text, profile fields, and instructions when you request an AI feature. The OpenAI key is configured on the server and is not included in the extension.
+- **Google or Apple** receives sign-in information only when its sign-in option is configured and you choose it.
 
-## Cookies and advertising
+These providers may process information outside New Zealand under their own privacy and security terms.
 
-KiwiJob does not use the extension to inject third-party advertising or cross-site tracking cookies. Any cookies would come only from **your** API or web app host, under that deployment’s policy.
+## Retention and deletion
 
-## Data retention and deletion
+Account data remains available while the account is active. Users can delete individual jobs and CVs or delete an account from **Settings**. Account deletion removes associated primary database records and stored CV files. Disaster-recovery backups, when enabled, are isolated from normal use and expire under the hosting configuration rather than being used to recreate a deleted account.
 
-Retention is determined by the **API/database** you connect to. Use your deployment’s tools (or database access) to delete jobs, applications, or resumes as needed.
+Users may contact the project support channel to request access, correction, or deletion assistance.
 
-## Children
+## Security and children
 
-KiwiJob is not directed at children under 13, and we do not knowingly collect personal information from children.
+KiwiJob uses account access controls, HTTPS for the public service, private file storage, and account-scoped records. No system can guarantee absolute security. KiwiJob is not directed to children under 13.
 
-## Changes
+## Contact and changes
 
-This policy may be updated in the repository. For Chrome Web Store listings, point your **privacy policy URL** at the published version of this file (for example the `raw.githubusercontent.com` link to this document on your default branch).
+For privacy questions, use the public support channel linked from the KiwiJob web app or the GitHub repository's issue tracker. Do not include CV contents, passwords, tokens, or other sensitive personal information in a public issue.
 
-## Contact
-
-For the open-source project, open an issue on the **KiwiJob** GitHub repository you obtained this code from.
+Material changes will be reflected by the updated date in this notice.

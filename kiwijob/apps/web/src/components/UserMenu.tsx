@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { IconChevronDown } from "./nav/SidebarIcons";
 import { IconMenuFlag, IconMenuGear, IconMenuSignOut, IconMenuSupport, IconMenuUser } from "./nav/AccountMenuIcons";
 
 const LS_DISPLAY = "kiwijob_display_name";

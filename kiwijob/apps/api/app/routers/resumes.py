@@ -3,11 +3,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlmodel import Session, select
 
+from app.core.config import get_settings
 from app.deps import get_current_user
 from app.db.session import get_session
 from app.models import Resume, User
 from app.schemas import CvProfileOut, ResumeOut
 from app.services.resume_parse import delete_resume_file, extract_cv_text, parse_cv_profile, store_resume_file
+from app.services.rate_limit import enforce_rate_limit, user_rate_limit_key
 
 router = APIRouter(prefix="/resumes", tags=["resumes"])
 
@@ -24,11 +26,22 @@ async def upload_resume(
     file: UploadFile = File(...),
 ):
     assert user.id is not None
+    enforce_rate_limit(
+        session,
+        action="resume_upload",
+        bucket_key=user_rate_limit_key(user.id),
+        limit=20,
+        window_seconds=60 * 60,
+    )
 
     filename = file.filename or "resume.bin"
-    data = await file.read()
-    if len(data) > 15 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="File too large (max 15MB)")
+    max_bytes = get_settings().resume_max_bytes
+    data = await file.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        max_mb = max_bytes // (1024 * 1024)
+        raise HTTPException(status_code=413, detail=f"File too large (max {max_mb}MB)")
+    if not data:
+        raise HTTPException(status_code=400, detail="The uploaded file is empty")
 
     try:
         text = extract_cv_text(filename, data)

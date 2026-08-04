@@ -29,6 +29,17 @@ def test_auth_required_for_user_data() -> None:
     assert res.status_code == 401
 
 
+def test_login_rate_limit_returns_retry_after() -> None:
+    with TestClient(app) as client:
+        responses = [
+            client.post("/auth/login", json={"email": "missing@example.com", "password": "password123"})
+            for _ in range(11)
+        ]
+    assert all(response.status_code == 401 for response in responses[:10])
+    assert responses[10].status_code == 429
+    assert int(responses[10].headers["retry-after"]) > 0
+
+
 def test_change_password_updates_login_credentials() -> None:
     email = f"password-{uuid4().hex}@example.com"
     with TestClient(app) as client:

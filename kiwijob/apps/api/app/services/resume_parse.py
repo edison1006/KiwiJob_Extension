@@ -4,6 +4,7 @@ import io
 import os
 import re
 import uuid
+import zipfile
 from datetime import datetime
 from typing import Any
 
@@ -14,6 +15,8 @@ from app.core.config import get_settings
 
 
 def extract_text_from_pdf(data: bytes) -> str:
+    if not data.startswith(b"%PDF-"):
+        raise ValueError("Invalid PDF file")
     reader = PdfReader(io.BytesIO(data))
     parts: list[str] = []
     for page in reader.pages:
@@ -23,17 +26,34 @@ def extract_text_from_pdf(data: bytes) -> str:
 
 
 def extract_text_from_docx(data: bytes) -> str:
+    if not data.startswith(b"PK"):
+        raise ValueError("Invalid DOCX file")
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            names = set(archive.namelist())
+            if "[Content_Types].xml" not in names or "word/document.xml" not in names:
+                raise ValueError("Invalid DOCX file")
+            uncompressed_bytes = sum(entry.file_size for entry in archive.infolist())
+            if uncompressed_bytes > 50 * 1024 * 1024:
+                raise ValueError("DOCX contents are too large")
+    except zipfile.BadZipFile as exc:
+        raise ValueError("Invalid DOCX file") from exc
     doc = Document(io.BytesIO(data))
     return "\n".join(p.text for p in doc.paragraphs if p.text).strip()
 
 
 def extract_cv_text(filename: str, data: bytes) -> str:
     lower = filename.lower()
-    if lower.endswith(".pdf"):
-        return extract_text_from_pdf(data)
-    if lower.endswith(".docx"):
-        return extract_text_from_docx(data)
-    raise ValueError("Unsupported file type. Use PDF or DOCX.")
+    try:
+        if lower.endswith(".pdf"):
+            return extract_text_from_pdf(data)
+        if lower.endswith(".docx"):
+            return extract_text_from_docx(data)
+        raise ValueError("Unsupported file type. Use PDF or DOCX.")
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError("The CV file is malformed or cannot be read") from exc
 
 
 def store_resume_file(user_id: int, filename: str, data: bytes) -> str:

@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import { getApiBaseUrl } from "../lib/api";
 
@@ -17,6 +17,7 @@ function AuthPage() {
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
   const appleClientId = import.meta.env.VITE_APPLE_CLIENT_ID?.trim();
+  const hasSocialLogin = Boolean(googleClientId || appleClientId);
 
   const from = (location.state as { from?: string } | null)?.from || "/";
   const inPageModal = new URLSearchParams(location.search).get("auth") === "login";
@@ -160,7 +161,9 @@ function AuthPage() {
         </button>
 
         <h1 className="text-[35px] font-semibold tracking-tight text-slate-900">Log in or create account</h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">Learn on your own time from top universities and businesses.</p>
+        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+          Keep your saved jobs, CV matches, and application progress in one place.
+        </p>
 
         <form className="mt-7 space-y-3" onSubmit={submit}>
           {mode === "register" ? (
@@ -221,48 +224,33 @@ function AuthPage() {
           </button>
         </p>
 
-        <div className="mt-4 flex items-center gap-3 text-xs text-slate-400">
+        {hasSocialLogin ? <div className="mt-4 flex items-center gap-3 text-xs text-slate-400">
           <span className="h-px flex-1 bg-slate-200" />
           or
           <span className="h-px flex-1 bg-slate-200" />
-        </div>
+        </div> : null}
 
-        <div className="mt-4 space-y-3">
+        {hasSocialLogin ? <div className="mt-4 space-y-3">
           {googleClientId ? (
             <div ref={googleButtonRef} className="min-h-11 w-full overflow-hidden rounded-xl border border-slate-300" />
-          ) : (
-            <button
-              type="button"
-              disabled
-              title="Set VITE_GOOGLE_CLIENT_ID to enable Google sign-in."
-              className="flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-400"
-            >
-              Continue with Google
-            </button>
-          )}
+          ) : null}
 
-          <button
+          {appleClientId ? <button
             type="button"
-            disabled
-            title="Facebook sign-in is not enabled in this build."
-            className="flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-500"
-          >
-            Continue with Facebook
-          </button>
-
-          <button
-            type="button"
-            disabled={busy || !appleClientId}
-            title={appleClientId ? "Continue with Apple" : "Set VITE_APPLE_CLIENT_ID to enable Apple sign-in."}
+            disabled={busy}
+            title="Continue with Apple"
             className="flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:text-slate-400"
             onClick={() => void signInWithApple()}
           >
             Continue with Apple
-          </button>
-        </div>
+          </button> : null}
+        </div> : null}
 
         <p className="mt-6 text-[11px] leading-relaxed text-slate-500">
-          By continuing, you agree to our Terms of Use and Privacy Notice. API endpoint: <span className="font-medium">{getApiBaseUrl()}</span>
+          By continuing, you agree to the{" "}
+          <Link className="font-semibold text-brand-700 hover:underline" to="/terms">Terms of Use</Link> and acknowledge the{" "}
+          <Link className="font-semibold text-brand-700 hover:underline" to="/privacy">Privacy Notice</Link>. API endpoint:{" "}
+          <span className="font-medium">{getApiBaseUrl()}</span>
         </p>
       </section>
     </main>

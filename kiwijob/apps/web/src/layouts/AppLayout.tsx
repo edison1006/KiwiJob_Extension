@@ -63,6 +63,9 @@ export function AppLayout() {
   }
 
   const issuesUrl = import.meta.env.VITE_ISSUES_URL?.trim();
+  const paidPlansEnabled = Boolean(
+    import.meta.env.VITE_PRO_CHECKOUT_URL?.trim() || import.meta.env.VITE_PREMIUM_CHECKOUT_URL?.trim(),
+  );
   const displayName = user?.display_name || user?.email || "Account";
 
   const utilBtn =
@@ -183,7 +186,7 @@ export function AppLayout() {
               </>
             )}
           </NavLink>
-          <NavLink to="/premium" className={({ isActive }) => `${linkClass({ isActive, collapsed: sidebarCollapsed })}`} title="Premium">
+          {paidPlansEnabled ? <NavLink to="/premium" className={({ isActive }) => `${linkClass({ isActive, collapsed: sidebarCollapsed })}`} title="Premium">
             {() => (
               <>
                 <span className={`${premiumGradientClass} ${sidebarCollapsed ? "" : "hidden"}`}>
@@ -192,7 +195,7 @@ export function AppLayout() {
                 <span className={`${premiumGradientClass} ${sidebarCollapsed ? "hidden" : ""}`}>Premium</span>
               </>
             )}
-          </NavLink>
+          </NavLink> : null}
         </nav>
 
         <div className={`sticky bottom-0 z-20 mt-auto flex shrink-0 items-center gap-1 border-t border-brand-100/80 bg-white/82 px-2 py-2 shadow-[0_-24px_70px_-54px_rgba(109,63,195,0.55)] backdrop-blur ${sidebarCollapsed ? "w-full flex-col px-2" : ""}`}>

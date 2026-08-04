@@ -1,9 +1,11 @@
 from io import BytesIO
 
+import pytest
 from docx import Document
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.resume_parse import extract_cv_text
 from conftest import auth_headers
 
 
@@ -14,6 +16,19 @@ def _docx_bytes() -> bytes:
     output = BytesIO()
     document.save(output)
     return output.getvalue()
+
+
+@pytest.mark.parametrize(
+    ("filename", "data", "message"),
+    [
+        ("fake.pdf", b"not a pdf", "Invalid PDF"),
+        ("fake.docx", b"not a docx", "Invalid DOCX"),
+        ("resume.txt", b"plain text", "PDF or DOCX"),
+    ],
+)
+def test_resume_parser_rejects_spoofed_or_unsupported_files(filename: str, data: bytes, message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        extract_cv_text(filename, data)
 
 
 def test_create_edit_and_download_cv_optimization() -> None:

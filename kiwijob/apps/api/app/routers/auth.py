@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlmodel import Session, select
 
 from app.core.config import get_settings
@@ -10,6 +10,7 @@ from app.models import User
 from app.schemas import AuthIn, AuthOut, OAuthIn, PasswordChangeIn, UserOut
 from app.services.auth import create_access_token, hash_password, verify_password
 from app.services.oauth import verify_oauth_identity
+from app.services.rate_limit import client_rate_limit_key, enforce_rate_limit, value_rate_limit_key
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -33,7 +34,14 @@ def _set_cookie(response: Response, token: str) -> None:
 
 
 @router.post("/register", response_model=AuthOut, status_code=status.HTTP_201_CREATED)
-def register(body: AuthIn, response: Response, session: Session = Depends(get_session)):
+def register(body: AuthIn, request: Request, response: Response, session: Session = Depends(get_session)):
+    enforce_rate_limit(
+        session,
+        action="auth_register",
+        bucket_key=client_rate_limit_key(request),
+        limit=5,
+        window_seconds=60 * 60,
+    )
     email = body.email.strip().lower()
     existing = session.exec(select(User).where(User.email == email)).first()
     if existing:
@@ -49,8 +57,22 @@ def register(body: AuthIn, response: Response, session: Session = Depends(get_se
 
 
 @router.post("/login", response_model=AuthOut)
-def login(body: AuthIn, response: Response, session: Session = Depends(get_session)):
+def login(body: AuthIn, request: Request, response: Response, session: Session = Depends(get_session)):
     email = body.email.strip().lower()
+    enforce_rate_limit(
+        session,
+        action="auth_login_client",
+        bucket_key=client_rate_limit_key(request),
+        limit=30,
+        window_seconds=15 * 60,
+    )
+    enforce_rate_limit(
+        session,
+        action="auth_login_account",
+        bucket_key=value_rate_limit_key("email", email),
+        limit=10,
+        window_seconds=15 * 60,
+    )
     user = session.exec(select(User).where(User.email == email)).first()
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -61,7 +83,14 @@ def login(body: AuthIn, response: Response, session: Session = Depends(get_sessi
 
 
 @router.post("/oauth", response_model=AuthOut)
-def oauth_login(body: OAuthIn, response: Response, session: Session = Depends(get_session)):
+def oauth_login(body: OAuthIn, request: Request, response: Response, session: Session = Depends(get_session)):
+    enforce_rate_limit(
+        session,
+        action="auth_oauth",
+        bucket_key=client_rate_limit_key(request),
+        limit=20,
+        window_seconds=15 * 60,
+    )
     identity = verify_oauth_identity(body.provider, body.id_token)
     user = session.exec(select(User).where(User.email == identity.email)).first()
     if not user:

@@ -43,8 +43,16 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
-      - name: Build shared, web, extension
-        run: npm run build:shared && npm run build:web && npm run build:extension
+      - name: Typecheck and build web + extension
+        run: npm run build:shared && npm run typecheck && npm run build:web && npm run package:extension
+
+      - name: Upload Chrome extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kiwijob-extension
+          path: kiwijob/releases/kiwijob-extension-*.zip
+          if-no-files-found: error
+          retention-days: 14
 
       - uses: actions/setup-python@v5
         with:

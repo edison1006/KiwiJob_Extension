@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
 from app.core.config import get_settings
+from app.core.time import utc_now
 from app.deps import get_current_user
 from app.db.session import get_session
 from app.models import Application, MatchResult, Resume, User
 from app.schemas import JobSaveIn, MatchAnalysisOut, MatchAnalyzeIn
 from app.services.match_ai import analyze_cv_vs_jd
+from app.services.rate_limit import enforce_rate_limit, user_rate_limit_key
 
 router = APIRouter(prefix="/match", tags=["match"])
 
@@ -45,6 +45,13 @@ def preview_match(
 ):
     """Analyze a page job against the latest CV without saving it to the tracker."""
     assert user.id is not None
+    enforce_rate_limit(
+        session,
+        action="ai_generation",
+        bucket_key=user_rate_limit_key(user.id),
+        limit=60,
+        window_seconds=60 * 60,
+    )
     cv_text = _cv_text_for_user(session, user.id)
     if not cv_text and _openai_configured():
         raise HTTPException(
@@ -63,6 +70,13 @@ def analyze_match(
 ):
     """`job_id` is the application (tracker) id."""
     assert user.id is not None
+    enforce_rate_limit(
+        session,
+        action="ai_generation",
+        bucket_key=user_rate_limit_key(user.id),
+        limit=60,
+        window_seconds=60 * 60,
+    )
     app_row = session.exec(
         select(Application)
         .where(Application.id == body.job_id, Application.user_id == user.id)
@@ -87,10 +101,10 @@ def analyze_match(
         application_id=app_row.id,
         score=float(result.score),
         payload=result.model_dump(),
-        created_at=datetime.utcnow(),
+        created_at=utc_now(),
     )
     app_row.match_score = float(result.score)
-    app_row.updated_at = datetime.utcnow()
+    app_row.updated_at = utc_now()
     session.add(mr)
     session.add(app_row)
     session.commit()

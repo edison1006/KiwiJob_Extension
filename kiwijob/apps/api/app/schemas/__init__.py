@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 APPLICATION_STATUSES = frozenset(
     {
@@ -93,6 +93,8 @@ class JobSearchResultOut(BaseModel):
 
 
 class JobPostOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     title: str
     company: Optional[str]
@@ -112,10 +114,6 @@ class JobPostOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
-
-
 class ApplicationListOut(BaseModel):
     id: int
     status: str
@@ -130,6 +128,8 @@ class ApplicationNoteIn(BaseModel):
 
 
 class ApplicationNoteOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     application_id: int
     content: str
@@ -137,11 +137,9 @@ class ApplicationNoteOut(BaseModel):
     updated_at: datetime
     is_edited: bool = False
 
-    class Config:
-        from_attributes = True
-
-
 class ApplicationTimelineEventOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     event_type: str
     source: str
@@ -149,10 +147,6 @@ class ApplicationTimelineEventOut(BaseModel):
     status_after: Optional[str]
     occurred_at: datetime
     created_at: datetime
-
-    class Config:
-        from_attributes = True
-
 
 class ApplicationDetailOut(ApplicationListOut):
     latest_match: Optional[dict[str, Any]] = None
@@ -194,6 +188,8 @@ class ApplicationEventIn(BaseModel):
 
 
 class ApplicationEventOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     application_id: Optional[int]
     event_type: str
@@ -202,10 +198,6 @@ class ApplicationEventOut(BaseModel):
     status_after: Optional[str]
     occurred_at: datetime
     created_at: datetime
-
-    class Config:
-        from_attributes = True
-
 
 class ApplicationEventTrackOut(BaseModel):
     event: ApplicationEventOut
@@ -289,14 +281,12 @@ class CvOptimizationOut(BaseModel):
 
 
 class ResumeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     filename: str
     created_at: datetime
     text_preview: str
-
-    class Config:
-        from_attributes = True
-
 
 class CvProfileEducationOut(BaseModel):
     school: str = ""

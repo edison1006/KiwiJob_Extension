@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from io import BytesIO
 import re
 
@@ -12,9 +11,11 @@ from sqlmodel import Session, select
 
 from app.db.session import get_session
 from app.deps import get_current_user
+from app.core.time import utc_now
 from app.models import Application, CvOptimization, Resume, User
 from app.schemas import CvOptimizationCreateIn, CvOptimizationOut, CvOptimizationUpdateIn
 from app.services.cv_optimize import optimize_cv
+from app.services.rate_limit import enforce_rate_limit, user_rate_limit_key
 
 router = APIRouter(prefix="/cv-optimizations", tags=["cv-optimizations"])
 
@@ -39,6 +40,13 @@ def create_optimization(
     user: User = Depends(get_current_user),
 ):
     assert user.id is not None
+    enforce_rate_limit(
+        session,
+        action="ai_generation",
+        bucket_key=user_rate_limit_key(user.id),
+        limit=60,
+        window_seconds=60 * 60,
+    )
     resume = session.exec(
         select(Resume).where(Resume.id == body.resume_id, Resume.user_id == user.id)
     ).first()
@@ -96,7 +104,7 @@ def update_optimization(
         row.optimized_text = body.optimized_text
     if body.suggestions is not None:
         row.suggestions = [item.model_dump() for item in body.suggestions]
-    row.updated_at = datetime.utcnow()
+    row.updated_at = utc_now()
     session.add(row)
     session.commit()
     session.refresh(row)

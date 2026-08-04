@@ -27,6 +27,20 @@ function openCheckout(url: string | undefined) {
 }
 
 export default function MembershipPage() {
+  const paidPlansEnabled = plans.some((plan) => plan.checkoutUrl);
+  if (!paidPlansEnabled) {
+    return (
+      <div className="mx-auto max-w-2xl rounded-2xl border border-brand-200 bg-white p-8 text-center shadow-sm">
+        <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">KiwiJob beta</p>
+        <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">Paid plans are not available yet</h1>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          All currently available beta features remain on the free plan. Pricing and checkout will appear here only after billing
+          and plan entitlements are fully configured.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>

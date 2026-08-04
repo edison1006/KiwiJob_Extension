@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
 from app.deps import get_current_user
+from app.core.time import utc_now
 from app.db.session import get_session
 from app.models import Application, ApplicationEvent, ApplicationNote, JobPost, User
 from app.schemas import (
@@ -113,7 +112,7 @@ def save_job(
 ):
     assert user.id is not None
     status = body.normalized_status()
-    now = datetime.utcnow()
+    now = utc_now()
 
     existing_job = session.exec(select(JobPost).where(JobPost.url == body.url)).first()
     if existing_job:
@@ -235,7 +234,7 @@ def update_job(
     ns = body.normalized_status()
     if ns:
         app_row.status = ns
-    app_row.updated_at = datetime.utcnow()
+    app_row.updated_at = utc_now()
     job_changed = any(
         field in body.model_fields_set
         for field in (
@@ -293,7 +292,7 @@ def create_note(
 ):
     assert user.id is not None
     app_row = _get_user_application(session, job_id, user.id)
-    now = datetime.utcnow()
+    now = utc_now()
     content = body.content.strip()
     if not content:
         raise HTTPException(status_code=422, detail="Note content is required")
@@ -338,7 +337,7 @@ def update_note(
     if not content:
         raise HTTPException(status_code=422, detail="Note content is required")
     note.content = content
-    note.updated_at = datetime.utcnow()
+    note.updated_at = utc_now()
     session.add(note)
     session.commit()
     session.refresh(note)

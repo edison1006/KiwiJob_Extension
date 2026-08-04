@@ -12,7 +12,11 @@
     "dev:extension": "npm run dev -w @kiwijob/extension",
     "build:web": "npm run build -w @kiwijob/web",
     "build:extension": "npm run build -w @kiwijob/extension",
+    "package:extension": "npm run package -w @kiwijob/extension",
     "build:shared": "npm run build -w @kiwijob/shared",
-    "ci": "npm run build:shared && npm run build:web && npm run build:extension && cd apps/api && python3 -m pytest -q"
+    "typecheck:web": "tsc -p apps/web/tsconfig.json --noEmit",
+    "typecheck:extension": "npm run typecheck -w @kiwijob/extension",
+    "typecheck": "npm run typecheck:web && npm run typecheck:extension",
+    "ci": "npm run build:shared && npm run typecheck && npm run build:web && npm run package:extension && cd apps/api && python3 -m pytest -q"
   }
 }

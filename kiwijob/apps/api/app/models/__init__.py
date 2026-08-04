@@ -4,6 +4,8 @@ from typing import Any, Optional
 from sqlalchemy import JSON, Column, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
+from app.core.time import utc_now
+
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -12,7 +14,7 @@ class User(SQLModel, table=True):
     display_name: str = Field(default="")
     auth_provider: str = Field(default="password", index=True)
     auth_provider_subject: str = Field(default="", index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     applicant_profile: Optional[dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
 
     applications: list["Application"] = Relationship(back_populates="user")
@@ -36,8 +38,8 @@ class JobPost(SQLModel, table=True):
     source_website: str = Field(default="unknown")
     posted_date: Optional[datetime] = None
     closing_date: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
     applications: list["Application"] = Relationship(back_populates="job_post")
 
@@ -49,8 +51,8 @@ class Application(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id", index=True)
     job_post_id: int = Field(foreign_key="jobpost.id", index=True)
     status: str = Field(default="Saved", index=True)
-    saved_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    saved_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
     match_score: Optional[float] = Field(default=None, index=True)
 
     user: User = Relationship(back_populates="applications")
@@ -75,7 +77,7 @@ class Resume(SQLModel, table=True):
     filename: str
     stored_path: str
     extracted_text: str = Field(default="")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
     user: User = Relationship(back_populates="resumes")
     optimizations: list["CvOptimization"] = Relationship(
@@ -93,8 +95,8 @@ class CvOptimization(SQLModel, table=True):
     match_score: float = Field(default=0)
     suggestions: list[dict[str, Any]] = Field(sa_column=Column(JSON), default_factory=list)
     optimized_text: str = Field(default="")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
     resume: Resume = Relationship(back_populates="optimizations")
 
@@ -104,7 +106,7 @@ class MatchResult(SQLModel, table=True):
     application_id: int = Field(foreign_key="application.id", index=True)
     score: float = Field(default=0)
     payload: dict[str, Any] = Field(sa_column=Column(JSON), default_factory=dict)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
     application: Application = Relationship(back_populates="match_results")
 
@@ -114,8 +116,8 @@ class ApplicationNote(SQLModel, table=True):
     application_id: int = Field(foreign_key="application.id", index=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     content: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
     application: Application = Relationship(back_populates="notes")
 
@@ -128,9 +130,9 @@ class ApplicationEvent(SQLModel, table=True):
     source: str = Field(default="extension", index=True)
     page_url: Optional[str] = Field(default=None, max_length=4096)
     status_after: Optional[str] = Field(default=None, index=True)
-    occurred_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    occurred_at: datetime = Field(default_factory=utc_now, index=True)
     payload: dict[str, Any] = Field(sa_column=Column(JSON), default_factory=dict)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
     application: Optional[Application] = Relationship(back_populates="events")
 
@@ -145,7 +147,7 @@ class EmailEvent(SQLModel, table=True):
     body_preview: str = ""
     received_at: Optional[datetime] = None
     parsed_status: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class Notification(SQLModel, table=True):
@@ -155,4 +157,4 @@ class Notification(SQLModel, table=True):
     title: str = ""
     body: str = ""
     read: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)

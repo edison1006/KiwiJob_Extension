@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
 
 from app.deps import get_current_user
+from app.core.time import utc_now
 from app.db.session import get_session
 from app.models import Application, ApplicationEvent, EmailEvent, JobPost, User
 from app.routers.jobs import _app_to_list_out
@@ -130,14 +130,14 @@ def _upsert_application_from_event(
         matched = _match_application_from_metadata(session, user_id, body.metadata, body.page_url)
         if matched and _should_update_status(matched.status, status):
             matched.status = status or matched.status
-            matched.updated_at = datetime.utcnow()
+            matched.updated_at = utc_now()
             session.add(matched)
             session.commit()
             session.refresh(matched)
             matched.job_post = matched.job_post or session.get(JobPost, matched.job_post_id)
         return matched
 
-    now = datetime.utcnow()
+    now = utc_now()
     incoming_job = body.job
     job = session.exec(select(JobPost).where(JobPost.url == incoming_job.url)).first()
     if job:
@@ -209,7 +209,7 @@ def track_event(
         source=body.source.strip() or "extension",
         page_url=body.page_url,
         status_after=app_row.status if app_row else status,
-        occurred_at=body.occurred_at or datetime.utcnow(),
+        occurred_at=body.occurred_at or utc_now(),
         payload=compact_payload,
     )
     session.add(event)

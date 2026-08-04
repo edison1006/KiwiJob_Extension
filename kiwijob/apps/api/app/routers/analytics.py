@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
 from app.deps import get_current_user
+from app.core.time import utc_now
 from app.db.session import get_session
 from app.models import Application, User
 from app.schemas import AnalyticsSummaryOut, InsightTitleCountOut, InsightsSummaryOut
@@ -62,7 +63,7 @@ def analytics_insights(
     user: User = Depends(get_current_user),
 ):
     assert user.id is not None
-    now = datetime.utcnow()
+    now = utc_now()
     window_days = min(max(days, 1), 365)
     until = now
     since = now - timedelta(days=window_days)

@@ -669,10 +669,9 @@ export function KiwiJobPanel() {
     void chrome.tabs.create({ url });
   }
 
-  function openDashboardAuth(provider?: "google" | "apple") {
+  function openDashboardAuth() {
     const url = new URL(`${normalizeWebAppUrl(webAppUrl)}/login`);
     url.searchParams.set("mode", authMode);
-    if (provider) url.searchParams.set("provider", provider);
     void chrome.tabs.create({ url: url.toString() });
   }
 
@@ -1017,26 +1016,12 @@ export function KiwiJobPanel() {
                         </button>
                       </div>
                     )}
-                    <div className="flex items-center gap-3 py-1 text-xs text-slate-400">
-                      <div className="h-px flex-1 bg-slate-200" />
-                      <span>or</span>
-                      <div className="h-px flex-1 bg-slate-200" />
-                    </div>
                     <button
                       type="button"
-                      className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-50"
-                      onClick={() => openDashboardAuth("google")}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-50"
+                      onClick={() => openDashboardAuth()}
                     >
-                      <span className="text-base font-black text-blue-600">G</span>
-                      Continue with Google
-                    </button>
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-50"
-                      onClick={() => openDashboardAuth("apple")}
-                    >
-                      <span className="text-base font-black text-slate-950">Apple</span>
-                      Continue with Apple
+                      Open full sign-in page
                     </button>
                     {authStep === "password" ? (
                       <button type="button" className="text-xs font-semibold text-brand-700 hover:underline" onClick={() => setAuthStep("email")}>
@@ -1044,7 +1029,7 @@ export function KiwiJobPanel() {
                       </button>
                     ) : null}
                     <p className="text-[10px] leading-relaxed text-slate-500">
-                      By continuing, you agree to KiwiJob's terms and privacy policy. Google and Apple sign-in open in the dashboard when configured.
+                      Your account is shared securely between the extension and KiwiJob dashboard.
                     </p>
                   </div>
                 </div>
