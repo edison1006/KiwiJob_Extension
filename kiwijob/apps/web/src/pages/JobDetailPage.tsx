@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router";
 import type { ApplicationDetail, ApplicationNote, ApplicationStatus, ApplicationTimelineEvent, JobPostUpdatePayload } from "@kiwijob/shared";
 import { APPLICATION_STATUSES } from "@kiwijob/shared";
 import { StatusBadge } from "../components/StatusBadge";

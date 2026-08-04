@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router";
 import type { ApplicationListItem } from "@kiwijob/shared";
 import { APPLICATION_STATUSES, type ApplicationStatus } from "@kiwijob/shared";
 import { DashboardHero } from "../components/DashboardHero";

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import type { MatchAnalysis } from "@kiwijob/shared";
 import { analyzeMatch, fetchMatch } from "../lib/api";
 

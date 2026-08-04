@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 /**
  * Simplify-style hero + CTA. Job “recommendations” are out of scope for 1.0; this nudges CV upload for match quality.

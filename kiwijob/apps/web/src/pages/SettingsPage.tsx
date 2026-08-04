@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router";
 import type { ApplicantAutofillProfile } from "@kiwijob/shared";
 import { EMPTY_APPLICANT_AUTOFILL_PROFILE } from "@kiwijob/shared";
 import { useAuth } from "../auth";

@@ -1,5 +1,5 @@
 import { type CSSProperties, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 const jobSources = [
   { name: "SEEK", angle: "0deg", counterAngle: "0deg", tone: "bg-[#121a44] text-white" },
