@@ -12,12 +12,17 @@
   {
     "Namespace": "aws:elasticbeanstalk:application:environment",
     "OptionName": "CORS_ORIGINS",
-    "Value": "https://d1e26b7m2m2gck.cloudfront.net,https://app.kiwijob.co.nz"
+    "Value": "https://d1e26b7m2m2gck.cloudfront.net,https://app.kiwijob.co.nz,chrome-extension://mojdgckojdomldmkiddmbcmpbhlphofb"
   },
   {
     "Namespace": "aws:elasticbeanstalk:application:environment",
     "OptionName": "CORS_ORIGIN_REGEX",
     "Value": ""
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "RATE_LIMIT_ENABLED",
+    "Value": "true"
   },
   {
     "Namespace": "aws:elasticbeanstalk:environment:process:default",
