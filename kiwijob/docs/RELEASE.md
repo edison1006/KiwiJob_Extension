@@ -51,7 +51,6 @@ Explicitly **out of scope for 1.0**: referral/network graph and fully automatic 
 - PNG toolbar icons live under `apps/extension/public/icons/` and are referenced in `manifest.json`. Regenerate with `npm run icons -w @kiwijob/extension` or `python3 scripts/render_icons.py` from `apps/extension`.
 - **Privacy policy URL** for the store: use the public KiwiJob privacy page:
   `https://app.kiwijob.co.nz/privacy`
-  Replace `<OWNER>/<REPO>` and branch name if your default branch is not `main`.
 - Prepare the rest of the listing: single-purpose description, data usage (job URLs and content sent to **your** configured API only).
 - **Suggested listing copy** (edit to match your deployment; English is typical for the store):
 
