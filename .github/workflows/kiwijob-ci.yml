@@ -32,11 +32,11 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: kiwijob/package-lock.json
 
@@ -47,14 +47,14 @@ jobs:
         run: npm run build:shared && npm run typecheck && npm run build:web && npm run package:extension
 
       - name: Upload Chrome extension artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: kiwijob-extension
           path: kiwijob/releases/kiwijob-extension-*.zip
           if-no-files-found: error
           retention-days: 14
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
