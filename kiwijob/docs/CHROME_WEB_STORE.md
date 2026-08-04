@@ -5,7 +5,7 @@ Privacy practices answers, test instructions, and packaged behavior consistent.
 
 ## Item
 
-- Extension ID: `mojdgckojdomldmkiddmbcmpbhlphofb`
+- Extension ID: `medjbbmnbpeijhapfldniaehipbllohd`
 - Package: `releases/kiwijob-extension-0.2.2.zip`
 - Privacy policy: `https://app.kiwijob.co.nz/privacy`
 - Terms: `https://app.kiwijob.co.nz/terms`
