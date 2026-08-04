@@ -10,7 +10,7 @@ Use this when preparing a production cut (web + API + Chrome extension).
 - CloudFront API endpoint: `https://d3qngwzf3gjrpb.cloudfront.net`
 - API origin: Elastic Beanstalk environment `Kiwijob-api-env`
 - Resume storage: private S3 bucket with public access blocked and server-side encryption
-- Extension release artifact: `releases/kiwijob-extension-0.2.1.zip` (generated locally; ZIP files are not committed)
+- Extension release artifact: `releases/kiwijob-extension-0.2.2.zip` (generated locally; ZIP files are not committed)
 
 The custom domains use CloudFront with an ACM certificate covering both
 `app.kiwijob.co.nz` and `api.kiwijob.co.nz`. Keep the ACM DNS validation
@@ -49,8 +49,8 @@ Explicitly **out of scope for 1.0**: referral/network graph and fully automatic 
 - Bump `version` in `apps/extension/public/manifest.json` per store rules.
 - Keep the workspace package version in sync, then run `npm run package:extension`. The command rebuilds the extension, verifies required files and version consistency, and writes `releases/kiwijob-extension-<version>.zip`.
 - PNG toolbar icons live under `apps/extension/public/icons/` and are referenced in `manifest.json`. Regenerate with `npm run icons -w @kiwijob/extension` or `python3 scripts/render_icons.py` from `apps/extension`.
-- **Privacy policy URL** for the store: publish this repo (or your fork) on GitHub and use a stable raw URL to [`docs/PRIVACY.md`](PRIVACY.md), for example  
-  `https://raw.githubusercontent.com/<OWNER>/<REPO>/main/kiwijob/docs/PRIVACY.md`  
+- **Privacy policy URL** for the store: use the public KiwiJob privacy page:
+  `https://app.kiwijob.co.nz/privacy`
   Replace `<OWNER>/<REPO>` and branch name if your default branch is not `main`.
 - Prepare the rest of the listing: single-purpose description, data usage (job URLs and content sent to **your** configured API only).
 - **Suggested listing copy** (edit to match your deployment; English is typical for the store):

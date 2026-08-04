@@ -53,9 +53,23 @@ export default function PrivacyPage() {
       <section className={sectionClass}>
         <h2 className="text-lg font-bold text-slate-950">Browser extension access</h2>
         <p className="mt-3 text-sm leading-6 text-slate-700">
-          The extension runs on the job-site allowlist in its manifest. It reads a supported active job page when you open the panel
-          or request a refresh. It sends job information to your configured KiwiJob API only when you choose Save or Run match now.
-          Authentication state, API and web addresses, and your selected CV id may be stored in Chrome storage.
+          The extension runs on the job-site allowlist in its manifest. Before its first job-page read, it explains the data flow and
+          asks you to agree. After that agreement, it reads a supported active job page when you open the panel or request a refresh.
+          It sends job information to your configured KiwiJob API only when you choose Save or Run match now. A match request may also
+          send relevant selected CV or profile data to the API and the AI provider described above. Authentication state, API and web
+          addresses, consent, and your selected CV id may be stored in Chrome storage.
+        </p>
+      </section>
+
+      <section className={sectionClass}>
+        <h2 className="text-lg font-bold text-slate-950">Chrome Web Store Limited Use</h2>
+        <p className="mt-3 text-sm leading-6 text-slate-700">
+          KiwiJob&apos;s use and transfer of information received from Chrome APIs complies with the Chrome Web Store User Data Policy,
+          including the Limited Use requirements. We use this information only for the disclosed job-saving, application-tracking,
+          CV-match, security, and reliability features. We do not use or transfer it for personalized advertising, lending decisions,
+          or sale to data brokers. Humans do not read job, CV, or account data except with the user&apos;s affirmative consent for support,
+          when necessary for security or abuse investigation, when required by law, or after aggregation and anonymization for internal
+          operations.
         </p>
       </section>
 

@@ -20,7 +20,13 @@ KiwiJob uses this information to authenticate you, provide and synchronize the d
 
 ## Browser extension access
 
-The extension runs on the job-site allowlist declared in its manifest. It reads a supported active job page when you open the panel or request a refresh. It sends job information to your configured KiwiJob API only when you choose **Save** or **Run match now**. It does not read email pages, monitor unrelated browsing, or automatically submit job applications.
+The extension runs on the job-site allowlist declared in its manifest. Before its first job-page read, it presents a disclosure and asks you to agree. After that agreement, it reads a supported active job page when you open the panel or request a refresh. It sends job information to your configured KiwiJob API only when you choose **Save** or **Run match now**. A match request may also send relevant selected CV or profile data to the API and the AI provider identified below. It does not read email pages, monitor unrelated browsing, or automatically submit job applications.
+
+## Chrome Web Store Limited Use
+
+KiwiJob's use and transfer of information received from Chrome APIs complies with the Chrome Web Store User Data Policy, including the Limited Use requirements. KiwiJob uses this information only to provide or improve the extension's disclosed job-saving, application-tracking, and CV-match features; to maintain security; and to troubleshoot reliability.
+
+KiwiJob does not use or transfer extension user data for personalized advertising, creditworthiness or lending decisions, or sale to data brokers. Humans do not read a user's job, CV, or account data except with that user's affirmative consent for support, when necessary for security or abuse investigation, when required by law, or after the data has been aggregated and anonymized for internal operations.
 
 ## AI, hosting, and other providers
 

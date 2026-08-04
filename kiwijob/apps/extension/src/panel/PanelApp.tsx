@@ -19,6 +19,7 @@ type AnyResp = { ok: true; data?: unknown } | { ok: false; error: string };
 type TabId = "jobs" | "applications" | "profile" | "insights";
 type InsightRange = "7" | "30" | "90" | "custom";
 type AuthStep = "email" | "password";
+type PrivacyConsentState = "loading" | "required" | "accepted";
 type LoadCvProfileOptions = { silent?: boolean; preferLatest?: boolean };
 type AuthUser = { id: number; email: string; display_name: string };
 type AuthState = { token: string; user: AuthUser | null };
@@ -69,6 +70,7 @@ export function normalizeApiBase(raw: string): string {
 }
 
 const DEFAULT_API_BASE = "https://api.kiwijob.co.nz";
+const PRIVACY_CONSENT_VERSION = "2026-08-04-v1";
 const DEFAULT_WEB_APP_URL =
   (typeof import.meta.env !== "undefined" && import.meta.env.VITE_WEB_APP_URL?.trim()) || "https://app.kiwijob.co.nz";
 
@@ -508,6 +510,7 @@ export function KiwiJobPanel() {
   const [selectedResumeId, setSelectedResumeId] = useState<number | null>(null);
   const [cvProfileLoading, setCvProfileLoading] = useState(false);
   const [cvProfileError, setCvProfileError] = useState<string | null>(null);
+  const [privacyConsent, setPrivacyConsent] = useState<PrivacyConsentState>("loading");
   useEffect(() => {
     void chrome.storage.sync.get(["apiBase", "webAppUrl"]).then((v) => {
       const nextApi = typeof v.apiBase === "string" ? normalizeApiBase(v.apiBase) : DEFAULT_API_BASE;
@@ -520,6 +523,9 @@ export function KiwiJobPanel() {
     });
     void chrome.storage.local.get(["lastApplicationId"]).then((v) => {
       if (typeof v.lastApplicationId === "number") setLastId(v.lastApplicationId);
+    });
+    void chrome.storage.local.get(["privacyConsentVersion"]).then((v) => {
+      setPrivacyConsent(v.privacyConsentVersion === PRIVACY_CONSENT_VERSION ? "accepted" : "required");
     });
   }, []);
 
@@ -618,6 +624,7 @@ export function KiwiJobPanel() {
   }
 
   async function refreshExtract() {
+    if (privacyConsent !== "accepted") return;
     setMsg(null);
     const tab = await getActiveTab();
     const tabId = tab?.id;
@@ -651,9 +658,10 @@ export function KiwiJobPanel() {
   }
 
   useEffect(() => {
+    if (privacyConsent !== "accepted") return;
     void refreshExtract();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [privacyConsent]);
 
   async function persistSettings(nextApi: string) {
     const web = normalizeWebAppUrl(webAppUrl);
@@ -667,6 +675,21 @@ export function KiwiJobPanel() {
   function openWebDashboard() {
     const url = normalizeWebAppUrl(webAppUrl);
     void chrome.tabs.create({ url });
+  }
+
+  function openPrivacyNotice() {
+    const url = new URL("/privacy", normalizeWebAppUrl(webAppUrl));
+    void chrome.tabs.create({ url: url.toString() });
+  }
+
+  function openTerms() {
+    const url = new URL("/terms", normalizeWebAppUrl(webAppUrl));
+    void chrome.tabs.create({ url: url.toString() });
+  }
+
+  async function acceptPrivacyDisclosure() {
+    await setLocalStorage({ privacyConsentVersion: PRIVACY_CONSENT_VERSION });
+    setPrivacyConsent("accepted");
   }
 
   function openDashboardAuth() {
@@ -870,6 +893,65 @@ export function KiwiJobPanel() {
     { id: "profile", label: "Profile", description: "CV, skills, visa, and preferences" },
     { id: "insights", label: "Insights", description: "Analytics, success rate, and market trends" },
   ];
+
+  if (privacyConsent === "loading") {
+    return (
+      <div className="flex h-full min-h-0 w-full items-center justify-center bg-white p-6 text-center">
+        <div>
+          <img src={kiwijobLogoSrc} alt="KiwiJob" className="mx-auto h-14 w-14 object-contain" width={56} height={56} />
+          <p className="mt-3 text-sm font-semibold text-slate-700">Loading KiwiJob…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (privacyConsent === "required") {
+    return (
+      <div className="flex h-full min-h-0 w-full flex-col overflow-y-auto bg-white px-5 py-6">
+        <div className="mx-auto w-full max-w-md">
+          <img src={kiwijobLogoSrc} alt="KiwiJob" className="h-14 w-14 object-contain" width={56} height={56} />
+          <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Before you continue</p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">How KiwiJob uses job data</h1>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600">
+            KiwiJob reads the current supported job page after you accept, including its URL, title, company, location,
+            salary, and description. Opening the panel does not save or send that job to the KiwiJob service.
+          </p>
+          <div className="mt-5 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">
+            <p>
+              <strong className="text-slate-950">Save:</strong> sends the detected job details to your KiwiJob account only
+              when you click <strong>Save</strong>.
+            </p>
+            <p>
+              <strong className="text-slate-950">Match:</strong> sends the job details and relevant selected CV/profile data
+              to the KiwiJob API and its disclosed AI provider only when you click <strong>Run match</strong>.
+            </p>
+            <p>
+              <strong className="text-slate-950">Chrome storage:</strong> keeps extension settings, sign-in state, consent,
+              and the selected CV identifier. KiwiJob does not sell this data, inject advertising, or track unrelated browsing.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="mt-6 w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-700"
+            onClick={() => void acceptPrivacyDisclosure()}
+          >
+            Agree and continue
+          </button>
+          <p className="mt-3 text-center text-xs leading-relaxed text-slate-500">
+            By continuing, you agree to the{" "}
+            <button type="button" className="font-semibold text-brand-700 hover:underline" onClick={openPrivacyNotice}>
+              Privacy Notice
+            </button>{" "}
+            and{" "}
+            <button type="button" className="font-semibold text-brand-700 hover:underline" onClick={openTerms}>
+              Terms
+            </button>
+            .
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-white">
@@ -1440,6 +1522,13 @@ export function KiwiJobPanel() {
           <img src={kiwijobLogoSrc} alt="" className="h-7 w-7 shrink-0 object-contain" width={28} height={28} />
           <span className="text-sm font-semibold tracking-tight text-slate-900">KiwiJob</span>
           <div className="min-w-0 flex-1" />
+          <button
+            type="button"
+            className="rounded-md px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-100"
+            onClick={openPrivacyNotice}
+          >
+            Privacy
+          </button>
           <button
             type="button"
             className="rounded-md px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-100"
