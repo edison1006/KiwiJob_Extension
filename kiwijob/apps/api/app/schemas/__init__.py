@@ -23,12 +23,23 @@ class UserOut(BaseModel):
     id: int
     email: str
     display_name: str = ""
+    membership_tier: str = "free"
+    membership_expires_at: Optional[datetime] = None
 
 
 class AuthIn(BaseModel):
     email: str = Field(..., min_length=3, max_length=320)
     password: str = Field(..., min_length=8, max_length=200)
     display_name: str = Field(default="", max_length=200)
+
+
+class AccountIdentifyIn(BaseModel):
+    email: str = Field(..., min_length=3, max_length=320)
+
+
+class AccountIdentifyOut(BaseModel):
+    account_exists: bool
+    password_login_available: bool
 
 
 class AuthOut(BaseModel):

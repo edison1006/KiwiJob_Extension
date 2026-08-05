@@ -7,11 +7,11 @@ from openai import OpenAI
 
 from app.core.config import get_settings
 from app.schemas import CvOptimizationSuggestionOut
-from app.services.match_ai import analyze_cv_vs_jd
+from app.services.match_ai import analyze_cv_vs_jd_heuristic
 
 
 def _fallback(cv: str, jd: str) -> tuple[float, list[CvOptimizationSuggestionOut], str]:
-    match = analyze_cv_vs_jd(cv, jd)
+    match = analyze_cv_vs_jd_heuristic(cv, jd)
     suggestions: list[CvOptimizationSuggestionOut] = []
     if match.cv_summary_suggestion:
         suggestions.append(
@@ -69,6 +69,7 @@ optimized_text must be a complete, clean, plain-text CV ready for DOCX export.""
             model=settings.openai_model,
             response_format={"type": "json_object"},
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+            max_tokens=settings.openai_cv_max_output_tokens,
             temperature=0.15,
         )
         raw: dict[str, Any] = json.loads(response.choices[0].message.content or "{}")

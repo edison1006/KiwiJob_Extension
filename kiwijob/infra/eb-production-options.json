@@ -25,6 +25,71 @@
     "Value": "true"
   },
   {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "AI_FREE_HOURLY_LIMIT",
+    "Value": "5"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "OPENAI_MATCH_MAX_OUTPUT_TOKENS",
+    "Value": "2000"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "OPENAI_CV_MAX_OUTPUT_TOKENS",
+    "Value": "5000"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "OPENAI_COPILOT_MAX_OUTPUT_TOKENS",
+    "Value": "1500"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "AI_FREE_DAILY_LIMIT",
+    "Value": "5"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "AI_FREE_MONTHLY_LIMIT",
+    "Value": "20"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "AI_PRO_HOURLY_LIMIT",
+    "Value": "30"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "AI_PRO_DAILY_LIMIT",
+    "Value": "60"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "AI_PRO_MONTHLY_LIMIT",
+    "Value": "500"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "AI_PREMIUM_HOURLY_LIMIT",
+    "Value": "60"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "AI_PREMIUM_DAILY_LIMIT",
+    "Value": "150"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "AI_PREMIUM_MONTHLY_LIMIT",
+    "Value": "1500"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "AI_MONTHLY_BUDGET_CENTS",
+    "Value": "9500"
+  },
+  {
     "Namespace": "aws:elasticbeanstalk:environment:process:default",
     "OptionName": "HealthCheckPath",
     "Value": "/ready"

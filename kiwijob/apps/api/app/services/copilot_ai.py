@@ -166,6 +166,7 @@ def answer_question(
                 {"role": "system", "content": system},
                 {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
             ],
+            max_tokens=get_settings().openai_copilot_max_output_tokens,
             temperature=0.2,
         )
         data = json.loads(resp.choices[0].message.content or "{}")
@@ -253,6 +254,7 @@ def generate_cover_letter(
                 {"role": "system", "content": system},
                 {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
             ],
+            max_tokens=get_settings().openai_copilot_max_output_tokens,
             temperature=0.35,
         )
         data = json.loads(resp.choices[0].message.content or "{}")

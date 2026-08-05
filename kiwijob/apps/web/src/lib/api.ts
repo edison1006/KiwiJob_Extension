@@ -21,12 +21,19 @@ export type UserDTO = {
   id: number;
   email: string;
   display_name: string;
+  membership_tier: "free" | "pro" | "premium";
+  membership_expires_at: string | null;
 };
 
 export type AuthResponse = {
   access_token: string;
   token_type: "bearer";
   user: UserDTO;
+};
+
+export type AccountIdentity = {
+  account_exists: boolean;
+  password_login_available: boolean;
 };
 
 export type JobSearchFilters = {
@@ -121,6 +128,16 @@ export async function registerAccount(email: string, password: string, displayNa
   const body = await parseJson<AuthResponse>(res);
   setAuthToken(body.access_token);
   return body;
+}
+
+export async function identifyAccount(email: string): Promise<AccountIdentity> {
+  const res = await fetch(`${API_URL}/auth/identify`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  return parseJson(res);
 }
 
 export async function loginAccount(email: string, password: string): Promise<AuthResponse> {

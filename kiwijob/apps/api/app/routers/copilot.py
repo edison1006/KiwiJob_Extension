@@ -16,7 +16,7 @@ from app.schemas import (
     CopilotQuestionIn,
 )
 from app.services.copilot_ai import answer_question, build_autofill_plan, generate_cover_letter
-from app.services.rate_limit import enforce_rate_limit, user_rate_limit_key
+from app.services.rate_limit import enforce_ai_generation_limits
 
 router = APIRouter(prefix="/copilot", tags=["copilot"])
 
@@ -56,7 +56,7 @@ def copilot_answer(
     session: Session = Depends(get_session),
 ):
     assert user.id is not None
-    enforce_rate_limit(session, action="ai_generation", bucket_key=user_rate_limit_key(user.id), limit=60, window_seconds=60 * 60)
+    enforce_ai_generation_limits(session, user=user, budget_cost_cents=4)
     profile = _profile_for_user(user)
     job = _job_for_application(session, user.id, body.job_id)
     return answer_question(
@@ -75,7 +75,13 @@ def copilot_autofill_plan(
     session: Session = Depends(get_session),
 ):
     assert user.id is not None
-    enforce_rate_limit(session, action="ai_generation", bucket_key=user_rate_limit_key(user.id), limit=60, window_seconds=60 * 60)
+    ai_call_count = sum(1 for field in body.fields[:80] if not field.current_value.strip())
+    enforce_ai_generation_limits(
+        session,
+        user=user,
+        cost=ai_call_count,
+        budget_cost_cents=ai_call_count * 4,
+    )
     profile = _profile_for_user(user)
     job = _job_for_application(session, user.id, body.job_id)
     return build_autofill_plan(fields=body.fields, profile=profile, job=job)
@@ -88,7 +94,7 @@ def copilot_cover_letter(
     session: Session = Depends(get_session),
 ):
     assert user.id is not None
-    enforce_rate_limit(session, action="ai_generation", bucket_key=user_rate_limit_key(user.id), limit=60, window_seconds=60 * 60)
+    enforce_ai_generation_limits(session, user=user, budget_cost_cents=4)
     profile = _profile_for_user(user)
     job = _job_for_application(session, user.id, body.job_id)
     return generate_cover_letter(

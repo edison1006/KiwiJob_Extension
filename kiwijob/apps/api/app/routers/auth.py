@@ -7,8 +7,9 @@ from app.core.config import get_settings
 from app.db.session import get_session
 from app.deps import get_current_user
 from app.models import User
-from app.schemas import AuthIn, AuthOut, OAuthIn, PasswordChangeIn, UserOut
+from app.schemas import AccountIdentifyIn, AccountIdentifyOut, AuthIn, AuthOut, OAuthIn, PasswordChangeIn, UserOut
 from app.services.auth import create_access_token, hash_password, verify_password
+from app.services.membership import effective_membership_tier
 from app.services.oauth import verify_oauth_identity
 from app.services.rate_limit import client_rate_limit_key, enforce_rate_limit, value_rate_limit_key
 
@@ -17,7 +18,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 def _user_out(user: User) -> UserOut:
     assert user.id is not None
-    return UserOut(id=user.id, email=user.email, display_name=user.display_name or "")
+    return UserOut(
+        id=user.id,
+        email=user.email,
+        display_name=user.display_name or "",
+        membership_tier=effective_membership_tier(user),
+        membership_expires_at=user.membership_expires_at,
+    )
 
 
 def _set_cookie(response: Response, token: str) -> None:
@@ -30,6 +37,30 @@ def _set_cookie(response: Response, token: str) -> None:
         secure=settings.secure_auth_cookie,
         samesite="none" if settings.secure_auth_cookie else "lax",
         path="/",
+    )
+
+
+@router.post("/identify", response_model=AccountIdentifyOut)
+def identify_account(body: AccountIdentifyIn, request: Request, session: Session = Depends(get_session)):
+    email = body.email.strip().lower()
+    enforce_rate_limit(
+        session,
+        action="auth_identify_client",
+        bucket_key=client_rate_limit_key(request),
+        limit=30,
+        window_seconds=15 * 60,
+    )
+    enforce_rate_limit(
+        session,
+        action="auth_identify_email",
+        bucket_key=value_rate_limit_key("identify-email", email),
+        limit=10,
+        window_seconds=15 * 60,
+    )
+    user = session.exec(select(User).where(User.email == email)).first()
+    return AccountIdentifyOut(
+        account_exists=user is not None,
+        password_login_available=bool(user and user.password_hash),
     )
 
 

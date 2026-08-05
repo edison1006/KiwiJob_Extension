@@ -15,7 +15,7 @@ from app.core.time import utc_now
 from app.models import Application, CvOptimization, Resume, User
 from app.schemas import CvOptimizationCreateIn, CvOptimizationOut, CvOptimizationUpdateIn
 from app.services.cv_optimize import optimize_cv
-from app.services.rate_limit import enforce_rate_limit, user_rate_limit_key
+from app.services.rate_limit import enforce_ai_generation_limits
 
 router = APIRouter(prefix="/cv-optimizations", tags=["cv-optimizations"])
 
@@ -40,13 +40,6 @@ def create_optimization(
     user: User = Depends(get_current_user),
 ):
     assert user.id is not None
-    enforce_rate_limit(
-        session,
-        action="ai_generation",
-        bucket_key=user_rate_limit_key(user.id),
-        limit=60,
-        window_seconds=60 * 60,
-    )
     resume = session.exec(
         select(Resume).where(Resume.id == body.resume_id, Resume.user_id == user.id)
     ).first()
@@ -64,6 +57,7 @@ def create_optimization(
     jd = "\n\n".join(
         part for part in (application.job_post.title, application.job_post.description or "", application.job_post.visa_requirement or "") if part
     )
+    enforce_ai_generation_limits(session, user=user, budget_cost_cents=3)
     score, suggestions, optimized_text = optimize_cv(resume.extracted_text, jd)
     row = CvOptimization(
         user_id=user.id,

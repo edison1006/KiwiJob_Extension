@@ -560,14 +560,14 @@ export function KiwiJobPanel() {
 
   const detectedRows = useMemo(() => {
     if (!draft) {
-      return { title: "—", salary: "—", location: "—", company: "—" };
+      return { title: "—", salary: "—", location: "—", company: "—", workRights: "—" };
     }
     return {
       title: draft.title?.trim() || "—",
       salary: draft.salary?.trim() || "—",
       location: draft.location?.trim() || "—",
       company: draft.company?.trim() || "—",
-      visa: draft.visa_requirement?.trim() || "",
+      workRights: draft.visa_requirement?.trim() || "Not specified in job ad",
     };
   }, [draft]);
 
@@ -1159,27 +1159,25 @@ export function KiwiJobPanel() {
                 <div className="text-xs font-semibold text-slate-600">Detected</div>
                 <dl className="mt-2 space-y-1.5 text-xs leading-snug text-slate-900">
                   <div className="flex gap-2">
-                    <dt className="w-16 shrink-0 font-semibold text-slate-500">Title</dt>
+                    <dt className="w-20 shrink-0 font-semibold text-slate-500">Title</dt>
                     <dd className="min-w-0 break-words font-medium">{detectedRows.title}</dd>
                   </div>
                   <div className="flex gap-2">
-                    <dt className="w-16 shrink-0 font-semibold text-slate-500">Salary</dt>
+                    <dt className="w-20 shrink-0 font-semibold text-slate-500">Salary</dt>
                     <dd className="min-w-0 break-words font-medium">{detectedRows.salary}</dd>
                   </div>
                   <div className="flex gap-2">
-                    <dt className="w-16 shrink-0 font-semibold text-slate-500">Location</dt>
+                    <dt className="w-20 shrink-0 font-semibold text-slate-500">Location</dt>
                     <dd className="min-w-0 break-words font-medium">{detectedRows.location}</dd>
                   </div>
                   <div className="flex gap-2">
-                    <dt className="w-16 shrink-0 font-semibold text-slate-500">Company</dt>
+                    <dt className="w-20 shrink-0 font-semibold text-slate-500">Company</dt>
                     <dd className="min-w-0 break-words font-medium">{detectedRows.company}</dd>
                   </div>
-                  {detectedRows.visa ? (
-                    <div className="flex gap-2">
-                      <dt className="w-16 shrink-0 font-semibold text-slate-500">Visa</dt>
-                      <dd className="min-w-0 break-words font-medium">{detectedRows.visa}</dd>
-                    </div>
-                  ) : null}
+                  <div className="flex gap-2">
+                    <dt className="w-20 shrink-0 font-semibold text-slate-500">Work rights</dt>
+                    <dd className="min-w-0 break-words font-medium">{detectedRows.workRights}</dd>
+                  </div>
                 </dl>
                 {detectedSecondary ? (
                   <div className="mt-2 line-clamp-2 text-[11px] text-slate-600">Data source: {detectedSecondary}</div>

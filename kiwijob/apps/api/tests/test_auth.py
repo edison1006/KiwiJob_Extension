@@ -40,6 +40,24 @@ def test_login_rate_limit_returns_retry_after() -> None:
     assert int(responses[10].headers["retry-after"]) > 0
 
 
+def test_identify_account_drives_two_step_auth() -> None:
+    email = "two-step@example.com"
+    with TestClient(app) as client:
+        unknown = client.post("/auth/identify", json={"email": email})
+        assert unknown.status_code == 200
+        assert unknown.json() == {"account_exists": False, "password_login_available": False}
+
+        registered = client.post(
+            "/auth/register",
+            json={"email": email, "password": "password123", "display_name": "Two Step"},
+        )
+        assert registered.status_code == 201
+
+        known = client.post("/auth/identify", json={"email": email})
+        assert known.status_code == 200
+        assert known.json() == {"account_exists": True, "password_login_available": True}
+
+
 def test_change_password_updates_login_credentials() -> None:
     email = f"password-{uuid4().hex}@example.com"
     with TestClient(app) as client:

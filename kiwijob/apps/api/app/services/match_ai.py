@@ -214,12 +214,16 @@ def _mock_match(cv: str, jd: str) -> dict[str, Any]:
     }
 
 
+def analyze_cv_vs_jd_heuristic(cv_text: str, jd_text: str) -> MatchAnalysisOut:
+    raw = _mock_match(cv_text, jd_text)
+    raw = _apply_visa_policy(raw, cv_text, jd_text)
+    return MatchAnalysisOut.model_validate(raw)
+
+
 def analyze_cv_vs_jd(cv_text: str, jd_text: str) -> MatchAnalysisOut:
     settings = get_settings()
     if not settings.openai_api_key:
-        raw = _mock_match(cv_text, jd_text)
-        raw = _apply_visa_policy(raw, cv_text, jd_text)
-        return MatchAnalysisOut.model_validate(raw)
+        return analyze_cv_vs_jd_heuristic(cv_text, jd_text)
 
     client = OpenAI(api_key=settings.openai_api_key)
     system = (
@@ -237,6 +241,7 @@ def analyze_cv_vs_jd(cv_text: str, jd_text: str) -> MatchAnalysisOut:
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
+            max_tokens=settings.openai_match_max_output_tokens,
             temperature=0.2,
         )
         content = resp.choices[0].message.content or "{}"

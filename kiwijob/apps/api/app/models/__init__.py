@@ -14,6 +14,8 @@ class User(SQLModel, table=True):
     display_name: str = Field(default="")
     auth_provider: str = Field(default="password", index=True)
     auth_provider_subject: str = Field(default="", index=True)
+    membership_tier: str = Field(default="free", index=True, max_length=20)
+    membership_expires_at: Optional[datetime] = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=utc_now)
     applicant_profile: Optional[dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
 

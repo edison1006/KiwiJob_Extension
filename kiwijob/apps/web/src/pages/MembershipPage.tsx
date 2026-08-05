@@ -1,22 +1,27 @@
+import { useAuth } from "../auth";
+
 const plans = [
   {
+    tier: "free" as const,
     title: "Free",
     price: "$0",
     description: "Basic job tracking and saved roles.",
-    features: ["Save jobs", "Track application status", "View basic match results"],
+    features: ["20 AI actions per month", "Up to 5 AI actions per day", "Job tracking and saved roles"],
   },
   {
+    tier: "pro" as const,
     title: "Pro",
     price: "$9 / month",
     description: "More AI help for applications and interviews.",
-    features: ["Unlimited AI match refresh", "Cover letter generation", "Interview assistant practice"],
+    features: ["500 AI actions per month", "Up to 60 AI actions per day", "AI matching, CV and cover-letter tools"],
     checkoutUrl: import.meta.env.VITE_PRO_CHECKOUT_URL?.trim(),
   },
   {
+    tier: "premium" as const,
     title: "Premium",
     price: "$19 / month",
     description: "Full job search support with deeper optimization.",
-    features: ["Priority AI insights", "Advanced CV weak spot highlights", "Application trend analytics"],
+    features: ["1,500 AI actions per month", "Up to 150 AI actions per day", "Highest AI allowance and priority features"],
     checkoutUrl: import.meta.env.VITE_PREMIUM_CHECKOUT_URL?.trim(),
   },
 ];
@@ -27,19 +32,8 @@ function openCheckout(url: string | undefined) {
 }
 
 export default function MembershipPage() {
-  const paidPlansEnabled = plans.some((plan) => plan.checkoutUrl);
-  if (!paidPlansEnabled) {
-    return (
-      <div className="mx-auto max-w-2xl rounded-2xl border border-brand-200 bg-white p-8 text-center shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">KiwiJob beta</p>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">Paid plans are not available yet</h1>
-        <p className="mt-3 text-sm leading-6 text-slate-600">
-          All currently available beta features remain on the free plan. Pricing and checkout will appear here only after billing
-          and plan entitlements are fully configured.
-        </p>
-      </div>
-    );
-  }
+  const { user } = useAuth();
+  const currentTier = user?.membership_tier ?? "free";
 
   return (
     <div className="space-y-6">
@@ -64,7 +58,7 @@ export default function MembershipPage() {
                 </li>
               ))}
             </ul>
-            {plan.title === "Free" ? (
+            {plan.tier === currentTier ? (
               <button
                 type="button"
                 className="mt-5 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm"
@@ -79,7 +73,7 @@ export default function MembershipPage() {
                 className="mt-5 inline-flex items-center justify-center rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
                 title={plan.checkoutUrl ? `Upgrade to ${plan.title}` : `Set ${plan.title === "Pro" ? "VITE_PRO_CHECKOUT_URL" : "VITE_PREMIUM_CHECKOUT_URL"} to enable checkout`}
               >
-                {plan.checkoutUrl ? "Upgrade" : "Checkout not configured"}
+                {plan.checkoutUrl ? "Upgrade" : "Membership checkout coming soon"}
               </button>
             )}
           </article>

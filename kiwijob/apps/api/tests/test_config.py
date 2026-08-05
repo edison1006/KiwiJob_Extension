@@ -28,11 +28,27 @@ def test_invalid_resume_limit_is_rejected_in_every_environment() -> None:
 
 
 @pytest.mark.parametrize(
+    "overrides",
+    [
+        {"openai_match_max_output_tokens": 127},
+        {"openai_cv_max_output_tokens": 16_001},
+        {"ai_free_hourly_limit": 0},
+        {"ai_free_hourly_limit": 6, "ai_free_daily_limit": 5},
+        {"ai_pro_daily_limit": 501, "ai_pro_monthly_limit": 500},
+    ],
+)
+def test_invalid_ai_limits_are_rejected(overrides: dict) -> None:
+    with pytest.raises(RuntimeError, match="AI_"):
+        validate_settings(Settings(_env_file=None, **overrides))
+
+
+@pytest.mark.parametrize(
     ("override", "message"),
     [
         ({"jwt_secret_key": "change-me-in-production"}, "JWT_SECRET_KEY"),
         ({"secure_auth_cookie": False}, "SECURE_AUTH_COOKIE"),
         ({"openai_api_key": None}, "OPENAI_API_KEY"),
+        ({"openai_model": "gpt-4o"}, "OPENAI_MODEL"),
         ({"resume_s3_bucket": None}, "RESUME_S3_BUCKET"),
         ({"rate_limit_enabled": False}, "RATE_LIMIT_ENABLED"),
         ({"cors_origins": "*"}, "CORS_ORIGINS"),

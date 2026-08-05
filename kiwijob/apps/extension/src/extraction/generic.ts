@@ -302,30 +302,43 @@ function pickPostedDate(): string | null {
 }
 
 function extractVisaRequirement(text: string | null | undefined): string | null {
-  const raw = (text || "").replace(/\s+/g, " ").trim();
-  if (!raw) return null;
-  const patterns = [
-    /(?:must|need|required|requires?|eligible|eligibility)[^.]{0,120}(?:work rights?|right to work|work authori[sz]ation|visa|citizen|resident|permanent resident|nz resident|new zealand resident)[^.]{0,160}\./i,
-    /(?:work rights?|right to work|work authori[sz]ation|visa sponsorship|sponsorship|citizen|resident|permanent resident|nz resident|new zealand resident)[^.]{0,180}\./i,
-    /(?:applicants?|candidates?)[^.]{0,120}(?:must|need|required)[^.]{0,160}(?:visa|work rights?|right to work|citizen|resident)[^.]{0,120}\./i,
-  ];
-  for (const pattern of patterns) {
-    const hit = raw.match(pattern)?.[0]?.trim();
-    if (hit && /work|visa|citizen|resident|sponsor/i.test(hit)) return hit.slice(0, 500);
-  }
-  const lower = raw.toLowerCase();
-  if (/(visa sponsorship|not sponsor|unable to sponsor|must have.*right to work|must be.*citizen|must be.*resident)/i.test(raw)) {
-    const idx = Math.max(
-      0,
-      Math.min(
-        ...["visa", "sponsor", "right to work", "citizen", "resident"]
-          .map((needle) => lower.indexOf(needle))
-          .filter((i) => i >= 0),
-      ) - 120,
-    );
-    return raw.slice(idx, idx + 420).trim();
-  }
-  return null;
+  const source = (text || "")
+    .replace(/\u00a0/g, " ")
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .trim();
+  if (!source) return null;
+
+  const requirementSignal =
+    /(?:right(?:s)?|entitled|eligible|eligibility|authori[sz](?:ed|ation)|permit(?:ted)?|citizen(?:ship)?|permanent resident|residen(?:t|cy)|work visa|visa sponsorship|sponsor(?:ship)?)/i;
+  const workContext = /(?:work|employment|applicant|candidate|role|position|new zealand|\bnz\b|aotearoa|visa)/i;
+  const strongRequirement =
+    /(?:must|required|requirement|need to|have to|only (?:accept|consider|open)|cannot|can't|unable|not (?:able to )?sponsor|no sponsorship|sponsorship (?:is )?not available)/i;
+
+  // Job boards commonly render requirements as bullets without full stops, so
+  // preserve line boundaries as well as sentence boundaries when searching.
+  const clauses = source
+    .split(/(?:\n+|(?<=[.!?;])\s+)/)
+    .map((part) => part.replace(/^[\s•·*\-–—]+/, "").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  const direct = clauses.find(
+    (clause) =>
+      clause.length <= 700 &&
+      requirementSignal.test(clause) &&
+      workContext.test(clause) &&
+      (strongRequirement.test(clause) ||
+        /(?:right to work|work rights?|work authori[sz]ation|valid (?:nz |new zealand )?work visa|citizen(?:ship)? or (?:permanent )?residen|visa sponsorship)/i.test(
+          clause,
+        )),
+  );
+  if (direct) return direct.slice(0, 500);
+
+  const compact = source.replace(/\s+/g, " ");
+  const fallback = compact.match(
+    /[^.!?]{0,140}(?:right to work|work rights?|work authori[sz]ation|valid (?:nz |new zealand )?work visa|visa sponsorship|citizen(?:ship)?|permanent residen(?:t|cy))[^.!?]{0,240}[.!?]?/i,
+  )?.[0];
+  return fallback && workContext.test(fallback) ? fallback.trim().slice(0, 500) : null;
 }
 
 function hostnameSource(): string {
@@ -367,6 +380,11 @@ export function extractJobFromPage(): JobSavePayload {
       closing_date: partial.closing_date ?? merged.closing_date,
       source_website: partial.source_website ?? merged.source_website,
     };
+  }
+  // Re-run against the final site-specific description. SEEK and other SPA
+  // extractors often provide a more complete job ad than the generic pass.
+  if (!merged.visa_requirement) {
+    merged.visa_requirement = extractVisaRequirement(merged.description);
   }
   return normalizePayload(merged);
 }

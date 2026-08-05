@@ -11,7 +11,7 @@ from app.db.session import get_session
 from app.models import Application, MatchResult, Resume, User
 from app.schemas import JobSaveIn, MatchAnalysisOut, MatchAnalyzeIn
 from app.services.match_ai import analyze_cv_vs_jd
-from app.services.rate_limit import enforce_rate_limit, user_rate_limit_key
+from app.services.rate_limit import enforce_ai_generation_limits
 
 router = APIRouter(prefix="/match", tags=["match"])
 
@@ -45,13 +45,6 @@ def preview_match(
 ):
     """Analyze a page job against the latest CV without saving it to the tracker."""
     assert user.id is not None
-    enforce_rate_limit(
-        session,
-        action="ai_generation",
-        bucket_key=user_rate_limit_key(user.id),
-        limit=60,
-        window_seconds=60 * 60,
-    )
     cv_text = _cv_text_for_user(session, user.id)
     if not cv_text and _openai_configured():
         raise HTTPException(
@@ -59,6 +52,7 @@ def preview_match(
             detail="Upload a CV first (required when OPENAI_API_KEY is set).",
         )
     jd = _jd_text(body.description, body.title, body.visa_requirement)
+    enforce_ai_generation_limits(session, user=user, budget_cost_cents=2)
     return analyze_cv_vs_jd(cv_text, jd)
 
 
@@ -70,13 +64,6 @@ def analyze_match(
 ):
     """`job_id` is the application (tracker) id."""
     assert user.id is not None
-    enforce_rate_limit(
-        session,
-        action="ai_generation",
-        bucket_key=user_rate_limit_key(user.id),
-        limit=60,
-        window_seconds=60 * 60,
-    )
     app_row = session.exec(
         select(Application)
         .where(Application.id == body.job_id, Application.user_id == user.id)
@@ -94,6 +81,7 @@ def analyze_match(
         )
 
     jd = _jd_text(app_row.job_post.description, app_row.job_post.title, app_row.job_post.visa_requirement)
+    enforce_ai_generation_limits(session, user=user, budget_cost_cents=2)
     # Without API key the scorer is mock/heuristic and can run on JD alone; with OpenAI, CV text is required above.
     result = analyze_cv_vs_jd(cv_text, jd)
 

@@ -35,6 +35,8 @@ def _ensure_test_database() -> None:
         raise RuntimeError("API tests require a PostgreSQL DATABASE_URL.")
 
     database = url.database
+    if not database or not database.endswith("_test"):
+        raise RuntimeError("API tests refuse to run unless DATABASE_URL targets a database ending in '_test'.")
     admin_url = url.set(database="postgres")
     admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
     with admin_engine.connect() as conn:
