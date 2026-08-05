@@ -31,18 +31,23 @@ export default function AuthPage() {
   const { user, login, loginWithOAuth, register } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const queryMode = new URLSearchParams(location.search).get("mode");
+  const authQuery = new URLSearchParams(location.search);
+  const queryMode = authQuery.get("mode");
+  const queryProvider = authQuery.get("provider");
+  const requestedProvider = queryProvider === "google" || queryProvider === "apple" ? queryProvider : null;
+  const initialEmail = authQuery.get("email")?.trim() || "";
   const preferredMode: AuthMode = queryMode === "register" ? "register" : "login";
-  const [step, setStep] = useState<AuthStep>("email");
+  const [step, setStep] = useState<AuthStep>(requestedProvider && initialEmail ? "credentials" : "email");
   const [mode, setMode] = useState<AuthMode>(preferredMode);
   const [displayName, setDisplayName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const [passwordLoginAvailable, setPasswordLoginAvailable] = useState(true);
+  const [passwordLoginAvailable, setPasswordLoginAvailable] = useState(!requestedProvider);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
+  const googlePromptRequestedRef = useRef(false);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
   const appleClientId = import.meta.env.VITE_APPLE_CLIENT_ID?.trim();
   const hasSocialLogin = Boolean(googleClientId || appleClientId);
@@ -84,6 +89,10 @@ export default function AuthPage() {
         width: googleButtonRef.current.clientWidth || 420,
         text: step === "email" ? "continue_with" : mode === "register" ? "signup_with" : "signin_with",
       });
+      if (requestedProvider === "google" && !googlePromptRequestedRef.current) {
+        googlePromptRequestedRef.current = true;
+        window.google.accounts.id.prompt();
+      }
     };
     const existing = document.getElementById(scriptId);
     if (existing) {
@@ -97,7 +106,7 @@ export default function AuthPage() {
     script.defer = true;
     script.onload = render;
     document.head.appendChild(script);
-  }, [from, googleClientId, loginWithOAuth, mode, navigate, step]);
+  }, [from, googleClientId, loginWithOAuth, mode, navigate, requestedProvider, step]);
 
   useEffect(() => {
     if (!appleClientId) return;
@@ -346,7 +355,7 @@ export default function AuthPage() {
                 </label>
               ) : (
                 <div className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm leading-6 text-brand-900">
-                  This account uses Google or Apple sign-in. Continue with the same provider below.
+                  This account uses {requestedProvider === "apple" ? "Apple" : requestedProvider === "google" ? "Google" : "Google or Apple"} sign-in. Continue with the same provider below.
                 </div>
               )}
 

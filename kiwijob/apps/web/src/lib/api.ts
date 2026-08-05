@@ -34,6 +34,7 @@ export type AuthResponse = {
 export type AccountIdentity = {
   account_exists: boolean;
   password_login_available: boolean;
+  auth_provider: "google" | "apple" | null;
 };
 
 export type JobSearchFilters = {

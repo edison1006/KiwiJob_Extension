@@ -45,7 +45,7 @@ def test_identify_account_drives_two_step_auth() -> None:
     with TestClient(app) as client:
         unknown = client.post("/auth/identify", json={"email": email})
         assert unknown.status_code == 200
-        assert unknown.json() == {"account_exists": False, "password_login_available": False}
+        assert unknown.json() == {"account_exists": False, "password_login_available": False, "auth_provider": None}
 
         registered = client.post(
             "/auth/register",
@@ -55,7 +55,7 @@ def test_identify_account_drives_two_step_auth() -> None:
 
         known = client.post("/auth/identify", json={"email": email})
         assert known.status_code == 200
-        assert known.json() == {"account_exists": True, "password_login_available": True}
+        assert known.json() == {"account_exists": True, "password_login_available": True, "auth_provider": None}
 
 
 def test_change_password_updates_login_credentials() -> None:
@@ -94,6 +94,13 @@ def test_oauth_login_creates_user_and_merges_by_email(monkeypatch) -> None:
         assert second.status_code == 200
         assert first.json()["user"]["email"] == email
         assert second.json()["user"]["id"] == first.json()["user"]["id"]
+        identified = client.post("/auth/identify", json={"email": email})
+        assert identified.status_code == 200
+        assert identified.json() == {
+            "account_exists": True,
+            "password_login_available": False,
+            "auth_provider": "google",
+        }
 
 
 def test_user_data_is_isolated_by_authenticated_user_id() -> None:

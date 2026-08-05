@@ -61,6 +61,7 @@ def identify_account(body: AccountIdentifyIn, request: Request, session: Session
     return AccountIdentifyOut(
         account_exists=user is not None,
         password_login_available=bool(user and user.password_hash),
+        auth_provider=user.auth_provider if user and user.auth_provider in {"google", "apple"} else None,
     )
 
 

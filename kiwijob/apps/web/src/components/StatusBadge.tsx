@@ -11,8 +11,12 @@ const STYLES: Record<ApplicationStatus, string> = {
   Withdrawn: "bg-zinc-100 text-zinc-700 ring-zinc-600/10",
 };
 
+export function statusToneClass(status: ApplicationStatus | string): string {
+  return STYLES[status as ApplicationStatus] ?? "bg-slate-100 text-slate-800 ring-slate-600/10";
+}
+
 export function StatusBadge({ status }: { status: ApplicationStatus | string }) {
-  const cls = STYLES[status as ApplicationStatus] ?? "bg-slate-100 text-slate-800 ring-slate-600/10";
+  const cls = statusToneClass(status);
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${cls}`}>
       {status}

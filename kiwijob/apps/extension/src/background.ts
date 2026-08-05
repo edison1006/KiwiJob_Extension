@@ -242,6 +242,21 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         }
         return;
       }
+      if (request.type === "AUTH_IDENTIFY") {
+        const api = await getApiBase();
+        const res = await fetch(`${api}/auth/identify`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: request.email }),
+        });
+        if (!res.ok) {
+          sendResponse({ ok: false, error: await formatApiError(res) });
+          return;
+        }
+        sendResponse({ ok: true, data: await res.json() });
+        return;
+      }
       if (request.type === "AUTH_LOGIN" || request.type === "AUTH_REGISTER") {
         const api = await getApiBase();
         const endpoint = request.type === "AUTH_LOGIN" ? "/auth/login" : "/auth/register";

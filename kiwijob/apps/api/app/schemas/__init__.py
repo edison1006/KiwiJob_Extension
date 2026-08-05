@@ -40,6 +40,7 @@ class AccountIdentifyIn(BaseModel):
 class AccountIdentifyOut(BaseModel):
     account_exists: bool
     password_login_available: bool
+    auth_provider: Optional[str] = None
 
 
 class AuthOut(BaseModel):

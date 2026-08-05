@@ -6,6 +6,11 @@
   },
   {
     "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "GOOGLE_OAUTH_CLIENT_ID",
+    "Value": "43682471334-51i9prnkbm70qblm3m39op8r7hcau6c5.apps.googleusercontent.com"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
     "OptionName": "SECURE_AUTH_COOKIE",
     "Value": "true"
   },

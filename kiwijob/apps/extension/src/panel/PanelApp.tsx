@@ -18,7 +18,8 @@ type AnyResp = { ok: true; data?: unknown } | { ok: false; error: string };
 
 type TabId = "jobs" | "applications" | "profile" | "insights";
 type InsightRange = "7" | "30" | "90" | "custom";
-type AuthStep = "email" | "password";
+type AuthProvider = "google" | "apple";
+type AuthStep = "email" | "password" | "oauth";
 type PrivacyConsentState = "loading" | "required" | "accepted";
 type LoadCvProfileOptions = { silent?: boolean; preferLatest?: boolean };
 type AuthUser = { id: number; email: string; display_name: string };
@@ -490,6 +491,7 @@ export function KiwiJobPanel() {
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authName, setAuthName] = useState("");
+  const [authProvider, setAuthProvider] = useState<AuthProvider | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [draft, setDraft] = useState<JobSavePayload | null>(null);
@@ -582,7 +584,7 @@ export function KiwiJobPanel() {
 
   const saveLabel = lastId ? `Saved #${lastId}` : "Not saved";
 
-  function continueAuthEmail() {
+  async function continueAuthEmail() {
     setAuthError(null);
     const email = authEmail.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -590,7 +592,44 @@ export function KiwiJobPanel() {
       return;
     }
     setAuthEmail(email);
-    setAuthStep("password");
+    setAuthBusy(true);
+    try {
+      // A valid API cookie means the dashboard has already authenticated this
+      // browser. Reuse it before asking for any credentials again.
+      const sessionResp = (await chrome.runtime.sendMessage({ type: "AUTH_STATE" })) as AnyResp;
+      if (sessionResp.ok) {
+        const session = sessionResp.data as AuthState;
+        if (session.user?.email.toLowerCase() === email.toLowerCase()) {
+          setAuth(session);
+          setAuthOpen(false);
+          return;
+        }
+      }
+
+      const resp = (await chrome.runtime.sendMessage({ type: "AUTH_IDENTIFY", email })) as AnyResp;
+      if (!resp.ok) {
+        setAuthError(resp.error);
+        return;
+      }
+      const identity = resp.data as {
+        account_exists: boolean;
+        password_login_available: boolean;
+        auth_provider: AuthProvider | null;
+      };
+      if (identity.account_exists && !identity.password_login_available && identity.auth_provider) {
+        setAuthMode("login");
+        setAuthProvider(identity.auth_provider);
+        setAuthStep("oauth");
+        return;
+      }
+      setAuthProvider(null);
+      setAuthMode(identity.account_exists ? "login" : "register");
+      setAuthStep("password");
+    } catch (e) {
+      setAuthError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAuthBusy(false);
+    }
   }
 
   async function submitAuth(mode = authMode) {
@@ -692,9 +731,11 @@ export function KiwiJobPanel() {
     setPrivacyConsent("accepted");
   }
 
-  function openDashboardAuth() {
+  function openDashboardAuth(provider?: AuthProvider | null, email?: string) {
     const url = new URL(`${normalizeWebAppUrl(webAppUrl)}/login`);
-    url.searchParams.set("mode", authMode);
+    url.searchParams.set("mode", provider ? "login" : authMode);
+    if (provider) url.searchParams.set("provider", provider);
+    if (email) url.searchParams.set("email", email);
     void chrome.tabs.create({ url: url.toString() });
   }
 
@@ -1038,7 +1079,7 @@ export function KiwiJobPanel() {
                           setAuthError(null);
                         }}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") continueAuthEmail();
+                          if (e.key === "Enter") void continueAuthEmail();
                         }}
                       />
                     </label>
@@ -1074,11 +1115,11 @@ export function KiwiJobPanel() {
                         type="button"
                         disabled={authBusy}
                         className="w-full rounded-lg bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
-                        onClick={continueAuthEmail}
+                        onClick={() => void continueAuthEmail()}
                       >
-                        Continue
+                        {authBusy ? "Checking account..." : "Continue"}
                       </button>
-                    ) : (
+                    ) : authStep === "password" ? (
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
@@ -1097,15 +1138,28 @@ export function KiwiJobPanel() {
                           {authBusy && authMode === "register" ? "Creating..." : "Create"}
                         </button>
                       </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
+                          This account uses {authProvider === "apple" ? "Apple" : "Google"} sign-in. Confirm with {authProvider === "apple" ? "Apple" : "Google"} to continue securely.
+                        </div>
+                        <button
+                          type="button"
+                          className="w-full rounded-lg bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-700"
+                          onClick={() => openDashboardAuth(authProvider, authEmail)}
+                        >
+                          Continue with {authProvider === "apple" ? "Apple" : "Google"}
+                        </button>
+                      </div>
                     )}
                     <button
                       type="button"
                       className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-50"
-                      onClick={() => openDashboardAuth()}
+                      onClick={() => openDashboardAuth(authProvider, authEmail || undefined)}
                     >
                       Open full sign-in page
                     </button>
-                    {authStep === "password" ? (
+                    {authStep !== "email" ? (
                       <button type="button" className="text-xs font-semibold text-brand-700 hover:underline" onClick={() => setAuthStep("email")}>
                         Use a different email
                       </button>

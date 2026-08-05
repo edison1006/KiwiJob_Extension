@@ -4,8 +4,8 @@ import type { ApplicationListItem } from "@kiwijob/shared";
 import { APPLICATION_STATUSES, type ApplicationStatus } from "@kiwijob/shared";
 import { DashboardHero } from "../components/DashboardHero";
 import { PageHeader } from "../components/PageHeader";
-import { StatusBadge } from "../components/StatusBadge";
-import { deleteJob, extractJobFromUrl, fetchJobs, saveJobRemote } from "../lib/api";
+import { statusToneClass } from "../components/StatusBadge";
+import { deleteJob, extractJobFromUrl, fetchJobs, saveJobRemote, updateJobStatus } from "../lib/api";
 
 function fmtDate(iso: string) {
   try {
@@ -53,6 +53,35 @@ function exportApplicationsCsv(rows: ApplicationListItem[]) {
 
 type TrackerTab = "active" | "archived";
 
+function StatusSelect({
+  row,
+  busy,
+  onChange,
+}: {
+  row: ApplicationListItem;
+  busy: boolean;
+  onChange: (status: ApplicationStatus) => void;
+}) {
+  return (
+    <select
+      aria-label={`Status for ${row.job.title}`}
+      title="Change application status"
+      value={row.status}
+      disabled={busy}
+      onChange={(event) => onChange(event.target.value as ApplicationStatus)}
+      className={`max-w-full cursor-pointer appearance-auto rounded-full border-0 py-1 pl-2.5 pr-7 text-xs font-semibold ring-1 ring-inset transition focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-wait disabled:opacity-60 ${statusToneClass(
+        row.status,
+      )}`}
+    >
+      {APPLICATION_STATUSES.map((status) => (
+        <option key={status} value={status} className="bg-white text-slate-900">
+          {status}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export default function JobsPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -74,6 +103,7 @@ export default function JobsPage() {
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [statusBusyIds, setStatusBusyIds] = useState<Set<number>>(() => new Set());
   const [bulkFeedback, setBulkFeedback] = useState<string | null>(null);
   const [jobUrl, setJobUrl] = useState("");
   const [extractBusy, setExtractBusy] = useState(false);
@@ -133,6 +163,34 @@ export default function JobsPage() {
     const allOn = filtered.every((r) => selected.has(r.id));
     if (allOn) setSelected(new Set());
     else setSelected(new Set(filtered.map((r) => r.id)));
+  }
+
+  async function changeStatus(row: ApplicationListItem, nextStatus: ApplicationStatus) {
+    if (nextStatus === row.status || statusBusyIds.has(row.id)) return;
+    const previous = row;
+    setStatusBusyIds((current) => new Set(current).add(row.id));
+    setRows((current) =>
+      current?.map((item) =>
+        item.id === row.id ? { ...item, status: nextStatus, updated_at: new Date().toISOString() } : item,
+      ) ?? null,
+    );
+    setBulkFeedback(null);
+    try {
+      const updated = await updateJobStatus(row.id, nextStatus);
+      setRows((current) => current?.map((item) => (item.id === row.id ? updated : item)) ?? null);
+      setBulkFeedback(`${row.job.title} moved to ${nextStatus}.`);
+      window.setTimeout(() => setBulkFeedback(null), 4000);
+    } catch (e) {
+      setRows((current) => current?.map((item) => (item.id === row.id ? previous : item)) ?? null);
+      setBulkFeedback(e instanceof Error ? `Status update failed: ${e.message}` : "Status update failed.");
+      window.setTimeout(() => setBulkFeedback(null), 8000);
+    } finally {
+      setStatusBusyIds((current) => {
+        const next = new Set(current);
+        next.delete(row.id);
+        return next;
+      });
+    }
   }
 
   async function bulkDeleteSelected() {
@@ -458,7 +516,7 @@ export default function JobsPage() {
                     <td className="px-4 py-3 text-slate-700">{r.job.company ?? "—"}</td>
                     <td className="px-4 py-3 text-slate-700">{r.job.location ?? "—"}</td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={r.status} />
+                      <StatusSelect row={r} busy={statusBusyIds.has(r.id)} onChange={(status) => void changeStatus(r, status)} />
                     </td>
                     <td className="px-4 py-3 text-slate-700">{r.job.source_website}</td>
                     <td className="px-4 py-3 text-slate-600">{fmtDate(r.saved_at)}</td>
@@ -478,27 +536,30 @@ export default function JobsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {filtered.map((r) => (
-            <Link
+            <div
               key={r.id}
               id={`application-${r.id}`}
-              to={`/jobs/${r.id}`}
-            className={`rounded-[24px] border bg-white/82 p-5 shadow-[0_20px_58px_-50px_rgba(109,63,195,0.72)] backdrop-blur transition hover:-translate-y-0.5 hover:border-brand-300 hover:bg-white hover:shadow-[0_30px_80px_-56px_rgba(109,63,195,0.82)] ${
+              className={`rounded-[24px] border bg-white/82 p-5 shadow-[0_20px_58px_-50px_rgba(109,63,195,0.72)] backdrop-blur transition hover:-translate-y-0.5 hover:border-brand-300 hover:bg-white hover:shadow-[0_30px_80px_-56px_rgba(109,63,195,0.82)] ${
                 savedFromExtensionId === r.id ? "border-emerald-300 ring-2 ring-emerald-100" : "border-slate-200"
               }`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h3 className="font-semibold text-slate-900">{r.job.title}</h3>
+                  <h3 className="font-semibold text-slate-900">
+                    <Link className="text-brand-700 hover:underline" to={`/jobs/${r.id}`}>
+                      {r.job.title}
+                    </Link>
+                  </h3>
                   <p className="mt-1 text-sm text-slate-600">{r.job.company ?? "—"}</p>
                 </div>
-                <StatusBadge status={r.status} />
+                <StatusSelect row={r} busy={statusBusyIds.has(r.id)} onChange={(status) => void changeStatus(r, status)} />
               </div>
               <p className="mt-3 text-xs text-slate-500">{r.job.location ?? "—"} · {r.job.source_website}</p>
               <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
                 <span>Match {r.match_score != null ? `${Math.round(r.match_score)}%` : "—"}</span>
                 <span>{fmtDate(r.updated_at)}</span>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}

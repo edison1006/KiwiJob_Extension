@@ -1,5 +1,6 @@
 export type BgRequest =
   | { type: "AUTH_STATE" }
+  | { type: "AUTH_IDENTIFY"; email: string }
   | { type: "AUTH_LOGIN"; email: string; password: string }
   | { type: "AUTH_REGISTER"; email: string; password: string; displayName?: string }
   | { type: "AUTH_LOGOUT" }

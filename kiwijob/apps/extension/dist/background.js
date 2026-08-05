@@ -176,6 +176,26 @@ chrome.runtime.onMessage.addListener((e, t, n) => ((async () => {
 			}
 			return;
 		}
+		if (e.type === "AUTH_IDENTIFY") {
+			let t = await u(), r = await fetch(`${t}/auth/identify`, {
+				method: "POST",
+				credentials: "include",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ email: e.email })
+			});
+			if (!r.ok) {
+				n({
+					ok: !1,
+					error: await l(r)
+				});
+				return;
+			}
+			n({
+				ok: !0,
+				data: await r.json()
+			});
+			return;
+		}
 		if (e.type === "AUTH_LOGIN" || e.type === "AUTH_REGISTER") {
 			let t = await u(), r = e.type === "AUTH_LOGIN" ? "/auth/login" : "/auth/register", i = e.type === "AUTH_LOGIN" ? {
 				email: e.email,
