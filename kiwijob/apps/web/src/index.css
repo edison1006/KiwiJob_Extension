@@ -4,7 +4,9 @@
 
 body {
   margin: 0;
-  background: #f1e8ff;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #f7f4ff;
   font-family:
     ui-sans-serif,
     system-ui,
@@ -15,6 +17,28 @@ body {
     Arial,
     "Apple Color Emoji",
     "Segoe UI Emoji";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+* {
+  scrollbar-color: rgba(109, 63, 195, 0.36) transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(139, 92, 246, 0.72), rgba(217, 70, 239, 0.55)) border-box;
 }
 
 ::selection {
@@ -55,9 +79,89 @@ body {
   }
 }
 
+@keyframes kiwijob-aurora-drift {
+  0%, 100% { transform: translate3d(-4%, -3%, 0) scale(1); }
+  38% { transform: translate3d(8%, 5%, 0) scale(1.1); }
+  72% { transform: translate3d(-1%, 10%, 0) scale(0.94); }
+}
+
+@keyframes kiwijob-grid-drift {
+  from { background-position: 0 0; }
+  to { background-position: 72px 72px; }
+}
+
+@keyframes kiwijob-route-in {
+  from { opacity: 0; transform: translate3d(0, 14px, 0) scale(0.992); filter: blur(5px); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
+}
+
+@keyframes kiwijob-float {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -8px, 0); }
+}
+
+@keyframes kiwijob-pulse-ring {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.32), 0 18px 45px -24px rgba(124, 58, 237, 0.9); }
+  50% { box-shadow: 0 0 0 8px rgba(167, 139, 250, 0), 0 24px 60px -24px rgba(217, 70, 239, 0.9); }
+}
+
+@keyframes kiwijob-network-flow {
+  to { stroke-dashoffset: -38; }
+}
+
+@keyframes kiwijob-network-node-float {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -6px, 0); }
+}
+
+@keyframes kiwijob-network-core-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes kiwijob-network-beacon {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(110, 231, 183, .45); }
+  50% { opacity: .75; box-shadow: 0 0 0 6px rgba(110, 231, 183, 0); }
+}
+
+.app-aurora {
+  animation: kiwijob-aurora-drift 18s ease-in-out infinite;
+  will-change: transform;
+}
+
+.app-grid-drift { animation: kiwijob-grid-drift 22s linear infinite; }
+.route-stage { animation: kiwijob-route-in 460ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.kiwijob-float { animation: kiwijob-float 5.8s ease-in-out infinite; }
+.kiwijob-pulse-ring { animation: kiwijob-pulse-ring 2.8s ease-in-out infinite; }
+.kiwijob-network-links { stroke-dasharray: 8 11; animation: kiwijob-network-flow 2.8s linear infinite; }
+.kiwijob-network-node { animation: kiwijob-network-node-float 4.8s ease-in-out infinite; }
+.kiwijob-network-scan { background: conic-gradient(from 90deg, transparent 0 72%, rgba(192,132,252,.28) 88%, transparent 100%); animation: kiwijob-network-core-spin 8s linear infinite; }
+.kiwijob-network-core > div { animation: kiwijob-network-core-spin 14s linear infinite reverse; }
+.kiwijob-network-beacon { animation: kiwijob-network-beacon 2s ease-in-out infinite; }
+
+.interactive-card {
+  transform: translateZ(0);
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), border-color 260ms ease, background-color 260ms ease, box-shadow 260ms ease;
+}
+
+.interactive-card:hover { transform: translate3d(0, -5px, 0) scale(1.008); }
+.interactive-card:active { transform: translate3d(0, -1px, 0) scale(0.995); }
+
 @media (prefers-reduced-motion: reduce) {
   .kiwijob-orbit,
-  .kiwijob-orbit-node {
+  .kiwijob-orbit-node,
+  .app-aurora,
+  .app-grid-drift,
+  .route-stage,
+  .kiwijob-float,
+  .kiwijob-pulse-ring {
     animation: none;
   }
+
+  .kiwijob-network-links,
+  .kiwijob-network-node,
+  .kiwijob-network-scan,
+  .kiwijob-network-core > div,
+  .kiwijob-network-beacon { animation: none; }
+
+  .interactive-card { transition: none; }
 }
