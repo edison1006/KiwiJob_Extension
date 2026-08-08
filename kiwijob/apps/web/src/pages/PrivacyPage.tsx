@@ -10,7 +10,7 @@ export default function PrivacyPage() {
       <div>
         <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">Privacy notice</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">How KiwiJob handles your data</h1>
-        <p className="mt-3 text-sm leading-6 text-slate-600">Last updated: 4 August 2026</p>
+        <p className="mt-3 text-sm leading-6 text-slate-600">Last updated: 8 August 2026</p>
       </div>
 
       <section className={sectionClass}>
@@ -27,7 +27,9 @@ export default function PrivacyPage() {
         <p className="mt-3 text-sm leading-6 text-slate-700">
           KiwiJob processes your account email and display name; uploaded CV files and extracted text; application profile fields;
           saved job URLs, descriptions, notes, and statuses; AI match and writing results; and activity events used for application
-          insights. Technical service logs may include request time, IP address, browser information, and error details.
+          insights. If you optionally connect Gmail, we process likely job-application email subjects, senders, short previews, received
+          times, and detected statuses so you can review proposed tracker updates. Technical service logs may include request time, IP
+          address, browser information, and error details.
         </p>
       </section>
 
@@ -46,7 +48,9 @@ export default function PrivacyPage() {
           The hosted service uses Amazon Web Services for application, database, and file infrastructure. When you request an AI
           feature, the relevant job description, CV text, profile fields, and instructions may be sent to the configured OpenAI
           service to generate the result. Google or Apple receives sign-in information only when its sign-in option is configured
-          and you choose it. These providers may process information outside New Zealand under their own privacy and security terms.
+          and you choose it. If you separately connect Gmail sync, Google provides read-only mailbox access tokens and the selected email
+          information described above. Gmail refresh tokens are encrypted at rest. These providers may process information outside New
+          Zealand under their own privacy and security terms.
         </p>
       </section>
 
@@ -55,9 +59,10 @@ export default function PrivacyPage() {
         <p className="mt-3 text-sm leading-6 text-slate-700">
           The extension runs on the job-site allowlist in its manifest. Before its first job-page read, it explains the data flow and
           asks you to agree. After that agreement, it reads a supported active job page when you open the panel or request a refresh.
-          It sends job information to your configured KiwiJob API only when you choose Save or Run match now. A match request may also
-          send relevant selected CV or profile data to the API and the AI provider described above. Authentication state, API and web
-          addresses, consent, and your selected CV id may be stored in Chrome storage.
+          While signed in on a supported job page, it also sends the detected company and position title to the KiwiJob API to compare
+          them with your existing tracker and warn about possible duplicate applications. It sends fuller job information only when you
+          choose Save or Run match now. A match request may also send relevant selected CV or profile data to the API and the AI provider
+          described above. Authentication state, API and web addresses, consent, and your selected CV id may be stored in Chrome storage.
         </p>
       </section>
 
@@ -76,8 +81,9 @@ export default function PrivacyPage() {
       <section className={sectionClass}>
         <h2 className="text-lg font-bold text-slate-950">Retention, deletion, and your choices</h2>
         <p className="mt-3 text-sm leading-6 text-slate-700">
-          Account data remains available while your account is active. You can delete individual jobs and CVs or delete your account
-          from Settings. Account deletion removes the associated primary database records and stored CV files. Disaster-recovery
+          Account data remains available while your account is active. You can disconnect Gmail, delete individual jobs and CVs, or delete
+          your account from Settings. Disconnecting Gmail deletes the stored mailbox authorization; account deletion removes the associated
+          primary database records, Gmail authorization, and stored CV files. Disaster-recovery
           backups, when enabled, are isolated from normal use and expire under the hosting configuration rather than being used to
           recreate a deleted account. You may contact support to ask for access, correction, or deletion assistance.
         </p>

@@ -19,6 +19,7 @@ TABLES = (
     "cvoptimization",
     "notification",
     "emailevent",
+    "emailconnection",
     "applicationevent",
     "applicationnote",
     "matchresult",

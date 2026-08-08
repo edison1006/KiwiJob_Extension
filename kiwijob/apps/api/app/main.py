@@ -14,7 +14,7 @@ from sqlmodel import Session
 from app.core.config import get_settings, validate_settings
 from app.cors_util import parse_cors_allow_origins, warn_insecure_cors_if_needed
 from app.db.session import get_engine, init_db
-from app.routers import analytics, auth, copilot, cv_optimizations, events, jobs, match, profile, resumes
+from app.routers import analytics, auth, copilot, cv_optimizations, events, integrations, jobs, match, profile, resumes
 from app.services.rate_limit import cleanup_rate_limits
 
 logger = logging.getLogger("kiwijob.api")
@@ -86,6 +86,7 @@ def create_app() -> FastAPI:
     app.include_router(cv_optimizations.router)
     app.include_router(jobs.router)
     app.include_router(events.router)
+    app.include_router(integrations.router)
     app.include_router(resumes.router)
     app.include_router(match.router)
     app.include_router(analytics.router)

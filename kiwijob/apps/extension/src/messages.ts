@@ -5,6 +5,7 @@ export type BgRequest =
   | { type: "AUTH_REGISTER"; email: string; password: string; displayName?: string }
   | { type: "AUTH_LOGOUT" }
   | { type: "SAVE_JOB"; payload: unknown }
+  | { type: "CHECK_DUPLICATE"; company: string; title: string }
   | { type: "PREVIEW_MATCH"; payload: unknown }
   | { type: "ANALYZE_MATCH"; jobId: number }
   | { type: "GET_MATCH"; jobId: number }

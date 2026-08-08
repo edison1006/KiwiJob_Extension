@@ -71,7 +71,7 @@ export function normalizeApiBase(raw: string): string {
 }
 
 const DEFAULT_API_BASE = "https://api.kiwijob.co.nz";
-const PRIVACY_CONSENT_VERSION = "2026-08-04-v1";
+const PRIVACY_CONSENT_VERSION = "2026-08-08-v2";
 const DEFAULT_WEB_APP_URL =
   (typeof import.meta.env !== "undefined" && import.meta.env.VITE_WEB_APP_URL?.trim()) || "https://app.kiwijob.co.nz";
 
@@ -751,6 +751,28 @@ export function KiwiJobPanel() {
     setMsg(null);
     try {
       await persistSettings(apiBase);
+      if (status === "Applied" && draft.company && draft.title) {
+        const duplicateResp = await sendRuntimeMessage({
+          type: "CHECK_DUPLICATE",
+          company: draft.company,
+          title: draft.title,
+        });
+        if (!duplicateResp.ok) {
+          setMsg(duplicateResp.error);
+          return;
+        }
+        const duplicate = duplicateResp.data as { duplicate?: boolean; applications?: Array<{ status?: string }> };
+        if (duplicate.duplicate) {
+          const previousStatus = duplicate.applications?.[0]?.status || "Applied";
+          const proceed = window.confirm(
+            `KiwiJob already has an application for ${draft.title} at ${draft.company} (${previousStatus}). This may be a duplicate application. Apply again?`,
+          );
+          if (!proceed) {
+            setMsg("Duplicate application cancelled.");
+            return;
+          }
+        }
+      }
       const resp = (await chrome.runtime.sendMessage({
         type: "SAVE_JOB",
         payload: { ...draft, status },
@@ -961,6 +983,10 @@ export function KiwiJobPanel() {
             <p>
               <strong className="text-slate-950">Save:</strong> sends the detected job details to your KiwiJob account only
               when you click <strong>Save</strong>.
+            </p>
+            <p>
+              <strong className="text-slate-950">Duplicate warning:</strong> while you are signed in on a supported job page,
+              KiwiJob compares the detected company and position title with your tracker so it can warn before a possible repeat application.
             </p>
             <p>
               <strong className="text-slate-950">Match:</strong> sends the job details and relevant selected CV/profile data

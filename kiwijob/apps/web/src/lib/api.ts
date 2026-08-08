@@ -37,6 +37,32 @@ export type AccountIdentity = {
   auth_provider: "google" | "apple" | null;
 };
 
+export type GmailIntegrationStatus = {
+  configured: boolean;
+  connected: boolean;
+  prompt_required: boolean;
+  email_address: string | null;
+  last_synced_at: string | null;
+};
+
+export type GmailSyncCandidate = {
+  email_event_id: number;
+  application_id: number;
+  company: string | null;
+  job_title: string;
+  current_status: ApplicationStatus;
+  proposed_status: ApplicationStatus;
+  subject: string;
+  sender: string;
+  received_at: string | null;
+  confidence: number;
+};
+
+export type GmailSyncConfirmResult = {
+  updated_count: number;
+  applications: ApplicationListItem[];
+};
+
 export type JobSearchFilters = {
   keywords: string;
   location: string;
@@ -196,6 +222,54 @@ export async function deleteAccount(): Promise<void> {
   });
   if (!res.ok) throw new Error(formatErrorBody(await res.text()));
   clearAuthToken();
+}
+
+export async function fetchGmailStatus(): Promise<GmailIntegrationStatus> {
+  const res = await fetch(`${API_URL}/integrations/gmail/status`, { credentials: "include", headers: headers() });
+  return parseJson(res);
+}
+
+export async function beginGmailConnect(): Promise<string> {
+  const res = await fetch(`${API_URL}/integrations/gmail/connect`, { credentials: "include", headers: headers() });
+  const body = await parseJson<{ authorization_url: string }>(res);
+  return body.authorization_url;
+}
+
+export async function dismissGmailOnboarding(): Promise<void> {
+  const res = await fetch(`${API_URL}/integrations/gmail/onboarding-dismiss`, {
+    method: "POST",
+    credentials: "include",
+    headers: headers(),
+  });
+  if (!res.ok) throw new Error(formatErrorBody(await res.text()));
+}
+
+export async function previewGmailSync(): Promise<GmailSyncCandidate[]> {
+  const res = await fetch(`${API_URL}/integrations/gmail/sync-preview`, {
+    method: "POST",
+    credentials: "include",
+    headers: headers(),
+  });
+  return parseJson(res);
+}
+
+export async function confirmGmailSync(emailEventIds: number[]): Promise<GmailSyncConfirmResult> {
+  const res = await fetch(`${API_URL}/integrations/gmail/sync-confirm`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...headers() },
+    body: JSON.stringify({ email_event_ids: emailEventIds }),
+  });
+  return parseJson(res);
+}
+
+export async function disconnectGmail(): Promise<void> {
+  const res = await fetch(`${API_URL}/integrations/gmail`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: headers(),
+  });
+  if (!res.ok) throw new Error(formatErrorBody(await res.text()));
 }
 
 export async function fetchJobs(): Promise<ApplicationListItem[]> {

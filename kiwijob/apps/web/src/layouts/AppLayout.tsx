@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type PointerEvent } from "react";
+import { useEffect, useState, type CSSProperties, type PointerEvent } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { useAuth } from "../auth";
 import AuthPage from "../pages/AuthPage";
@@ -16,6 +16,8 @@ import {
   IconServices,
 } from "../components/nav/SidebarIcons";
 import { UserMenu } from "../components/UserMenu";
+import { GmailSyncPanel } from "../components/GmailSyncPanel";
+import { dismissGmailOnboarding, fetchGmailStatus } from "../lib/api";
 
 const LS_SIDEBAR_COLLAPSED = "kiwijob_sidebar_collapsed";
 
@@ -44,7 +46,44 @@ export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem(LS_SIDEBAR_COLLAPSED) === "1");
+  const [gmailPromptOpen, setGmailPromptOpen] = useState(false);
+  const [gmailPromptBusy, setGmailPromptBusy] = useState(false);
   const authModalOpen = new URLSearchParams(location.search).get("auth") === "login";
+  const gmailCallback = new URLSearchParams(location.search).get("gmail");
+  const gmailCallbackMessage = new URLSearchParams(location.search).get("message");
+
+  useEffect(() => {
+    if (!user) {
+      setGmailPromptOpen(false);
+      return;
+    }
+    if (gmailCallback === "connected" || gmailCallback === "error") {
+      setGmailPromptOpen(true);
+      return;
+    }
+    void fetchGmailStatus()
+      .then((status) => setGmailPromptOpen(status.configured && status.prompt_required))
+      .catch(() => setGmailPromptOpen(false));
+  }, [gmailCallback, user?.id]);
+
+  function closeGmailPrompt() {
+    setGmailPromptOpen(false);
+    const next = new URLSearchParams(location.search);
+    next.delete("gmail");
+    next.delete("message");
+    const search = next.toString();
+    navigate({ pathname: location.pathname, search: search ? `?${search}` : "" }, { replace: true });
+  }
+
+  async function skipGmailPrompt() {
+    setGmailPromptBusy(true);
+    try {
+      await dismissGmailOnboarding();
+      closeGmailPrompt();
+    } finally {
+      setGmailPromptBusy(false);
+    }
+  }
 
   async function signOut() {
     await logout();
@@ -290,6 +329,31 @@ export function AppLayout() {
         </div>
       </main>
       {authModalOpen ? <AuthPage /> : null}
+      {gmailPromptOpen && user ? (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center overflow-y-auto bg-slate-950/45 px-4 py-6 backdrop-blur-[2px]">
+          <section role="dialog" aria-modal="true" aria-labelledby="gmail-sync-title" className="w-full max-w-2xl rounded-3xl border border-white/70 bg-white p-6 shadow-[0_34px_100px_-36px_rgba(15,23,42,.72)] sm:p-8">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Optional inbox sync</p>
+                <h2 id="gmail-sync-title" className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Keep your job tracker updated from Gmail</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">KiwiJob scans likely application-response emails and always asks before changing your tracker.</p>
+              </div>
+              <button type="button" aria-label="Close" className="rounded-full p-2 text-slate-500 hover:bg-slate-100" onClick={closeGmailPrompt}>✕</button>
+            </div>
+            {gmailCallback === "error" ? (
+              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{gmailCallbackMessage || "Gmail could not be connected."}</div>
+            ) : null}
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <GmailSyncPanel onboarding onDone={closeGmailPrompt} />
+            </div>
+            <div className="mt-5 flex justify-end">
+              <button type="button" disabled={gmailPromptBusy} onClick={() => void skipGmailPrompt()} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50">
+                Not now
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

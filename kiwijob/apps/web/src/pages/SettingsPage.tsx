@@ -4,6 +4,7 @@ import type { ApplicantAutofillProfile } from "@kiwijob/shared";
 import { EMPTY_APPLICANT_AUTOFILL_PROFILE } from "@kiwijob/shared";
 import { useAuth } from "../auth";
 import { changePassword, deleteAccount, fetchApplicantProfile, saveApplicantProfile } from "../lib/api";
+import { GmailSyncPanel } from "../components/GmailSyncPanel";
 
 function scrollToHash() {
   const id = window.location.hash.replace(/^#/, "") || "profile";
@@ -121,6 +122,12 @@ export default function SettingsPage() {
           </button>
           {passwordMsg ? <p className="mt-2 text-sm text-slate-600">{passwordMsg}</p> : null}
         </div>
+      </section>
+
+      <section id="gmail-sync" className="scroll-mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900">Gmail job-status sync</h2>
+        <p className="mt-1 mb-5 text-sm text-slate-600">Review application-response emails and choose which status updates to add to your job tracker.</p>
+        <GmailSyncPanel />
       </section>
 
       <section id="applicant-profile" className="scroll-mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

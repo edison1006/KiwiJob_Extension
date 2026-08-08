@@ -318,6 +318,26 @@ chrome.runtime.onMessage.addListener((request: BgRequest, _sender, sendResponse:
         sendResponse({ ok: true, data });
         return;
       }
+      if (request.type === "CHECK_DUPLICATE") {
+        const api = await getApiBase();
+        const { token } = await authState();
+        if (!token || !request.company.trim() || !request.title.trim()) {
+          sendResponse({ ok: true, data: { duplicate: false, applications: [] } });
+          return;
+        }
+        const res = await fetch(`${api}/jobs/duplicate-check`, {
+          method: "POST",
+          credentials: "include",
+          headers: await jsonHeaders(),
+          body: JSON.stringify({ company: request.company, title: request.title }),
+        });
+        if (!res.ok) {
+          sendResponse({ ok: false, error: await formatApiError(res) });
+          return;
+        }
+        sendResponse({ ok: true, data: await res.json() });
+        return;
+      }
       if (request.type === "PREVIEW_MATCH") {
         const api = await getApiBase();
         let res: Response;

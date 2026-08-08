@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
@@ -215,17 +216,31 @@ def track_event(
     session.add(event)
     if event_type.startswith("email_") or (body.source.strip().lower() in {"email", "gmail", "outlook", "outlook_email"}):
         external_id = str(compact_payload.get("external_id") or compact_payload.get("message_id") or body.page_url or "")
-        session.add(
-            EmailEvent(
-                user_id=user.id,
-                application_id=app_row.id if app_row else None,
-                external_id=external_id[:500],
-                subject=str(compact_payload.get("subject") or "")[:1000],
-                body_preview=str(compact_payload.get("body_preview") or compact_payload.get("snippet") or "")[:2000],
-                parsed_status=app_row.status if app_row else status,
-                received_at=body.occurred_at,
+        if not external_id:
+            external_id = f"event-{uuid4().hex}"
+        raw_provider = body.source.strip().lower()
+        provider = "outlook" if raw_provider in {"outlook", "outlook_email"} else "gmail" if raw_provider == "gmail" else "email"
+        existing_email = session.exec(
+            select(EmailEvent).where(
+                EmailEvent.user_id == user.id,
+                EmailEvent.provider == provider,
+                EmailEvent.external_id == external_id[:500],
             )
-        )
+        ).first()
+        if not existing_email:
+            session.add(
+                EmailEvent(
+                    user_id=user.id,
+                    application_id=app_row.id if app_row else None,
+                    external_id=external_id[:500],
+                    provider=provider,
+                    subject=str(compact_payload.get("subject") or "")[:1000],
+                    body_preview=str(compact_payload.get("body_preview") or compact_payload.get("snippet") or "")[:2000],
+                    parsed_status=app_row.status if app_row else status,
+                    received_at=body.occurred_at,
+                    sync_state="applied",
+                )
+            )
     session.commit()
     session.refresh(event)
 

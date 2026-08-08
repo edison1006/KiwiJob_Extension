@@ -216,6 +216,50 @@ class ApplicationEventTrackOut(BaseModel):
     application: Optional[ApplicationListOut] = None
 
 
+class GmailIntegrationStatusOut(BaseModel):
+    configured: bool
+    connected: bool
+    prompt_required: bool
+    email_address: Optional[str] = None
+    last_synced_at: Optional[datetime] = None
+
+
+class GmailConnectOut(BaseModel):
+    authorization_url: str
+
+
+class GmailSyncCandidateOut(BaseModel):
+    email_event_id: int
+    application_id: int
+    company: Optional[str]
+    job_title: str
+    current_status: str
+    proposed_status: str
+    subject: str
+    sender: str
+    received_at: Optional[datetime]
+    confidence: float
+
+
+class GmailSyncConfirmIn(BaseModel):
+    email_event_ids: list[int] = Field(default_factory=list, max_length=500)
+
+
+class GmailSyncConfirmOut(BaseModel):
+    updated_count: int
+    applications: list[ApplicationListOut] = Field(default_factory=list)
+
+
+class DuplicateApplicationCheckIn(BaseModel):
+    company: str = Field(..., min_length=1, max_length=500)
+    title: str = Field(..., min_length=1, max_length=500)
+
+
+class DuplicateApplicationOut(BaseModel):
+    duplicate: bool
+    applications: list[ApplicationListOut] = Field(default_factory=list)
+
+
 class ApplicationUpdateIn(BaseModel):
     status: Optional[str] = None
     title: Optional[str] = Field(default=None, min_length=1, max_length=500)

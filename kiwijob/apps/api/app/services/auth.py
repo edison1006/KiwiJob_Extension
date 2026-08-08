@@ -59,6 +59,34 @@ def create_access_token(user_id: int, email: str) -> str:
     return f"{signing_input}.{_b64url(sig)}"
 
 
+def create_oauth_state(user_id: int) -> str:
+    settings = get_settings()
+    now = int(time.time())
+    payload: dict[str, Any] = {
+        "sub": str(user_id),
+        "purpose": "gmail_oauth",
+        "nonce": _b64url(os.urandom(18)),
+        "iat": now,
+        "exp": now + 10 * 60,
+    }
+    header = {"alg": "HS256", "typ": "JWT"}
+    signing_input = ".".join(
+        [
+            _b64url(json.dumps(header, separators=(",", ":")).encode("utf-8")),
+            _b64url(json.dumps(payload, separators=(",", ":")).encode("utf-8")),
+        ]
+    )
+    sig = hmac.new(settings.jwt_secret_key.encode("utf-8"), signing_input.encode("ascii"), hashlib.sha256).digest()
+    return f"{signing_input}.{_b64url(sig)}"
+
+
+def decode_oauth_state(token: str) -> dict[str, Any] | None:
+    payload = decode_access_token(token)
+    if not payload or payload.get("purpose") != "gmail_oauth" or not payload.get("nonce"):
+        return None
+    return payload
+
+
 def decode_access_token(token: str) -> dict[str, Any] | None:
     try:
         header_b64, payload_b64, sig_b64 = token.split(".", 2)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
@@ -15,6 +17,8 @@ from app.schemas import (
     ApplicationNoteOut,
     ApplicationTimelineEventOut,
     ApplicationUpdateIn,
+    DuplicateApplicationCheckIn,
+    DuplicateApplicationOut,
     JobExtractIn,
     JobPostOut,
     JobSearchIn,
@@ -24,6 +28,12 @@ from app.schemas import (
 from app.services.job_extract import JobExtractError, extract_job_from_url, search_jobs
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+TRACKED_APPLICATION_STATUSES = {"Applied", "Assessment", "Reply", "Interview", "Rejected", "Offer", "Withdrawn"}
+
+
+def _normalize_duplicate_field(value: str | None) -> str:
+    return " ".join(re.findall(r"[a-z0-9]+", (value or "").lower()))
 
 
 def _job_to_out(j: JobPost) -> JobPostOut:
@@ -183,6 +193,36 @@ def list_jobs(
         .order_by(Application.updated_at.desc())
     ).all()
     return [_app_to_list_out(r) for r in rows]
+
+
+@router.post("/duplicate-check", response_model=DuplicateApplicationOut)
+def check_duplicate_application(
+    body: DuplicateApplicationCheckIn,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    assert user.id is not None
+    company = _normalize_duplicate_field(body.company)
+    title = _normalize_duplicate_field(body.title)
+    if not company or not title:
+        return DuplicateApplicationOut(duplicate=False)
+    rows = session.exec(
+        select(Application)
+        .where(Application.user_id == user.id, Application.status.in_(TRACKED_APPLICATION_STATUSES))
+        .options(selectinload(Application.job_post))
+        .order_by(Application.updated_at.desc())
+    ).all()
+    matches = [
+        row
+        for row in rows
+        if row.job_post
+        and _normalize_duplicate_field(row.job_post.company) == company
+        and _normalize_duplicate_field(row.job_post.title) == title
+    ]
+    return DuplicateApplicationOut(
+        duplicate=bool(matches),
+        applications=[_app_to_list_out(row) for row in matches],
+    )
 
 
 @router.get("/{job_id}", response_model=ApplicationDetailOut)

@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     openai_cv_max_output_tokens: int = 5000
     openai_copilot_max_output_tokens: int = 1500
     google_oauth_client_id: str | None = None
+    google_gmail_client_id: str | None = None
+    google_gmail_client_secret: str | None = None
+    google_gmail_redirect_uri: str = "http://localhost:8000/integrations/gmail/callback"
+    web_app_url: str = "http://localhost:5173"
+    gmail_token_encryption_key: str | None = None
     apple_oauth_client_id: str | None = None
     jwt_secret_key: str = "change-me-in-production"
     jwt_expires_minutes: int = 60 * 24 * 14
@@ -93,6 +98,10 @@ def validate_settings(settings: Settings) -> None:
         errors.append("SECURE_AUTH_COOKIE must be true")
     if not settings.openai_api_key:
         errors.append("OPENAI_API_KEY must be set so production never returns mock AI results")
+    if settings.google_gmail_client_id and not settings.google_gmail_client_secret:
+        errors.append("GOOGLE_GMAIL_CLIENT_SECRET must be set when Gmail sync is enabled")
+    if settings.google_gmail_client_id and not settings.gmail_token_encryption_key:
+        errors.append("GMAIL_TOKEN_ENCRYPTION_KEY must be set when Gmail sync is enabled")
     if not settings.openai_model.strip().lower().startswith("gpt-4o-mini"):
         errors.append("OPENAI_MODEL must remain gpt-4o-mini until AI budget reservations are recalculated")
     if not settings.resume_s3_bucket:

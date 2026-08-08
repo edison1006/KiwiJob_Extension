@@ -272,6 +272,40 @@ chrome.runtime.onMessage.addListener((e, t, n) => ((async () => {
 			});
 			return;
 		}
+		if (e.type === "CHECK_DUPLICATE") {
+			let t = await u(), { token: r } = await f();
+			if (!r || !e.company.trim() || !e.title.trim()) {
+				n({
+					ok: !0,
+					data: {
+						duplicate: !1,
+						applications: []
+					}
+				});
+				return;
+			}
+			let i = await fetch(`${t}/jobs/duplicate-check`, {
+				method: "POST",
+				credentials: "include",
+				headers: await m(),
+				body: JSON.stringify({
+					company: e.company,
+					title: e.title
+				})
+			});
+			if (!i.ok) {
+				n({
+					ok: !1,
+					error: await l(i)
+				});
+				return;
+			}
+			n({
+				ok: !0,
+				data: await i.json()
+			});
+			return;
+		}
 		if (e.type === "PREVIEW_MATCH") {
 			let t = await u(), r;
 			try {

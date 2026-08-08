@@ -16,6 +16,7 @@ class User(SQLModel, table=True):
     auth_provider_subject: str = Field(default="", index=True)
     membership_tier: str = Field(default="free", index=True, max_length=20)
     membership_expires_at: Optional[datetime] = Field(default=None, index=True)
+    gmail_onboarding_completed: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utc_now)
     applicant_profile: Optional[dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
 
@@ -141,15 +142,40 @@ class ApplicationEvent(SQLModel, table=True):
 
 # Stubs for future Gmail / Calendar / monitoring — tables exist but are unused in MVP.
 class EmailEvent(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("user_id", "provider", "external_id", name="uq_email_event_provider_message"),
+    )
+
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     application_id: Optional[int] = Field(default=None, foreign_key="application.id", index=True)
     external_id: str = Field(default="", index=True)
+    provider: str = Field(default="gmail", index=True)
+    thread_id: str = Field(default="", index=True)
+    sender: str = ""
     subject: str = ""
     body_preview: str = ""
     received_at: Optional[datetime] = None
     parsed_status: Optional[str] = None
+    confidence: Optional[float] = None
+    sync_state: str = Field(default="pending", index=True)
     created_at: datetime = Field(default_factory=utc_now)
+
+
+class EmailConnection(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("user_id", "provider", name="uq_email_connection_user_provider"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    provider: str = Field(default="gmail", index=True)
+    email_address: str = Field(default="")
+    encrypted_refresh_token: str
+    granted_scopes: str = Field(default="")
+    history_id: Optional[str] = None
+    connected_at: datetime = Field(default_factory=utc_now)
+    last_synced_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class Notification(SQLModel, table=True):

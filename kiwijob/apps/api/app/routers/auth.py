@@ -175,7 +175,7 @@ def change_password(
 
 @router.delete("/account", status_code=204)
 def delete_account(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    from app.models import Application, ApplicationEvent, CvOptimization, EmailEvent, Notification, Resume
+    from app.models import Application, ApplicationEvent, CvOptimization, EmailConnection, EmailEvent, Notification, Resume
     from app.services.resume_parse import delete_resume_file
 
     user_id = user.id
@@ -192,6 +192,8 @@ def delete_account(user: User = Depends(get_current_user), session: Session = De
     for model in (ApplicationEvent, EmailEvent, Notification, Application):
         for row in session.exec(select(model).where(model.user_id == user_id)).all():
             session.delete(row)
+    for row in session.exec(select(EmailConnection).where(EmailConnection.user_id == user_id)).all():
+        session.delete(row)
     session.delete(user)
     session.commit()
     return None
