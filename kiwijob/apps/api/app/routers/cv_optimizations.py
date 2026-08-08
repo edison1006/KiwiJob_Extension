@@ -21,7 +21,18 @@ router = APIRouter(prefix="/cv-optimizations", tags=["cv-optimizations"])
 
 
 def _out(row: CvOptimization) -> CvOptimizationOut:
-    return CvOptimizationOut.model_validate(row, from_attributes=True)
+    assert row.id is not None
+    return CvOptimizationOut(
+        id=row.id,
+        application_id=row.application_id,
+        resume_id=row.resume_id,
+        title=row.title,
+        match_score=row.match_score,
+        suggestions=row.suggestions if isinstance(row.suggestions, list) else [],
+        optimized_text=row.optimized_text or "",
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
 
 
 def _owned(session: Session, optimization_id: int, user_id: int) -> CvOptimization:

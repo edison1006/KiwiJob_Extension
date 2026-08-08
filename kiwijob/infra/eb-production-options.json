@@ -16,6 +16,11 @@
   },
   {
     "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "WEB_APP_URL",
+    "Value": "https://app.kiwijob.co.nz"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
     "OptionName": "CORS_ORIGINS",
     "Value": "https://d1e26b7m2m2gck.cloudfront.net,https://app.kiwijob.co.nz,chrome-extension://medjbbmnbpeijhapfldniaehipbllohd"
   },

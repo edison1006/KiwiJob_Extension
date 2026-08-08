@@ -132,6 +132,8 @@ def oauth_login(body: OAuthIn, request: Request, response: Response, session: Se
             password_hash="",
             auth_provider=identity.provider,
             auth_provider_subject=identity.subject,
+            gmail_email=identity.email if identity.provider == "google" else None,
+            gmail_subject=identity.subject if identity.provider == "google" else None,
         )
         session.add(user)
     else:
@@ -139,6 +141,9 @@ def oauth_login(body: OAuthIn, request: Request, response: Response, session: Se
             user.display_name = identity.display_name
         user.auth_provider = identity.provider
         user.auth_provider_subject = identity.subject
+        if identity.provider == "google":
+            user.gmail_email = identity.email
+            user.gmail_subject = identity.subject
         session.add(user)
     session.commit()
     session.refresh(user)

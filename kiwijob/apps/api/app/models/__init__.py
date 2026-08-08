@@ -14,6 +14,8 @@ class User(SQLModel, table=True):
     display_name: str = Field(default="")
     auth_provider: str = Field(default="password", index=True)
     auth_provider_subject: str = Field(default="", index=True)
+    gmail_email: Optional[str] = Field(default=None, index=True, unique=True)
+    gmail_subject: Optional[str] = Field(default=None, index=True, unique=True)
     membership_tier: str = Field(default="free", index=True, max_length=20)
     membership_expires_at: Optional[datetime] = Field(default=None, index=True)
     gmail_onboarding_completed: bool = Field(default=False)
@@ -140,7 +142,7 @@ class ApplicationEvent(SQLModel, table=True):
     application: Optional[Application] = Relationship(back_populates="events")
 
 
-# Stubs for future Gmail / Calendar / monitoring — tables exist but are unused in MVP.
+# Gmail Add-on message analysis; only the open message's preview and decision are retained.
 class EmailEvent(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint("user_id", "provider", "external_id", name="uq_email_event_provider_message"),
@@ -162,6 +164,7 @@ class EmailEvent(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utc_now)
 
 
+# Legacy table retained so older deployments can delete any pre-Add-on OAuth records safely.
 class EmailConnection(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "provider", name="uq_email_connection_user_provider"),)
 

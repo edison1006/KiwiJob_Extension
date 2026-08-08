@@ -1,0 +1,30 @@
+{
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/gmail.addons.execute",
+    "https://www.googleapis.com/auth/gmail.addons.current.message.action",
+    "https://www.googleapis.com/auth/userinfo.email"
+  ],
+  "addOns": {
+    "common": {
+      "name": "KiwiJob",
+      "logoUrl": "https://app.kiwijob.co.nz/kiwijob-logo.png",
+      "openLinkUrlPrefixes": [
+        "https://app.kiwijob.co.nz/"
+      ],
+      "homepageTrigger": {
+        "runFunction": "https://api.kiwijob.co.nz/integrations/gmail-addon"
+      }
+    },
+    "gmail": {
+      "contextualTriggers": [
+        {
+          "unconditional": {},
+          "onTriggerFunction": "https://api.kiwijob.co.nz/integrations/gmail-addon"
+        }
+      ]
+    },
+    "httpOptions": {
+      "granularOauthPermissionSupport": "OPT_IN"
+    }
+  }
+}

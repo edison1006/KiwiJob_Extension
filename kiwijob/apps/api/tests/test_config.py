@@ -10,6 +10,7 @@ def production_settings(**overrides) -> Settings:
         "openai_api_key": "test-openai-key",
         "jwt_secret_key": "a-production-secret-that-is-longer-than-32-characters",
         "secure_auth_cookie": True,
+        "web_app_url": "https://app.kiwijob.co.nz",
         "resume_s3_bucket": "kiwijob-resumes",
         "cors_origins": "https://app.kiwijob.co.nz,chrome-extension://abcdefghijklmnopabcdefghijklmnop",
         "cors_origin_regex": "",
@@ -47,6 +48,7 @@ def test_invalid_ai_limits_are_rejected(overrides: dict) -> None:
     [
         ({"jwt_secret_key": "change-me-in-production"}, "JWT_SECRET_KEY"),
         ({"secure_auth_cookie": False}, "SECURE_AUTH_COOKIE"),
+        ({"web_app_url": "http://localhost:5173"}, "WEB_APP_URL"),
         ({"openai_api_key": None}, "OPENAI_API_KEY"),
         ({"openai_model": "gpt-4o"}, "OPENAI_MODEL"),
         ({"resume_s3_bucket": None}, "RESUME_S3_BUCKET"),

@@ -125,8 +125,8 @@ export default function SettingsPage() {
       </section>
 
       <section id="gmail-sync" className="scroll-mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Gmail job-status sync</h2>
-        <p className="mt-1 mb-5 text-sm text-slate-600">Review application-response emails and choose which status updates to add to your job tracker.</p>
+        <h2 className="text-lg font-semibold text-slate-900">KiwiJob Gmail Add-on</h2>
+        <p className="mt-1 mb-5 text-sm text-slate-600">Analyze one open recruitment email at a time and automatically sync reliable results to your job tracker.</p>
         <GmailSyncPanel />
       </section>
 

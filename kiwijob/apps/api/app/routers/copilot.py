@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 
 from app.deps import get_current_user
 from app.db.session import get_session
-from app.models import Application, User
+from app.models import Application, Resume, User
 from app.schemas import (
     CopilotAnswerOut,
     CopilotAutofillPlanIn,
@@ -47,6 +47,15 @@ def _job_for_application(session: Session, user_id: int, job_id: int | None) -> 
         "description": job.description,
         "source_website": job.source_website,
     }
+
+
+def _resume_for_user(session: Session, user_id: int, resume_id: int | None) -> str:
+    if resume_id is None:
+        return ""
+    row = session.exec(select(Resume).where(Resume.id == resume_id, Resume.user_id == user_id)).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    return row.extracted_text or ""
 
 
 @router.post("/answer", response_model=CopilotAnswerOut)
@@ -97,9 +106,11 @@ def copilot_cover_letter(
     enforce_ai_generation_limits(session, user=user, budget_cost_cents=4)
     profile = _profile_for_user(user)
     job = _job_for_application(session, user.id, body.job_id)
+    resume_text = _resume_for_user(session, user.id, body.resume_id)
     return generate_cover_letter(
         profile=profile,
         job=job,
+        resume_text=resume_text,
         tone=body.tone,
         extra_instructions=body.extra_instructions,
     )

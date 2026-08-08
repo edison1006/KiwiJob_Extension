@@ -1,171 +1,142 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  beginGmailConnect,
-  confirmGmailSync,
-  disconnectGmail,
+  dismissGmailOnboarding,
   fetchGmailStatus,
-  previewGmailSync,
+  linkGmailAccount,
+  unlinkGmailAccount,
   type GmailIntegrationStatus,
-  type GmailSyncCandidate,
 } from "../lib/api";
 
 export function GmailSyncPanel({ onboarding = false, onDone }: { onboarding?: boolean; onDone?: () => void }) {
   const [status, setStatus] = useState<GmailIntegrationStatus | null>(null);
-  const [candidates, setCandidates] = useState<GmailSyncCandidate[]>([]);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-
-  async function loadStatus() {
-    try {
-      setStatus(await fetchGmailStatus());
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
-    }
-  }
+  const [busy, setBusy] = useState(false);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
+  const installUrl = import.meta.env.VITE_GMAIL_ADDON_INSTALL_URL?.trim();
 
   useEffect(() => {
-    void loadStatus();
+    void fetchGmailStatus()
+      .then(setStatus)
+      .catch((error) => setMessage(error instanceof Error ? error.message : String(error)));
   }, []);
 
-  async function connect() {
-    setBusy(true);
-    setMessage("");
-    try {
-      window.location.assign(await beginGmailConnect());
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
-      setBusy(false);
+  useEffect(() => {
+    if (!status || status.connected || !googleClientId || !googleButtonRef.current) return;
+    const render = () => {
+      if (!window.google || !googleButtonRef.current) return;
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: (response) => {
+          if (!response.credential) {
+            setMessage("Google did not return a sign-in token.");
+            return;
+          }
+          setBusy(true);
+          setMessage("");
+          void linkGmailAccount(response.credential)
+            .then((next) => {
+              setStatus(next);
+              setMessage(`Connected ${next.email_address}. Return to Gmail and reopen KiwiJob.`);
+            })
+            .catch((error) => setMessage(error instanceof Error ? error.message : String(error)))
+            .finally(() => setBusy(false));
+        },
+      });
+      googleButtonRef.current.innerHTML = "";
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: "outline",
+        size: "large",
+        width: googleButtonRef.current.clientWidth || 420,
+        text: "continue_with",
+      });
+    };
+    const existing = document.getElementById("google-identity-services");
+    if (existing) {
+      render();
+      return;
     }
-  }
+    const script = document.createElement("script");
+    script.id = "google-identity-services";
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = render;
+    document.head.appendChild(script);
+  }, [googleClientId, status]);
 
-  async function scan() {
-    setBusy(true);
-    setMessage("Scanning recent Gmail messages…");
-    try {
-      const rows = await previewGmailSync();
-      setCandidates(rows);
-      setSelected(new Set(rows.map((row) => row.email_event_id)));
-      setMessage(rows.length ? `Found ${rows.length} suggested update${rows.length === 1 ? "" : "s"}. Review before syncing.` : "No new job-status updates were found.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function applySelected() {
-    setBusy(true);
-    setMessage("");
-    try {
-      const result = await confirmGmailSync([...selected]);
-      setCandidates([]);
-      setSelected(new Set());
-      setMessage(`${result.updated_count} job application${result.updated_count === 1 ? "" : "s"} updated.`);
-      await loadStatus();
+  async function openInstallPage() {
+    if (onboarding) {
+      await dismissGmailOnboarding();
       onDone?.();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
-    } finally {
-      setBusy(false);
     }
+    if (installUrl) window.open(installUrl, "_blank", "noopener,noreferrer");
   }
 
-  async function disconnect() {
-    setBusy(true);
-    try {
-      await disconnectGmail();
-      setCandidates([]);
-      setStatus(await fetchGmailStatus());
-      setMessage("Gmail disconnected.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (!status) return <p className="text-sm text-slate-500">Loading Gmail connection…</p>;
+  if (!status) return <p className="text-sm text-slate-500">Loading Gmail Add-on availability…</p>;
 
   return (
     <div>
       {!status.configured ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Gmail sync is not configured on the KiwiJob server.
-        </div>
-      ) : !status.connected ? (
-        <div>
-          <p className="text-sm leading-6 text-slate-600">
-            KiwiJob will read likely application-response emails and show proposed tracker updates. Nothing is changed until you approve the list.
-          </p>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void connect()}
-            className="mt-4 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
-          >
-            {busy ? "Connecting…" : "Connect Gmail"}
-          </button>
+          The KiwiJob Gmail Add-on is being prepared. No mailbox access is connected to your KiwiJob account.
         </div>
       ) : (
-        <div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-bold text-slate-950">{status.email_address}</div>
-              <div className="mt-0.5 text-xs text-emerald-700">Gmail connected</div>
-            </div>
-            <div className="flex gap-2">
-              <button type="button" disabled={busy} onClick={() => void scan()} className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700 disabled:opacity-50">
-                {busy ? "Working…" : "Scan Gmail"}
-              </button>
-              {!onboarding ? (
-                <button type="button" disabled={busy} onClick={() => void disconnect()} className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+        <>
+          <div className={`rounded-xl border px-4 py-3 ${status.connected ? "border-emerald-200 bg-emerald-50" : "border-violet-200 bg-violet-50"}`}>
+            {status.connected ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-bold text-emerald-950">Gmail connected</p>
+                  <p className="mt-1 text-sm text-emerald-800">{status.email_address}</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={busy}
+                  className="rounded-lg border border-emerald-300 px-3 py-2 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 disabled:opacity-50"
+                  onClick={() => {
+                    setBusy(true);
+                    setMessage("");
+                    void unlinkGmailAccount()
+                      .then(() => {
+                        setStatus((current) => current ? { ...current, connected: false, email_address: null } : current);
+                        setMessage("Gmail disconnected from this KiwiJob account.");
+                      })
+                      .catch((error) => setMessage(error instanceof Error ? error.message : String(error)))
+                      .finally(() => setBusy(false));
+                  }}
+                >
                   Disconnect
                 </button>
-              ) : null}
-            </div>
-          </div>
-
-          {candidates.length ? (
-            <div className="mt-5">
-              <div className="max-h-[46vh] space-y-2 overflow-y-auto pr-1">
-                {candidates.map((row) => (
-                  <label key={row.email_event_id} className="flex cursor-pointer gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                    <input
-                      type="checkbox"
-                      className="mt-1 h-4 w-4 rounded border-slate-300 text-brand-600"
-                      checked={selected.has(row.email_event_id)}
-                      onChange={(event) => {
-                        setSelected((current) => {
-                          const next = new Set(current);
-                          if (event.target.checked) next.add(row.email_event_id);
-                          else next.delete(row.email_event_id);
-                          return next;
-                        });
-                      }}
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-bold text-slate-950">{row.company || "Unknown company"} · {row.job_title}</span>
-                      <span className="mt-1 block text-sm text-slate-700">{row.current_status} → <strong className="text-brand-700">{row.proposed_status}</strong></span>
-                      <span className="mt-1 block truncate text-xs text-slate-500">{row.subject}</span>
-                    </span>
-                    <span className="text-xs font-semibold text-slate-500">{Math.round(row.confidence * 100)}%</span>
-                  </label>
-                ))}
               </div>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void applySelected()}
-                className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
-              >
-                Sync {selected.size} selected update{selected.size === 1 ? "" : "s"} to KiwiJob
-              </button>
-            </div>
-          ) : null}
-        </div>
+            ) : (
+              <div>
+                <p className="text-sm font-bold text-violet-950">Connect the Gmail address used by the Add-on</p>
+                <p className="mt-1 text-sm leading-5 text-violet-800">This links a verified Google identity to your current KiwiJob account. Your existing tracker stays here.</p>
+                {googleClientId ? <div ref={googleButtonRef} className={`mt-3 min-h-11 max-w-md overflow-hidden rounded-xl ${busy ? "pointer-events-none opacity-60" : ""}`} /> : (
+                  <p className="mt-3 text-sm text-rose-700">Google account linking is not configured.</p>
+                )}
+              </div>
+            )}
+          </div>
+          <p className="text-sm leading-6 text-slate-600">
+            Install the KiwiJob Gmail Add-on, open a recruitment email, and select KiwiJob in Gmail&apos;s right-hand side panel. KiwiJob reads only that open message and automatically syncs reliable results; ambiguous results require confirmation.
+          </p>
+          <ol className="mt-4 space-y-2 text-sm text-slate-700">
+            <li><strong>1.</strong> Install the Gmail Add-on.</li>
+            <li><strong>2.</strong> Open a recruitment response in Gmail.</li>
+            <li><strong>3.</strong> Select <strong>Analyze this email</strong>. Reliable results sync automatically.</li>
+          </ol>
+          {installUrl ? (
+            <button type="button" onClick={() => void openInstallPage()} className="mt-5 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-brand-700">
+              Install Gmail Add-on
+            </button>
+          ) : (
+            <p className="mt-4 text-xs leading-5 text-slate-500">The installation button will appear when the Google Workspace deployment URL is configured.</p>
+          )}
+        </>
       )}
-      {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
+      {message ? <p className="mt-3 text-sm text-rose-700">{message}</p> : null}
     </div>
   );
 }

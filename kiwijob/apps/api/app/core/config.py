@@ -21,11 +21,10 @@ class Settings(BaseSettings):
     openai_cv_max_output_tokens: int = 5000
     openai_copilot_max_output_tokens: int = 1500
     google_oauth_client_id: str | None = None
-    google_gmail_client_id: str | None = None
-    google_gmail_client_secret: str | None = None
-    google_gmail_redirect_uri: str = "http://localhost:8000/integrations/gmail/callback"
+    google_workspace_addon_client_id: str | None = None
+    google_workspace_addon_service_account_email: str | None = None
+    google_workspace_addon_audience: str = "http://localhost:8000/integrations/gmail-addon"
     web_app_url: str = "http://localhost:5173"
-    gmail_token_encryption_key: str | None = None
     apple_oauth_client_id: str | None = None
     jwt_secret_key: str = "change-me-in-production"
     jwt_expires_minutes: int = 60 * 24 * 14
@@ -96,12 +95,18 @@ def validate_settings(settings: Settings) -> None:
         errors.append("JWT_SECRET_KEY must be a unique secret of at least 32 characters")
     if not settings.secure_auth_cookie:
         errors.append("SECURE_AUTH_COOKIE must be true")
+    web_app_url = urlsplit(settings.web_app_url)
+    if web_app_url.scheme != "https" or not web_app_url.netloc:
+        errors.append("WEB_APP_URL must be an absolute https:// URL in production")
     if not settings.openai_api_key:
         errors.append("OPENAI_API_KEY must be set so production never returns mock AI results")
-    if settings.google_gmail_client_id and not settings.google_gmail_client_secret:
-        errors.append("GOOGLE_GMAIL_CLIENT_SECRET must be set when Gmail sync is enabled")
-    if settings.google_gmail_client_id and not settings.gmail_token_encryption_key:
-        errors.append("GMAIL_TOKEN_ENCRYPTION_KEY must be set when Gmail sync is enabled")
+    addon_values = (
+        settings.google_workspace_addon_client_id,
+        settings.google_workspace_addon_service_account_email,
+        settings.google_workspace_addon_audience,
+    )
+    if any(addon_values[:2]) and not all(addon_values):
+        errors.append("All GOOGLE_WORKSPACE_ADDON_* settings must be set when the Gmail Add-on is enabled")
     if not settings.openai_model.strip().lower().startswith("gpt-4o-mini"):
         errors.append("OPENAI_MODEL must remain gpt-4o-mini until AI budget reservations are recalculated")
     if not settings.resume_s3_bucket:

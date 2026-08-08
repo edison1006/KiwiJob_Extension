@@ -101,6 +101,10 @@ def test_oauth_login_creates_user_and_merges_by_email(monkeypatch) -> None:
             "password_login_available": False,
             "auth_provider": "google",
         }
+        status = client.get("/integrations/gmail/status", headers={"Authorization": f"Bearer {second.json()['access_token']}"})
+        assert status.status_code == 200
+        assert status.json()["connected"] is True
+        assert status.json()["email_address"] == email
 
 
 def test_user_data_is_isolated_by_authenticated_user_id() -> None:

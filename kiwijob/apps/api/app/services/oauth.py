@@ -28,13 +28,18 @@ def _verify_google(token: str) -> OAuthIdentity:
     if not settings.google_oauth_client_id:
         raise HTTPException(status_code=503, detail="Google sign-in is not configured")
     try:
-        from google.auth.transport import requests
+        import urllib3
+        from google.auth.transport import urllib3 as google_urllib3
         from google.oauth2 import id_token
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Google sign-in dependency is not installed") from exc
 
     try:
-        claims = id_token.verify_oauth2_token(token, requests.Request(), settings.google_oauth_client_id)
+        claims = id_token.verify_oauth2_token(
+            token,
+            google_urllib3.Request(urllib3.PoolManager()),
+            settings.google_oauth_client_id,
+        )
     except Exception as exc:
         raise HTTPException(status_code=401, detail="Invalid Google sign-in token") from exc
 

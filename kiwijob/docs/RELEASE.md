@@ -10,7 +10,7 @@ Use this when preparing a production cut (web + API + Chrome extension).
 - CloudFront API endpoint: `https://d3qngwzf3gjrpb.cloudfront.net`
 - API origin: Elastic Beanstalk environment `Kiwijob-api-env`
 - Resume storage: private S3 bucket with public access blocked and server-side encryption
-- Extension release artifact: `releases/kiwijob-extension-0.2.2.zip` (generated locally; ZIP files are not committed)
+- Extension release artifact: `releases/kiwijob-extension-0.2.3.zip` (generated locally; ZIP files are not committed)
 
 The custom domains use CloudFront with an ACM certificate covering both
 `app.kiwijob.co.nz` and `api.kiwijob.co.nz`. Keep the ACM DNS validation

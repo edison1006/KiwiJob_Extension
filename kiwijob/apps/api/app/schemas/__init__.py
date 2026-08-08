@@ -224,30 +224,8 @@ class GmailIntegrationStatusOut(BaseModel):
     last_synced_at: Optional[datetime] = None
 
 
-class GmailConnectOut(BaseModel):
-    authorization_url: str
-
-
-class GmailSyncCandidateOut(BaseModel):
-    email_event_id: int
-    application_id: int
-    company: Optional[str]
-    job_title: str
-    current_status: str
-    proposed_status: str
-    subject: str
-    sender: str
-    received_at: Optional[datetime]
-    confidence: float
-
-
-class GmailSyncConfirmIn(BaseModel):
-    email_event_ids: list[int] = Field(default_factory=list, max_length=500)
-
-
-class GmailSyncConfirmOut(BaseModel):
-    updated_count: int
-    applications: list[ApplicationListOut] = Field(default_factory=list)
+class GmailLinkIn(BaseModel):
+    id_token: str = Field(..., min_length=20)
 
 
 class DuplicateApplicationCheckIn(BaseModel):
@@ -455,6 +433,7 @@ class CopilotAutofillPlanOut(BaseModel):
 
 class CopilotCoverLetterIn(BaseModel):
     job_id: Optional[int] = Field(default=None, description="Optional application / tracker row id")
+    resume_id: Optional[int] = Field(default=None, description="Optional resume id used as applicant context")
     tone: str = Field(default="concise and professional", max_length=200)
     extra_instructions: str = Field(default="", max_length=2000)
 

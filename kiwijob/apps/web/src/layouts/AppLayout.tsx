@@ -49,22 +49,16 @@ export function AppLayout() {
   const [gmailPromptOpen, setGmailPromptOpen] = useState(false);
   const [gmailPromptBusy, setGmailPromptBusy] = useState(false);
   const authModalOpen = new URLSearchParams(location.search).get("auth") === "login";
-  const gmailCallback = new URLSearchParams(location.search).get("gmail");
-  const gmailCallbackMessage = new URLSearchParams(location.search).get("message");
 
   useEffect(() => {
     if (!user) {
       setGmailPromptOpen(false);
       return;
     }
-    if (gmailCallback === "connected" || gmailCallback === "error") {
-      setGmailPromptOpen(true);
-      return;
-    }
     void fetchGmailStatus()
       .then((status) => setGmailPromptOpen(status.configured && status.prompt_required))
       .catch(() => setGmailPromptOpen(false));
-  }, [gmailCallback, user?.id]);
+  }, [user?.id]);
 
   function closeGmailPrompt() {
     setGmailPromptOpen(false);
@@ -334,15 +328,12 @@ export function AppLayout() {
           <section role="dialog" aria-modal="true" aria-labelledby="gmail-sync-title" className="w-full max-w-2xl rounded-3xl border border-white/70 bg-white p-6 shadow-[0_34px_100px_-36px_rgba(15,23,42,.72)] sm:p-8">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Optional inbox sync</p>
-                <h2 id="gmail-sync-title" className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Keep your job tracker updated from Gmail</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">KiwiJob scans likely application-response emails and always asks before changing your tracker.</p>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">Optional Gmail Add-on</p>
+                <h2 id="gmail-sync-title" className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Update your tracker from the email you open</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">KiwiJob does not scan your mailbox. The Add-on reads only the open message, automatically syncs reliable results, and asks before applying ambiguous ones.</p>
               </div>
               <button type="button" aria-label="Close" className="rounded-full p-2 text-slate-500 hover:bg-slate-100" onClick={closeGmailPrompt}>✕</button>
             </div>
-            {gmailCallback === "error" ? (
-              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{gmailCallbackMessage || "Gmail could not be connected."}</div>
-            ) : null}
             <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
               <GmailSyncPanel onboarding onDone={closeGmailPrompt} />
             </div>

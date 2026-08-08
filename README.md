@@ -157,7 +157,7 @@ If `OPENAI_API_KEY` is missing, match analysis uses a small deterministic **mock
 
 ## Architecture notes (future hooks)
 
-- `EmailEvent` and `Notification` tables exist as **stubs** for later Gmail ingestion + in-app alerts.
+- `EmailEvent` records the Gmail Add-on message preview and user-confirmed tracker update; `Notification` remains available for future in-app alerts.
 - Extension `siteExtractors` registry is ready for SEEK / LinkedIn / Indeed / Trade Me / career-site parsers without changing the pipeline.
 
 ## Scripts (from `kiwijob/`)

@@ -235,10 +235,10 @@ export default function HomePage() {
                 KiwiJob command center
               </div>
               <h1 className="mt-5 max-w-3xl bg-gradient-to-br from-white via-violet-100 to-fuchsia-300 bg-clip-text text-4xl font-extrabold tracking-[-0.045em] text-transparent sm:text-6xl xl:text-7xl">
-                Make your next career move feel inevitable.
+                KiwiJob — your job application tracker.
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-violet-100/70">
-                One live workspace for job discovery, JD-to-CV intelligence, application momentum, and every document that gets you closer.
+                KiwiJob helps job seekers discover roles, track applications and employer responses, compare job descriptions with their CV, and manage job-search documents in one workspace.
               </p>
             </div>
             <div className="mt-8 flex flex-wrap gap-3">

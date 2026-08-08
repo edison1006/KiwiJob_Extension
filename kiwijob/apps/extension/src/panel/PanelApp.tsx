@@ -633,6 +633,10 @@ export function KiwiJobPanel() {
   }
 
   async function submitAuth(mode = authMode) {
+    if (authPassword.length < 8) {
+      setAuthError("Password must be at least 8 characters.");
+      return;
+    }
     setAuthBusy(true);
     setAuthError(null);
     setAuthMode(mode);
@@ -1076,7 +1080,9 @@ export function KiwiJobPanel() {
                 <div className="w-full max-w-[22rem] rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-2xl">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-xl font-bold tracking-tight text-slate-950">Log in or create account</div>
+                      <div className="text-xl font-bold tracking-tight text-slate-950">
+                        {authStep === "password" && authMode === "register" ? "Create your KiwiJob account" : authStep === "password" ? "Welcome back" : "Log in or create account"}
+                      </div>
                       <p className="mt-2 text-sm leading-relaxed text-slate-600">Save jobs, track applications, and run CV match analysis across KiwiJob.</p>
                     </div>
                     <button
@@ -1111,57 +1117,69 @@ export function KiwiJobPanel() {
                     </label>
                     {authStep === "password" ? (
                       <>
+                        {authMode === "register" ? (
+                          <label className="block text-sm font-semibold text-slate-800">
+                            Name <span className="font-normal text-slate-400">(optional)</span>
+                            <input
+                              className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-950 shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                              placeholder="Your name"
+                              autoComplete="name"
+                              value={authName}
+                              onChange={(e) => setAuthName(e.target.value)}
+                            />
+                          </label>
+                        ) : null}
                         <label className="block text-sm font-semibold text-slate-800">
                           Password <span className="text-rose-600">*</span>
                           <input
                             className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-950 shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                             placeholder="Password"
                             type="password"
+                            autoComplete={authMode === "register" ? "new-password" : "current-password"}
                             value={authPassword}
                             onChange={(e) => setAuthPassword(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") void submitAuth("login");
+                              if (e.key === "Enter") void submitAuth(authMode);
                             }}
                           />
-                        </label>
-                        <label className="block text-sm font-semibold text-slate-800">
-                          Name <span className="font-normal text-slate-400">(for new accounts)</span>
-                          <input
-                            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-950 shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                            placeholder="Your name"
-                            value={authName}
-                            onChange={(e) => setAuthName(e.target.value)}
-                          />
+                          {authMode === "register" ? <span className="mt-1 block text-[10px] font-normal text-slate-500">Use at least 8 characters.</span> : null}
                         </label>
                       </>
                     ) : null}
                     {authError ? <div className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">{authError}</div> : null}
                     {authStep === "email" ? (
-                      <button
-                        type="button"
-                        disabled={authBusy}
-                        className="w-full rounded-lg bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
-                        onClick={() => void continueAuthEmail()}
-                      >
-                        {authBusy ? "Checking account..." : "Continue"}
-                      </button>
-                    ) : authStep === "password" ? (
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-2">
                         <button
                           type="button"
                           disabled={authBusy}
-                          className="rounded-lg border border-brand-600 bg-white px-3 py-3 text-sm font-bold text-brand-700 shadow-sm hover:bg-brand-50 disabled:opacity-50"
-                          onClick={() => void submitAuth("login")}
+                          className="w-full rounded-lg bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
+                          onClick={() => void continueAuthEmail()}
                         >
-                          {authBusy && authMode === "login" ? "Signing in..." : "Login"}
+                          {authBusy ? "Checking account..." : "Continue"}
+                        </button>
+                        <p className="text-center text-[11px] leading-relaxed text-slate-500">If this email is new, you can create the account directly here.</p>
+                      </div>
+                    ) : authStep === "password" ? (
+                      <div className="space-y-2">
+                        <button
+                          type="button"
+                          disabled={authBusy}
+                          className="w-full rounded-lg bg-brand-600 px-3 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
+                          onClick={() => void submitAuth(authMode)}
+                        >
+                          {authBusy ? (authMode === "register" ? "Creating account..." : "Signing in...") : (authMode === "register" ? "Create account" : "Sign in")}
                         </button>
                         <button
                           type="button"
                           disabled={authBusy}
-                          className="rounded-lg bg-brand-600 px-3 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
-                          onClick={() => void submitAuth("register")}
+                          className="w-full py-1 text-xs font-semibold text-brand-700 hover:underline disabled:opacity-50"
+                          onClick={() => {
+                            setAuthMode(authMode === "register" ? "login" : "register");
+                            setAuthPassword("");
+                            setAuthError(null);
+                          }}
                         >
-                          {authBusy && authMode === "register" ? "Creating..." : "Create"}
+                          {authMode === "register" ? "Already have an account? Sign in" : "Create a new account instead"}
                         </button>
                       </div>
                     ) : (
@@ -1178,13 +1196,6 @@ export function KiwiJobPanel() {
                         </button>
                       </div>
                     )}
-                    <button
-                      type="button"
-                      className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-50"
-                      onClick={() => openDashboardAuth(authProvider, authEmail || undefined)}
-                    >
-                      Open full sign-in page
-                    </button>
                     {authStep !== "email" ? (
                       <button type="button" className="text-xs font-semibold text-brand-700 hover:underline" onClick={() => setAuthStep("email")}>
                         Use a different email

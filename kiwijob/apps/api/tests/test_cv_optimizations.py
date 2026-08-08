@@ -5,6 +5,8 @@ from docx import Document
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.models import CvOptimization
+from app.routers.cv_optimizations import _out
 from app.services.resume_parse import extract_cv_text
 from conftest import auth_headers
 
@@ -87,3 +89,19 @@ def test_create_edit_and_download_cv_optimization() -> None:
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
         assert download.content[:2] == b"PK"
+
+
+def test_list_cv_optimizations_tolerates_legacy_null_suggestions() -> None:
+    row = CvOptimization(
+        id=1,
+        user_id=1,
+        resume_id=999,
+        application_id=999,
+        title="Legacy optimized CV",
+        match_score=50,
+        suggestions=[],
+        optimized_text="Existing CV text",
+    )
+    row.suggestions = None  # type: ignore[assignment]
+
+    assert _out(row).suggestions == []

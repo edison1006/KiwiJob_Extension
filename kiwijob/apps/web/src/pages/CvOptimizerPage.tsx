@@ -13,16 +13,50 @@ export default function CvOptimizerPage() {
   const [resumeId, setResumeId] = useState(0);
   const [current, setCurrent] = useState<CvOptimization | null>(null);
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [message, setMessage] = useState("");
 
+  async function loadData() {
+    setLoading(true);
+    setLoadFailed(false);
+    setMessage("");
+    const results = await Promise.allSettled([fetchJobs(), fetchResumes(), fetchCvOptimizations()]);
+    const failures: string[] = [];
+
+    const jobResult = results[0];
+    if (jobResult.status === "fulfilled") {
+      setJobs(jobResult.value);
+      setApplicationId((selected) => selected || jobResult.value[0]?.id || 0);
+    } else {
+      failures.push("saved jobs");
+    }
+
+    const resumeResult = results[1];
+    if (resumeResult.status === "fulfilled") {
+      setResumes(resumeResult.value);
+      setResumeId((selected) => selected || resumeResult.value[0]?.id || 0);
+    } else {
+      failures.push("CVs");
+    }
+
+    const versionResult = results[2];
+    if (versionResult.status === "fulfilled") {
+      setVersions(versionResult.value);
+      setCurrent((selected) => selected || versionResult.value[0] || null);
+    } else {
+      failures.push("saved optimization versions");
+    }
+
+    if (failures.length) {
+      setLoadFailed(true);
+      setMessage(`Could not load ${failures.join(", ")}. Other available data is still shown below.`);
+    }
+    setLoading(false);
+  }
+
   useEffect(() => {
-    Promise.all([fetchJobs(), fetchResumes(), fetchCvOptimizations()])
-      .then(([jobRows, resumeRows, saved]) => {
-        setJobs(jobRows); setResumes(resumeRows); setVersions(saved);
-        setApplicationId(jobRows[0]?.id ?? 0); setResumeId(resumeRows[0]?.id ?? 0);
-        setCurrent(saved[0] ?? null);
-      })
-      .catch((error) => setMessage(error instanceof Error ? error.message : String(error)));
+    void loadData();
   }, []);
 
   async function generate() {
@@ -100,7 +134,10 @@ export default function CvOptimizerPage() {
         </label>
         <button disabled={busy || !applicationId || !resumeId} onClick={() => void generate()} className="self-end rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-40">{busy ? "Working…" : "Optimize CV"}</button>
       </section>
-      {message && <div className="rounded-xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm text-brand-900">{message}</div>}
+      {message && <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${loadFailed ? "border-amber-200 bg-amber-50 text-amber-900" : "border-brand-100 bg-brand-50 text-brand-900"}`}>
+        <span>{message}</span>
+        {loadFailed ? <button type="button" disabled={loading} onClick={() => void loadData()} className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold hover:bg-amber-100 disabled:opacity-50">{loading ? "Retrying…" : "Retry loading"}</button> : null}
+      </div>}
       <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="text-sm font-bold">Saved versions</div>
@@ -108,7 +145,7 @@ export default function CvOptimizerPage() {
             {versions.map((version) => <button key={version.id} onClick={() => setCurrent(version)} className={`w-full rounded-xl border p-3 text-left text-sm ${current?.id === version.id ? "border-brand-400 bg-brand-50" : "border-slate-200"}`}>
               <div className="font-semibold">{version.title}</div><div className="mt-1 text-xs text-slate-500">Match {Math.round(version.match_score)}%</div>
             </button>)}
-            {!versions.length && <p className="text-sm text-slate-500">No optimized versions yet.</p>}
+            {!versions.length && <p className="text-sm text-slate-500">{loading ? "Loading versions…" : "No optimized versions yet."}</p>}
           </div>
         </aside>
         <main className="space-y-5">

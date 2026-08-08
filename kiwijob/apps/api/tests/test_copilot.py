@@ -83,6 +83,54 @@ def test_copilot_cover_letter_fallback() -> None:
     assert body["source"] in {"fallback", "ai"}
 
 
+def test_copilot_cover_letter_accepts_owned_resume() -> None:
+    with TestClient(app) as client:
+        headers, user_id = auth_headers(client)
+        with Session(get_engine()) as session:
+            row = Resume(
+                user_id=user_id,
+                filename="cover-letter-cv.pdf",
+                stored_path="/tmp/cover-letter-cv.pdf",
+                extracted_text="Ada Lovelace\nPython engineer with five years of API and AWS experience.\nSkills\nPython SQL AWS APIs",
+            )
+            session.add(row)
+            session.commit()
+            session.refresh(row)
+            resume_id = row.id
+
+        res = client.post("/copilot/cover-letter", json={"resume_id": resume_id}, headers=headers)
+
+    assert res.status_code == 200
+    letter = res.json()["cover_letter"]
+    assert len(letter.split()) >= 240
+    assert "Python" in letter
+    assert "AWS" in letter
+    assert "{job_title}" not in letter
+    assert letter.endswith("Ada Lovelace")
+
+
+def test_copilot_cover_letter_rejects_another_users_resume() -> None:
+    with TestClient(app) as client:
+        headers, _ = auth_headers(client)
+        other_headers, other_user_id = auth_headers(client, email="other-cover@example.com")
+        del other_headers
+        with Session(get_engine()) as session:
+            row = Resume(
+                user_id=other_user_id,
+                filename="private.pdf",
+                stored_path="/tmp/private.pdf",
+                extracted_text="Private resume content",
+            )
+            session.add(row)
+            session.commit()
+            session.refresh(row)
+            resume_id = row.id
+
+        res = client.post("/copilot/cover-letter", json={"resume_id": resume_id}, headers=headers)
+
+    assert res.status_code == 404
+
+
 def test_latest_resume_profile_returns_uploaded_cv_fields() -> None:
     text = (
         "Edison Zhang\n"

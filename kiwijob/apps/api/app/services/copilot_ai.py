@@ -132,6 +132,135 @@ def _profile_context(profile: dict[str, Any]) -> str:
     return json.dumps(safe, ensure_ascii=False)
 
 
+_COVER_LETTER_SKILLS = (
+    "Python",
+    "SQL",
+    "AWS",
+    "Azure",
+    "Google Cloud",
+    "Power BI",
+    "Tableau",
+    "Excel",
+    "JavaScript",
+    "TypeScript",
+    "React",
+    "Node.js",
+    "Java",
+    "C#",
+    "Docker",
+    "Kubernetes",
+    "Terraform",
+    "ETL",
+    "data modelling",
+    "data analysis",
+    "machine learning",
+    "APIs",
+    "Git",
+    "Agile",
+)
+
+
+def _mentioned_skills(text: str, *, limit: int = 8) -> list[str]:
+    lowered = text.lower()
+    found: list[str] = []
+    for skill in _COVER_LETTER_SKILLS:
+        if re.search(rf"(?<![a-z0-9]){re.escape(skill.lower())}(?![a-z0-9])", lowered):
+            found.append(skill)
+    return found[:limit]
+
+
+def _natural_list(items: list[str]) -> str:
+    if not items:
+        return ""
+    if len(items) == 1:
+        return items[0]
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+    return f"{', '.join(items[:-1])}, and {items[-1]}"
+
+
+def _resume_candidate_name(profile: dict[str, Any], resume_text: str) -> str:
+    profile_name = _profile_get(profile, "fullName")
+    if profile_name:
+        return profile_name
+    first_line = next((line.strip() for line in resume_text.splitlines() if line.strip()), "")
+    if (
+        2 <= len(first_line.split()) <= 5
+        and len(first_line) <= 80
+        and re.fullmatch(r"[A-Za-z][A-Za-z .'-]+", first_line)
+        and not re.search(r"\b(?:resume|curriculum|vitae|cv)\b", first_line, re.I)
+    ):
+        return first_line
+    return ""
+
+
+def _fallback_cover_letter(*, profile: dict[str, Any], job: dict[str, Any] | None, resume_text: str) -> str:
+    job_data = job or {}
+    job_title = _clean(job_data.get("title"), 200) or "this role"
+    company = _clean(job_data.get("company"), 200) or "your organisation"
+    location = _clean(job_data.get("location"), 200)
+    summary = _profile_get(profile, "coverLetter") or _profile_get(profile, "summary")
+    applicant_skills = _mentioned_skills(f"{_profile_get(profile, 'skills')}\n{resume_text}")
+    job_skills = _mentioned_skills(_clean(job_data.get("description"), 12000))
+    shared_skills = [skill for skill in job_skills if skill in applicant_skills]
+    evidence_skills = shared_skills or applicant_skills
+    role_focus = job_skills[:5]
+    name = _resume_candidate_name(profile, resume_text)
+
+    opening_location = f" in {location}" if location else ""
+    opening = (
+        f"I am writing to express my interest in the {job_title} position at {company}{opening_location}. "
+        "After reviewing the opportunity, I am drawn to the chance to apply my background in a role that values thoughtful "
+        "problem solving, dependable delivery, and effective collaboration."
+    )
+
+    evidence_parts: list[str] = []
+    if summary:
+        evidence_parts.append(summary.rstrip(". ") + ".")
+    if evidence_skills:
+        evidence_parts.append(
+            f"My CV also reflects practical capability across {_natural_list(evidence_skills)}. "
+            "I focus on using these skills purposefully: understanding the problem, working carefully with the available information, "
+            "and turning it into an outcome that is clear, useful, and maintainable."
+        )
+    else:
+        evidence_parts.append(
+            "My application materials outline the experience and transferable capabilities I would bring to the position. "
+            "Across my work and study, I have developed a structured approach to learning new requirements, communicating clearly, "
+            "and following work through from initial analysis to a practical result."
+        )
+    evidence = " ".join(evidence_parts)
+
+    if role_focus:
+        fit = (
+            f"The role's focus on {_natural_list(role_focus)} is particularly appealing to me. "
+            "I would approach these responsibilities with curiosity, attention to detail, and a willingness to work closely with both "
+            "technical and non-technical colleagues. I also understand the importance of documenting decisions, responding constructively "
+            "to feedback, and continuing to improve the quality of what I deliver."
+        )
+    else:
+        fit = (
+            f"What interests me most about joining {company} is the opportunity to contribute in a practical way while continuing to grow. "
+            "I would bring curiosity, attention to detail, and a collaborative mindset, along with a willingness to learn the team's tools, "
+            "priorities, and ways of working quickly."
+        )
+
+    motivation = (
+        f"I would value the opportunity to contribute to {company}, learn from the people around me, and take ownership of work that supports "
+        "the wider team. I value asking clear questions at the outset, keeping stakeholders informed as work develops, and checking that the "
+        "final result addresses the real need rather than only the immediate task. I am also comfortable receiving feedback and using it to "
+        "strengthen both the work itself and the way I approach future challenges. "
+        f"I am confident that my existing foundation, combined with my motivation to keep learning, would allow me to make a positive contribution "
+        f"in the {job_title} role."
+    )
+    closing = (
+        "Thank you for considering my application. I would welcome the opportunity to discuss the position, the priorities for the successful "
+        "candidate, and how my experience could support your team."
+    )
+    signoff = f"Kind regards,\n{name}" if name else "Kind regards"
+    return f"Dear Hiring Manager,\n\n{opening}\n\n{evidence}\n\n{fit}\n\n{motivation}\n\n{closing}\n\n{signoff}"
+
+
 def answer_question(
     *,
     question: str,
@@ -217,33 +346,30 @@ def generate_cover_letter(
     *,
     profile: dict[str, Any],
     job: dict[str, Any] | None = None,
+    resume_text: str = "",
     tone: str = "concise and professional",
     extra_instructions: str = "",
 ) -> CopilotCoverLetterOut:
     client = _openai_client()
-    base = _profile_get(profile, "coverLetter") or _profile_get(profile, "summary")
-    job_title = _clean((job or {}).get("title"), 200) or "this role"
-    company = _clean((job or {}).get("company"), 200) or "your team"
-    fallback = (
-        f"Dear Hiring Manager,\n\nI am excited to apply for {job_title} at {company}. "
-        f"{base or 'My background aligns with the role requirements, and I would welcome the opportunity to discuss how I can contribute.'}\n\n"
-        "Kind regards"
-    )
+    fallback = _fallback_cover_letter(profile=profile, job=job, resume_text=resume_text)
     if client is None:
         return CopilotCoverLetterOut(
             cover_letter=fallback,
             source="fallback",
-            warnings=["Set OPENAI_API_KEY for a tailored cover letter."],
+            warnings=["AI generation is temporarily unavailable. This complete draft was created from your saved job, CV, and profile."],
         )
 
     system = (
-        "Write a truthful, concise job application cover letter. Use only the provided applicant profile and job context. "
-        "Do not invent experience. Return JSON with keys: cover_letter (string), warnings (array)."
+        "Write a truthful, polished job application cover letter of 300 to 450 words in 5 to 7 short paragraphs. "
+        "Tailor it to the role and company, connect specific CV evidence to job requirements, explain motivation, and close with a clear expression "
+        "of interest. Use only the provided applicant profile, resume, and job context. Never invent experience, qualifications, metrics, employers, "
+        "or responsibilities. Avoid generic filler and repeated claims. Return JSON with keys: cover_letter (string), warnings (array)."
     )
     user = {
         "tone": tone,
         "extra_instructions": extra_instructions,
         "applicant_profile": json.loads(_profile_context(profile) or "{}"),
+        "resume": _clean(resume_text, 16000),
         "job_context": _job_context(job),
     }
     try:
@@ -263,9 +389,9 @@ def generate_cover_letter(
             source="ai",
             warnings=[str(x) for x in data.get("warnings", []) if str(x).strip()],
         )
-    except Exception as e:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         return CopilotCoverLetterOut(
             cover_letter=fallback,
             source="fallback",
-            warnings=[f"AI unavailable, used fallback letter. ({type(e).__name__})"],
+            warnings=["AI generation is temporarily unavailable. This complete draft was created from your saved job, CV, and profile."],
         )
