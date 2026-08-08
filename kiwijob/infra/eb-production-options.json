@@ -11,6 +11,26 @@
   },
   {
     "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "GITHUB_OAUTH_CLIENT_ID",
+    "Value": ""
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "GITHUB_OAUTH_CLIENT_SECRET",
+    "Value": ""
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "LINKEDIN_OAUTH_CLIENT_ID",
+    "Value": ""
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "LINKEDIN_OAUTH_CLIENT_SECRET",
+    "Value": ""
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
     "OptionName": "SECURE_AUTH_COOKIE",
     "Value": "true"
   },
@@ -18,6 +38,11 @@
     "Namespace": "aws:elasticbeanstalk:application:environment",
     "OptionName": "WEB_APP_URL",
     "Value": "https://app.kiwijob.co.nz"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "API_PUBLIC_URL",
+    "Value": "https://api.kiwijob.co.nz"
   },
   {
     "Namespace": "aws:elasticbeanstalk:application:environment",

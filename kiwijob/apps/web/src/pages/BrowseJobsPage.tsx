@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
+import { useAuth } from "../auth";
 import type { JobSearchResult } from "../lib/api";
 import { saveJobRemote, searchJobsRemote } from "../lib/api";
 
@@ -213,6 +214,7 @@ const SOURCES: Source[] = [
 
 export default function BrowseJobsPage() {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [filters, setFilters] = useState<SearchFilters>({
     keywords: "Data Analyst",
     location: "All New Zealand",
@@ -242,7 +244,7 @@ export default function BrowseJobsPage() {
   }
 
   async function fetchRealJobs(nextFilters: SearchFilters = filters) {
-    if (!selectedSources.length) return;
+    if (!user || !selectedSources.length) return;
     const requestId = ++requestIdRef.current;
     setSearchBusy(true);
     setSearchError(null);
@@ -265,11 +267,17 @@ export default function BrowseJobsPage() {
 
   useEffect(() => {
     window.clearTimeout(debounceTimerRef.current);
+    if (authLoading || !user) {
+      setResults([]);
+      setSearchError(null);
+      setSearchBusy(false);
+      return;
+    }
     debounceTimerRef.current = window.setTimeout(() => {
       void fetchRealJobs(filters);
     }, 280);
     return () => window.clearTimeout(debounceTimerRef.current);
-  }, [filters.keywords, filters.location, filters.jobType, filters.minSalary]);
+  }, [authLoading, user?.id, filters.keywords, filters.location, filters.jobType, filters.minSalary]);
 
   async function saveResult(result: JobSearchResult) {
     if (savingUrl) return;

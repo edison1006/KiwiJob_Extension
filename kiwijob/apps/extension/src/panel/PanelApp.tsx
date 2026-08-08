@@ -16,9 +16,9 @@ type ExtractResp =
 
 type AnyResp = { ok: true; data?: unknown } | { ok: false; error: string };
 
-type TabId = "jobs" | "applications" | "profile" | "insights";
+type TabId = "jobs" | "profile" | "insights";
 type InsightRange = "7" | "30" | "90" | "custom";
-type AuthProvider = "google" | "apple";
+type AuthProvider = "google" | "apple" | "linkedin" | "github";
 type AuthStep = "email" | "password" | "oauth";
 type PrivacyConsentState = "loading" | "required" | "accepted";
 type LoadCvProfileOptions = { silent?: boolean; preferLatest?: boolean };
@@ -115,6 +115,31 @@ function initials(value: string): string {
     .filter(Boolean);
   const text = parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}` : (parts[0] || "KJ").slice(0, 2);
   return text.toUpperCase();
+}
+
+function SocialIcon({ provider }: { provider: "google" | "linkedin" | "github" }) {
+  if (provider === "google") {
+    return (
+      <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden>
+        <path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.5-.2-2.2H12v4.3h5.4a4.7 4.7 0 0 1-2 3v2.8h3.3c1.9-1.8 2.9-4.4 2.9-7.9Z" />
+        <path fill="#34A853" d="M12 22c2.7 0 5-.9 6.7-2.4l-3.3-2.8c-.9.6-2.1 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3v2.9A10 10 0 0 0 12 22Z" />
+        <path fill="#FBBC05" d="M6.4 13.7A6 6 0 0 1 6.1 12c0-.6.1-1.2.3-1.7v-3H3A10 10 0 0 0 3 16.6l3.4-2.9Z" />
+        <path fill="#EA4335" d="M12 6.2c1.5 0 2.9.5 3.9 1.5l2.9-2.9A9.8 9.8 0 0 0 3 7.4l3.4 2.9A6 6 0 0 1 12 6.2Z" />
+      </svg>
+    );
+  }
+  if (provider === "linkedin") {
+    return (
+      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="#0A66C2" aria-hidden>
+        <path d="M20.5 3h-17A2.5 2.5 0 0 0 1 5.5v13A2.5 2.5 0 0 0 3.5 21h17a2.5 2.5 0 0 0 2.5-2.5v-13A2.5 2.5 0 0 0 20.5 3ZM8 18H5V9h3v9ZM6.5 7.8A1.8 1.8 0 1 1 6.5 4a1.8 1.8 0 0 1 0 3.8ZM19 18h-3v-4.4c0-2.7-3-2.5-3 0V18h-3V9h3v1.4c1.4-2.5 6-2.7 6 2.4V18Z" />
+      </svg>
+    );
+  }
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.9c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 0 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5A3.9 3.9 0 0 1 6.6 8c-.1-.3-.5-1.3.1-3.3 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c2-1.3 2.8-1 2.8-1 .6 2 .2 3 .1 3.3a3.9 3.9 0 0 1 1 2.7c0 3.9-2.4 4.7-4.6 5 .4.3.7 1 .7 2V21c0 .3.2.6.7.5A10 10 0 0 0 12 2Z" />
+    </svg>
+  );
 }
 
 function isoDate(daysAgo: number): string {
@@ -633,10 +658,16 @@ export function KiwiJobPanel() {
   }
 
   async function submitAuth(mode = authMode) {
+    const email = authEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setAuthError("Enter a valid email address.");
+      return;
+    }
     if (authPassword.length < 8) {
       setAuthError("Password must be at least 8 characters.");
       return;
     }
+    setAuthEmail(email);
     setAuthBusy(true);
     setAuthError(null);
     setAuthMode(mode);
@@ -663,7 +694,27 @@ export function KiwiJobPanel() {
 
   async function signOut() {
     const resp = (await chrome.runtime.sendMessage({ type: "AUTH_LOGOUT" })) as AnyResp;
-    if (resp.ok) setAuth({ token: "", user: null });
+    if (resp.ok) {
+      setAuth({ token: "", user: null });
+      setCvProfile(null);
+      setResumes([]);
+      setInsights(null);
+      setCvProfileError(null);
+      setInsightsError(null);
+    }
+  }
+
+  function openSignIn() {
+    setAuthMode("login");
+    setAuthStep("email");
+    setAuthProvider(null);
+    setAuthError(null);
+    setAuthOpen(true);
+  }
+
+  function selectTab(nextTab: TabId) {
+    setTab(nextTab);
+    if ((nextTab === "profile" || nextTab === "insights") && !auth.user) openSignIn();
   }
 
   async function refreshExtract() {
@@ -877,6 +928,13 @@ export function KiwiJobPanel() {
 
   async function loadCvProfile(resumeId?: number | null, options: LoadCvProfileOptions = {}) {
     const { silent = false, preferLatest = resumeId == null } = options;
+    if (!auth.user) {
+      setCvProfile(null);
+      setResumes([]);
+      setCvProfileError(null);
+      if (!silent) openSignIn();
+      return;
+    }
     if (!silent) setCvProfileLoading(true);
     setCvProfileError(null);
     try {
@@ -910,6 +968,12 @@ export function KiwiJobPanel() {
   }
 
   async function loadInsights(range = insightRange) {
+    if (!auth.user) {
+      setInsights(null);
+      setInsightsError(null);
+      openSignIn();
+      return;
+    }
     setInsightsError(null);
     try {
       await persistSettings(apiBase);
@@ -933,15 +997,15 @@ export function KiwiJobPanel() {
   useEffect(() => {
     if (tab === "insights") void loadInsights(insightRange);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, insightRange, customStart, customEnd]);
+  }, [tab, insightRange, customStart, customEnd, auth.user?.id]);
 
   useEffect(() => {
     if (tab === "profile") void loadCvProfile(null, { preferLatest: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab]);
+  }, [tab, auth.user?.id]);
 
   useEffect(() => {
-    if (tab !== "profile") return;
+    if (tab !== "profile" || !auth.user) return;
     const syncLatest = () => void loadCvProfile(null, { preferLatest: true, silent: true });
     const timer = window.setInterval(syncLatest, 12000);
     window.addEventListener("focus", syncLatest);
@@ -952,11 +1016,10 @@ export function KiwiJobPanel() {
       document.removeEventListener("visibilitychange", syncLatest);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, apiBase, auth.token]);
+  }, [tab, apiBase, auth.token, auth.user?.id]);
 
   const tabs: { id: TabId; label: string; description: string }[] = [
-    { id: "jobs", label: "Jobs", description: "Job list and live detection" },
-    { id: "applications", label: "Applications", description: "Applied job tracking" },
+    { id: "jobs", label: "Jobs", description: "Job detection and application tracking" },
     { id: "profile", label: "Profile", description: "CV, skills, visa, and preferences" },
     { id: "insights", label: "Insights", description: "Analytics, success rate, and market trends" },
   ];
@@ -1077,7 +1140,7 @@ export function KiwiJobPanel() {
             ) : null}
             {authOpen && !auth.user ? (
               <div className="fixed inset-0 z-40 flex items-start justify-center bg-slate-950/45 px-4 py-10 backdrop-blur-[1px]">
-                <div className="w-full max-w-[22rem] rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-2xl">
+                <div className="max-h-[calc(100vh-2rem)] w-full max-w-[22rem] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-2xl">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-xl font-bold tracking-tight text-slate-950">
@@ -1098,6 +1161,38 @@ export function KiwiJobPanel() {
                     </button>
                   </div>
                   <div className="mt-5 space-y-3">
+                    <div className="grid grid-cols-2 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Account action">
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={authMode === "login"}
+                        className={`rounded-lg px-3 py-2 text-xs font-bold transition ${authMode === "login" ? "bg-white text-brand-700 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+                        onClick={() => {
+                          setAuthMode("login");
+                          setAuthStep("email");
+                          setAuthProvider(null);
+                          setAuthPassword("");
+                          setAuthError(null);
+                        }}
+                      >
+                        Sign in
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={authMode === "register"}
+                        className={`rounded-lg px-3 py-2 text-xs font-bold transition ${authMode === "register" ? "bg-white text-brand-700 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+                        onClick={() => {
+                          setAuthMode("register");
+                          setAuthStep("password");
+                          setAuthProvider(null);
+                          setAuthPassword("");
+                          setAuthError(null);
+                        }}
+                      >
+                        Create account
+                      </button>
+                    </div>
                     <label className="block text-sm font-semibold text-slate-800">
                       Email <span className="text-rose-600">*</span>
                       <input
@@ -1107,11 +1202,14 @@ export function KiwiJobPanel() {
                         value={authEmail}
                         onChange={(e) => {
                           setAuthEmail(e.target.value);
-                          setAuthStep("email");
+                          if (authMode === "login") setAuthStep("email");
                           setAuthError(null);
                         }}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") void continueAuthEmail();
+                          if (e.key === "Enter") {
+                            if (authMode === "register") void submitAuth("register");
+                            else void continueAuthEmail();
+                          }
                         }}
                       />
                     </label>
@@ -1185,18 +1283,36 @@ export function KiwiJobPanel() {
                     ) : (
                       <div className="space-y-3">
                         <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
-                          This account uses {authProvider === "apple" ? "Apple" : "Google"} sign-in. Confirm with {authProvider === "apple" ? "Apple" : "Google"} to continue securely.
+                          This account uses {authProvider === "apple" ? "Apple" : authProvider === "linkedin" ? "LinkedIn" : authProvider === "github" ? "GitHub" : "Google"} sign-in. Continue with the same provider securely.
                         </div>
                         <button
                           type="button"
                           className="w-full rounded-lg bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-700"
                           onClick={() => openDashboardAuth(authProvider, authEmail)}
                         >
-                          Continue with {authProvider === "apple" ? "Apple" : "Google"}
+                          Continue with {authProvider === "apple" ? "Apple" : authProvider === "linkedin" ? "LinkedIn" : authProvider === "github" ? "GitHub" : "Google"}
                         </button>
                       </div>
                     )}
-                    {authStep !== "email" ? (
+                    <div className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                      <span className="h-px flex-1 bg-slate-200" />
+                      or continue with
+                      <span className="h-px flex-1 bg-slate-200" />
+                    </div>
+                    <div className="space-y-2">
+                      {(["google", "linkedin", "github"] as const).map((provider) => (
+                        <button
+                          key={provider}
+                          type="button"
+                          className="relative flex w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 shadow-sm hover:bg-slate-50"
+                          onClick={() => openDashboardAuth(provider)}
+                        >
+                          <span className="absolute left-3"><SocialIcon provider={provider} /></span>
+                          Continue with {provider === "google" ? "Google" : provider === "linkedin" ? "LinkedIn" : "GitHub"}
+                        </button>
+                      ))}
+                    </div>
+                    {authStep !== "email" && authMode !== "register" ? (
                       <button type="button" className="text-xs font-semibold text-brand-700 hover:underline" onClick={() => setAuthStep("email")}>
                         Use a different email
                       </button>
@@ -1231,7 +1347,7 @@ export function KiwiJobPanel() {
               className={`relative flex-1 px-1.5 py-2 text-center text-[11px] font-semibold transition ${
                 tab === t.id ? "text-brand-700" : "text-slate-500 hover:text-slate-800"
               }`}
-              onClick={() => setTab(t.id)}
+              onClick={() => selectTab(t.id)}
             >
               {t.label}
               {tab === t.id ? (
@@ -1244,6 +1360,22 @@ export function KiwiJobPanel() {
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
         <div className="px-3 py-3 pb-6">
+          {(tab === "jobs" || msg || apiHealth === "offline") ? (
+            <div className="mb-3 space-y-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              {tab === "jobs" ? (
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+                  <span className="rounded bg-slate-200/80 px-1.5 py-0.5 text-[10px] font-medium text-slate-800">{saveLabel}</span>
+                </div>
+              ) : null}
+              {apiHealth === "offline" ? (
+                <p className="text-[11px] leading-snug text-amber-900">
+                  API status check failed for <code className="rounded bg-amber-50 px-0.5">{normalizeApiBase(apiBase)}</code>. If{" "}
+                  <code className="rounded bg-amber-50 px-0.5">/health</code> opens in a tab, continue signing in or saving to verify.
+                </p>
+              ) : null}
+              {msg ? <div className="rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-800">{msg}</div> : null}
+            </div>
+          ) : null}
           {tab === "jobs" ? (
             <div className="space-y-4">
               <div className="rounded-xl border border-slate-200 bg-slate-50/90 p-3">
@@ -1282,14 +1414,48 @@ export function KiwiJobPanel() {
                 </button>
               </div>
 
-              <button
-                type="button"
-                disabled={busy || !draft}
-                onClick={() => void onSave(false)}
-                className="flex w-full items-center justify-center rounded-lg bg-brand-600 px-3 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
-              >
-                {busy ? "Saving…" : "Save to job tracker"}
-              </button>
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+                <div className="text-xs font-semibold text-slate-800">Application tracking</div>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                  Choose the current stage, then save or update this job in your tracker.
+                </p>
+                <div className="mt-3">
+                  <label className="text-xs font-semibold text-slate-600">Current status</label>
+                  <select
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
+                    value={status}
+                    onChange={(e) => {
+                      const s = e.target.value as ApplicationStatus;
+                      setStatus(s);
+                      setDraft((d) => (d ? { ...d, status: s } : d));
+                    }}
+                  >
+                    {APPLICATION_STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  disabled={busy || !draft}
+                  onClick={() => void onSave(false)}
+                  className="mt-3 flex w-full items-center justify-center rounded-lg bg-brand-600 px-3 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
+                >
+                  {busy ? "Saving…" : "Save / update application"}
+                </button>
+                <button
+                  type="button"
+                  className="mt-2 flex w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+                  onClick={() => {
+                    if (lastId) openSavedJobInDashboard(lastId);
+                    else void chrome.tabs.create({ url: `${normalizeWebAppUrl(webAppUrl)}/tracker` });
+                  }}
+                >
+                  Open job tracker
+                </button>
+              </div>
 
               <button
                 type="button"
@@ -1338,53 +1504,6 @@ export function KiwiJobPanel() {
               >
                 Open NZ job search
               </button>
-            </div>
-          ) : null}
-
-          {tab === "applications" ? (
-            <div className="space-y-4">
-              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
-                <div className="text-xs font-semibold text-slate-800">Application tracking</div>
-                <p className="mt-2 text-xs leading-relaxed text-slate-600">
-                  Save jobs from the Jobs tab, then track application status, interviews, offers, and outcomes in the dashboard.
-                </p>
-                <div className="mt-3">
-                  <label className="text-xs font-semibold text-slate-600">Current status</label>
-                  <select
-                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
-                    value={status}
-                    onChange={(e) => {
-                      const s = e.target.value as ApplicationStatus;
-                      setStatus(s);
-                      setDraft((d) => (d ? { ...d, status: s } : d));
-                    }}
-                  >
-                    {APPLICATION_STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  type="button"
-                  disabled={busy || !draft}
-                  onClick={() => void onSave()}
-                  className="mt-3 flex w-full items-center justify-center rounded-lg bg-brand-600 px-3 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
-                >
-                  Save / update application
-                </button>
-                <button
-                  type="button"
-                  className="mt-2 flex w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
-                  onClick={() => {
-                    if (lastId) openSavedJobInDashboard(lastId);
-                    else void chrome.tabs.create({ url: `${normalizeWebAppUrl(webAppUrl)}/tracker` });
-                  }}
-                >
-                  Open applications dashboard
-                </button>
-              </div>
             </div>
           ) : null}
 
@@ -1590,43 +1709,6 @@ export function KiwiJobPanel() {
         </div>
       </div>
 
-      <footer className="z-10 shrink-0 border-t border-slate-200 bg-white shadow-[0_-4px_14px_-6px_rgba(15,23,42,0.12)]">
-        {(tab === "jobs" || msg || apiHealth === "offline") && (
-          <div className="space-y-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
-            {tab === "jobs" ? (
-              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
-                <span className="rounded bg-slate-200/80 px-1.5 py-0.5 text-[10px] font-medium text-slate-800">{saveLabel}</span>
-              </div>
-            ) : null}
-            {apiHealth === "offline" ? (
-              <p className="text-[11px] leading-snug text-amber-900">
-                API status check failed for <code className="rounded bg-amber-50 px-0.5">{normalizeApiBase(apiBase)}</code>. If{" "}
-                <code className="rounded bg-amber-50 px-0.5">/health</code> opens in a tab, continue signing in or saving to verify.
-              </p>
-            ) : null}
-            {msg ? <div className="rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-800">{msg}</div> : null}
-          </div>
-        )}
-        <div className="flex items-center gap-2 px-3 py-2">
-          <img src={kiwijobLogoSrc} alt="" className="h-7 w-7 shrink-0 object-contain" width={28} height={28} />
-          <span className="text-sm font-semibold tracking-tight text-slate-900">KiwiJob</span>
-          <div className="min-w-0 flex-1" />
-          <button
-            type="button"
-            className="rounded-md px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-100"
-            onClick={openPrivacyNotice}
-          >
-            Privacy
-          </button>
-          <button
-            type="button"
-            className="rounded-md px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-100"
-            onClick={() => openWebDashboard()}
-          >
-            Dashboard
-          </button>
-        </div>
-      </footer>
     </div>
   );
 }

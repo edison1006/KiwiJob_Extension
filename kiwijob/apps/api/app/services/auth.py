@@ -80,6 +80,41 @@ def create_oauth_state(user_id: int) -> str:
     return f"{signing_input}.{_b64url(sig)}"
 
 
+def create_social_oauth_state(provider: str, return_to: str = "/") -> str:
+    settings = get_settings()
+    now = int(time.time())
+    safe_return_to = return_to if return_to.startswith("/") and not return_to.startswith("//") else "/"
+    payload: dict[str, Any] = {
+        "purpose": "social_oauth",
+        "provider": provider,
+        "return_to": safe_return_to,
+        "nonce": _b64url(os.urandom(18)),
+        "iat": now,
+        "exp": now + 10 * 60,
+    }
+    header = {"alg": "HS256", "typ": "JWT"}
+    signing_input = ".".join(
+        [
+            _b64url(json.dumps(header, separators=(",", ":")).encode("utf-8")),
+            _b64url(json.dumps(payload, separators=(",", ":")).encode("utf-8")),
+        ]
+    )
+    sig = hmac.new(settings.jwt_secret_key.encode("utf-8"), signing_input.encode("ascii"), hashlib.sha256).digest()
+    return f"{signing_input}.{_b64url(sig)}"
+
+
+def decode_social_oauth_state(token: str, provider: str) -> dict[str, Any] | None:
+    payload = decode_access_token(token)
+    if (
+        not payload
+        or payload.get("purpose") != "social_oauth"
+        or payload.get("provider") != provider
+        or not payload.get("nonce")
+    ):
+        return None
+    return payload
+
+
 def decode_oauth_state(token: str) -> dict[str, Any] | None:
     payload = decode_access_token(token)
     if not payload or payload.get("purpose") != "gmail_oauth" or not payload.get("nonce"):

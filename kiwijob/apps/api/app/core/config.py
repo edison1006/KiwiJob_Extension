@@ -21,10 +21,15 @@ class Settings(BaseSettings):
     openai_cv_max_output_tokens: int = 5000
     openai_copilot_max_output_tokens: int = 1500
     google_oauth_client_id: str | None = None
+    github_oauth_client_id: str | None = None
+    github_oauth_client_secret: str | None = None
+    linkedin_oauth_client_id: str | None = None
+    linkedin_oauth_client_secret: str | None = None
     google_workspace_addon_client_id: str | None = None
     google_workspace_addon_service_account_email: str | None = None
     google_workspace_addon_audience: str = "http://localhost:8000/integrations/gmail-addon"
     web_app_url: str = "http://localhost:5173"
+    api_public_url: str = "http://localhost:8000"
     apple_oauth_client_id: str | None = None
     jwt_secret_key: str = "change-me-in-production"
     jwt_expires_minutes: int = 60 * 24 * 14
@@ -98,6 +103,9 @@ def validate_settings(settings: Settings) -> None:
     web_app_url = urlsplit(settings.web_app_url)
     if web_app_url.scheme != "https" or not web_app_url.netloc:
         errors.append("WEB_APP_URL must be an absolute https:// URL in production")
+    api_public_url = urlsplit(settings.api_public_url)
+    if api_public_url.scheme != "https" or not api_public_url.netloc:
+        errors.append("API_PUBLIC_URL must be an absolute https:// URL in production")
     if not settings.openai_api_key:
         errors.append("OPENAI_API_KEY must be set so production never returns mock AI results")
     addon_values = (
@@ -113,6 +121,10 @@ def validate_settings(settings: Settings) -> None:
         errors.append("RESUME_S3_BUCKET must be set so uploaded CVs use durable storage")
     if not settings.rate_limit_enabled:
         errors.append("RATE_LIMIT_ENABLED must be true")
+    if bool(settings.github_oauth_client_id) != bool(settings.github_oauth_client_secret):
+        errors.append("GITHUB_OAUTH_CLIENT_ID and GITHUB_OAUTH_CLIENT_SECRET must be set together")
+    if bool(settings.linkedin_oauth_client_id) != bool(settings.linkedin_oauth_client_secret):
+        errors.append("LINKEDIN_OAUTH_CLIENT_ID and LINKEDIN_OAUTH_CLIENT_SECRET must be set together")
 
     cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
     if not cors_origins or "*" in cors_origins:

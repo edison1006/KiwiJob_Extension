@@ -42,13 +42,30 @@ const premiumGradientClass =
   "animate-[premium-gradient_3s_ease_infinite] bg-[linear-gradient(90deg,#c4b5fd,#8b5cf6,#e879f9,#c4b5fd)] bg-[length:220%_100%] bg-clip-text text-transparent";
 
 export function AppLayout() {
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem(LS_SIDEBAR_COLLAPSED) === "1");
   const [gmailPromptOpen, setGmailPromptOpen] = useState(false);
   const [gmailPromptBusy, setGmailPromptBusy] = useState(false);
   const authModalOpen = new URLSearchParams(location.search).get("auth") === "login";
+
+  const requiresAccount =
+    location.pathname === "/matches"
+    || location.pathname === "/browse"
+    || location.pathname === "/tracker"
+    || location.pathname === "/documents"
+    || location.pathname === "/cv-optimizer"
+    || location.pathname === "/settings"
+    || location.pathname === "/services"
+    || location.pathname === "/interview-assistant"
+    || location.pathname === "/analytics"
+    || location.pathname.startsWith("/jobs/")
+    || location.pathname.startsWith("/match/");
+
+  useEffect(() => {
+    if (!loading && !user && requiresAccount && !authModalOpen) openAuthModal("login");
+  }, [authModalOpen, loading, location.pathname, requiresAccount, user]);
 
   useEffect(() => {
     if (!user) {

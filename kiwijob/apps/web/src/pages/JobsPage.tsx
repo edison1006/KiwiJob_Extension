@@ -5,6 +5,7 @@ import { APPLICATION_STATUSES, type ApplicationStatus } from "@kiwijob/shared";
 import { DashboardHero } from "../components/DashboardHero";
 import { PageHeader } from "../components/PageHeader";
 import { statusToneClass } from "../components/StatusBadge";
+import { useAuth } from "../auth";
 import { deleteJob, extractJobFromUrl, fetchJobs, saveJobRemote, updateJobStatus } from "../lib/api";
 
 function fmtDate(iso: string) {
@@ -83,6 +84,7 @@ function StatusSelect({
 }
 
 export default function JobsPage() {
+  const { user, loading: authLoading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const isMatchesRoute = location.pathname === "/matches";
@@ -110,6 +112,12 @@ export default function JobsPage() {
   const [extractFeedback, setExtractFeedback] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading || !user) {
+      setRows(null);
+      setError(null);
+      return;
+    }
+    setError(null);
     fetchJobs()
       .then((data) => {
         setRows(data);
@@ -123,7 +131,7 @@ export default function JobsPage() {
         }
       })
       .catch((e: Error) => setError(e.message));
-  }, [query, savedFromExtensionId]);
+  }, [authLoading, query, savedFromExtensionId, user?.id]);
 
   const filtered = useMemo(() => {
     if (!rows) return [];
@@ -379,7 +387,7 @@ export default function JobsPage() {
           }
         />
         <DashboardHero />
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">Could not load jobs. Is the API running? ({error})</div>
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">Could not load your applications. {error}</div>
       </div>
     );
   }

@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { useAuth } from "../auth";
-import { identifyAccount } from "../lib/api";
+import { getApiBaseUrl, identifyAccount } from "../lib/api";
 
 type AuthMode = "login" | "register";
 type AuthStep = "email" | "credentials";
@@ -27,6 +27,22 @@ function AppleIcon() {
   );
 }
 
+function LinkedInIcon() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="#0A66C2" aria-hidden>
+      <path d="M20.5 3h-17A2.5 2.5 0 0 0 1 5.5v13A2.5 2.5 0 0 0 3.5 21h17a2.5 2.5 0 0 0 2.5-2.5v-13A2.5 2.5 0 0 0 20.5 3ZM8 18H5V9h3v9ZM6.5 7.8A1.8 1.8 0 1 1 6.5 4a1.8 1.8 0 0 1 0 3.8ZM19 18h-3v-4.4c0-2.7-3-2.5-3 0V18h-3V9h3v1.4c1.4-2.5 6-2.7 6 2.4V18Z" />
+    </svg>
+  );
+}
+
+function GitHubIcon() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.9c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 0 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5A3.9 3.9 0 0 1 6.6 8c-.1-.3-.5-1.3.1-3.3 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c2-1.3 2.8-1 2.8-1 .6 2 .2 3 .1 3.3a3.9 3.9 0 0 1 1 2.7c0 3.9-2.4 4.7-4.6 5 .4.3.7 1 .7 2V21c0 .3.2.6.7.5A10 10 0 0 0 12 2Z" />
+    </svg>
+  );
+}
+
 export default function AuthPage() {
   const { user, login, loginWithOAuth, register } = useAuth();
   const location = useLocation();
@@ -34,7 +50,9 @@ export default function AuthPage() {
   const authQuery = new URLSearchParams(location.search);
   const queryMode = authQuery.get("mode");
   const queryProvider = authQuery.get("provider");
-  const requestedProvider = queryProvider === "google" || queryProvider === "apple" ? queryProvider : null;
+  const requestedProvider = ["google", "apple", "linkedin", "github"].includes(queryProvider || "")
+    ? (queryProvider as "google" | "apple" | "linkedin" | "github")
+    : null;
   const initialEmail = authQuery.get("email")?.trim() || "";
   const preferredMode: AuthMode = queryMode === "register" ? "register" : "login";
   const [step, setStep] = useState<AuthStep>(requestedProvider && initialEmail ? "credentials" : "email");
@@ -48,11 +66,19 @@ export default function AuthPage() {
   const [busy, setBusy] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const googlePromptRequestedRef = useRef(false);
+  const socialRedirectRequestedRef = useRef(false);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
   const appleClientId = import.meta.env.VITE_APPLE_CLIENT_ID?.trim();
-  const hasSocialLogin = Boolean(googleClientId || appleClientId);
-  const from = (location.state as { from?: string } | null)?.from || "/";
+  const queryReturnTo = authQuery.get("return_to") || "";
+  const stateFrom = (location.state as { from?: string } | null)?.from || "";
+  const from = (queryReturnTo.startsWith("/") && !queryReturnTo.startsWith("//") ? queryReturnTo : stateFrom) || "/";
   const inPageModal = new URLSearchParams(location.search).get("auth") === "login";
+
+  function startSocialLogin(provider: "github" | "linkedin") {
+    const url = new URL(`${getApiBaseUrl()}/auth/social/${provider}/start`);
+    url.searchParams.set("return_to", from);
+    window.location.assign(url.toString());
+  }
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -61,6 +87,18 @@ export default function AuthPage() {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   });
+
+  useEffect(() => {
+    const oauthError = authQuery.get("oauth_error");
+    if (oauthError) setError("Social sign-in was cancelled or could not be completed.");
+    if (
+      (requestedProvider === "github" || requestedProvider === "linkedin")
+      && !socialRedirectRequestedRef.current
+    ) {
+      socialRedirectRequestedRef.current = true;
+      startSocialLogin(requestedProvider);
+    }
+  }, [requestedProvider]);
 
   useEffect(() => {
     if (!googleClientId || !googleButtonRef.current) return;
@@ -355,7 +393,7 @@ export default function AuthPage() {
                 </label>
               ) : (
                 <div className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm leading-6 text-brand-900">
-                  This account uses {requestedProvider === "apple" ? "Apple" : requestedProvider === "google" ? "Google" : "Google or Apple"} sign-in. Continue with the same provider below.
+                  This account uses {requestedProvider === "apple" ? "Apple" : requestedProvider === "linkedin" ? "LinkedIn" : requestedProvider === "github" ? "GitHub" : requestedProvider === "google" ? "Google" : "social"} sign-in. Continue with the same provider below.
                 </div>
               )}
 
@@ -384,29 +422,43 @@ export default function AuthPage() {
             </form>
           )}
 
-          {hasSocialLogin ? (
-            <>
-              <div className="my-5 flex items-center gap-4 text-xs text-slate-500">
-                <span className="h-px flex-1 bg-slate-200" />
-                or
-                <span className="h-px flex-1 bg-slate-200" />
-              </div>
-              <div className="space-y-3">
-                {googleClientId ? <div ref={googleButtonRef} className="min-h-11 w-full overflow-hidden rounded-xl" /> : null}
-                {appleClientId ? (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    className="relative flex w-full items-center justify-center rounded-xl border border-slate-800 bg-white px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-slate-50 disabled:opacity-50"
-                    onClick={() => void signInWithApple()}
-                  >
-                    <span className="absolute left-4"><AppleIcon /></span>
-                    Continue with Apple
-                  </button>
-                ) : null}
-              </div>
-            </>
-          ) : null}
+          <div className="my-5 flex items-center gap-4 text-xs text-slate-500">
+            <span className="h-px flex-1 bg-slate-200" />
+            or continue with
+            <span className="h-px flex-1 bg-slate-200" />
+          </div>
+          <div className="space-y-3">
+            {googleClientId ? <div ref={googleButtonRef} className="min-h-11 w-full overflow-hidden rounded-xl" /> : null}
+            <button
+              type="button"
+              disabled={busy}
+              className="relative flex w-full items-center justify-center rounded-xl border border-[#0A66C2] bg-white px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-blue-50 disabled:opacity-50"
+              onClick={() => startSocialLogin("linkedin")}
+            >
+              <span className="absolute left-4"><LinkedInIcon /></span>
+              Continue with LinkedIn
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              className="relative flex w-full items-center justify-center rounded-xl border border-slate-800 bg-white px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-slate-50 disabled:opacity-50"
+              onClick={() => startSocialLogin("github")}
+            >
+              <span className="absolute left-4"><GitHubIcon /></span>
+              Continue with GitHub
+            </button>
+            {appleClientId ? (
+              <button
+                type="button"
+                disabled={busy}
+                className="relative flex w-full items-center justify-center rounded-xl border border-slate-800 bg-white px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-slate-50 disabled:opacity-50"
+                onClick={() => void signInWithApple()}
+              >
+                <span className="absolute left-4"><AppleIcon /></span>
+                Continue with Apple
+              </button>
+            ) : null}
+          </div>
 
           <p className="mt-6 text-xs leading-5 text-slate-500">
             By continuing, you agree to KiwiJob&apos;s{" "}

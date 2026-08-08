@@ -107,6 +107,57 @@ def test_oauth_login_creates_user_and_merges_by_email(monkeypatch) -> None:
         assert status.json()["email_address"] == email
 
 
+def test_google_login_reuses_account_with_linked_gmail(monkeypatch) -> None:
+    from sqlmodel import Session
+
+    from app.db.session import get_engine
+    from app.models import User
+    from app.routers import auth as auth_router
+    from app.services.oauth import OAuthIdentity
+
+    account_email = f"account-{uuid4().hex}@example.com"
+    gmail_email = f"linked-{uuid4().hex}@gmail.com"
+    gmail_subject = f"google-{uuid4().hex}"
+
+    with TestClient(app) as client:
+        _, user_id = auth_headers(client, email=account_email)
+        with Session(get_engine()) as session:
+            user = session.get(User, user_id)
+            assert user is not None
+            user.gmail_email = gmail_email
+            user.gmail_subject = gmail_subject
+            session.add(user)
+            session.commit()
+
+        monkeypatch.setattr(
+            auth_router,
+            "verify_oauth_identity",
+            lambda provider, token: OAuthIdentity(
+                provider=provider,
+                subject=gmail_subject,
+                email=gmail_email,
+                display_name="Linked Google Candidate",
+            ),
+        )
+
+        identified = client.post("/auth/identify", json={"email": gmail_email})
+        assert identified.status_code == 200
+        assert identified.json() == {
+            "account_exists": True,
+            "password_login_available": False,
+            "auth_provider": "google",
+        }
+
+        oauth = client.post("/auth/oauth", json={"provider": "google", "id_token": "x" * 40})
+        assert oauth.status_code == 200
+        assert oauth.json()["user"]["id"] == user_id
+        assert oauth.json()["user"]["email"] == gmail_email
+
+        old_email = client.post("/auth/identify", json={"email": account_email})
+        assert old_email.status_code == 200
+        assert old_email.json()["account_exists"] is False
+
+
 def test_user_data_is_isolated_by_authenticated_user_id() -> None:
     with TestClient(app) as client:
         headers_a, _ = auth_headers(client)
