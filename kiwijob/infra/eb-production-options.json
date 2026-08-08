@@ -21,16 +21,6 @@
   },
   {
     "Namespace": "aws:elasticbeanstalk:application:environment",
-    "OptionName": "LINKEDIN_OAUTH_CLIENT_ID",
-    "Value": ""
-  },
-  {
-    "Namespace": "aws:elasticbeanstalk:application:environment",
-    "OptionName": "LINKEDIN_OAUTH_CLIENT_SECRET",
-    "Value": ""
-  },
-  {
-    "Namespace": "aws:elasticbeanstalk:application:environment",
     "OptionName": "SECURE_AUTH_COOKIE",
     "Value": "true"
   },

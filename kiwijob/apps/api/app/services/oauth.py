@@ -40,19 +40,6 @@ def social_authorization_url(provider: str, redirect_uri: str, state: str) -> st
             }
         )
         return f"https://github.com/login/oauth/authorize?{query}"
-    if provider == "linkedin":
-        if not settings.linkedin_oauth_client_id or not settings.linkedin_oauth_client_secret:
-            raise HTTPException(status_code=503, detail="LinkedIn sign-in is not configured")
-        query = urlencode(
-            {
-                "response_type": "code",
-                "client_id": settings.linkedin_oauth_client_id,
-                "redirect_uri": redirect_uri,
-                "scope": "openid profile email",
-                "state": state,
-            }
-        )
-        return f"https://www.linkedin.com/oauth/v2/authorization?{query}"
     raise HTTPException(status_code=404, detail="Unsupported social sign-in provider")
 
 
@@ -97,37 +84,6 @@ def exchange_social_code(provider: str, code: str, redirect_uri: str) -> OAuthId
                     display_name=str(profile.get("name") or profile.get("login") or ""),
                 )
 
-            if provider == "linkedin":
-                token_response = client.post(
-                    "https://www.linkedin.com/oauth/v2/accessToken",
-                    data={
-                        "grant_type": "authorization_code",
-                        "code": code,
-                        "client_id": settings.linkedin_oauth_client_id,
-                        "client_secret": settings.linkedin_oauth_client_secret,
-                        "redirect_uri": redirect_uri,
-                    },
-                )
-                token_response.raise_for_status()
-                access_token = str(token_response.json().get("access_token") or "")
-                if not access_token:
-                    raise ValueError("LinkedIn did not return an access token")
-                profile_response = client.get(
-                    "https://api.linkedin.com/v2/userinfo",
-                    headers={"Authorization": f"Bearer {access_token}"},
-                )
-                profile_response.raise_for_status()
-                profile = profile_response.json()
-                email = str(profile.get("email") or "").strip().lower()
-                subject = str(profile.get("sub") or "").strip()
-                if not subject or not email or profile.get("email_verified") is False:
-                    raise ValueError("LinkedIn account does not expose a verified email")
-                return OAuthIdentity(
-                    provider="linkedin",
-                    subject=subject,
-                    email=email,
-                    display_name=str(profile.get("name") or ""),
-                )
     except (httpx.HTTPError, ValueError, TypeError) as exc:
         raise HTTPException(status_code=401, detail=f"{provider.title()} sign-in could not be completed") from exc
     raise HTTPException(status_code=404, detail="Unsupported social sign-in provider")

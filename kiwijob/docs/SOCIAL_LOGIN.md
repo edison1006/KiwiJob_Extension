@@ -1,13 +1,12 @@
 # Social login setup
 
-KiwiJob supports Google Identity Services plus server-side OAuth authorization-code flows for GitHub and LinkedIn. A first social login creates the KiwiJob account; later logins reuse the same email account.
+KiwiJob supports Google Identity Services plus a server-side OAuth authorization-code flow for GitHub. A first social login creates the KiwiJob account; later logins reuse the same email account.
 
 ## Production callback URLs
 
 Register these exact callback URLs with each provider:
 
 - GitHub: `https://api.kiwijob.co.nz/auth/social/github/callback`
-- LinkedIn: `https://api.kiwijob.co.nz/auth/social/linkedin/callback`
 
 ## GitHub
 
@@ -17,15 +16,6 @@ Register these exact callback URLs with each provider:
 4. Store the credentials as `GITHUB_OAUTH_CLIENT_ID` and `GITHUB_OAUTH_CLIENT_SECRET` in the API environment.
 
 KiwiJob requests `read:user user:email` and uses a verified GitHub email address to create or locate the account.
-
-## LinkedIn
-
-1. Create a LinkedIn Developer application.
-2. Add the **Sign In with LinkedIn using OpenID Connect** product.
-3. Add the LinkedIn callback above under authorized redirect URLs.
-4. Store the credentials as `LINKEDIN_OAUTH_CLIENT_ID` and `LINKEDIN_OAUTH_CLIENT_SECRET` in the API environment.
-
-KiwiJob requests only `openid profile email` and reads the standard OIDC UserInfo response.
 
 ## API public URL
 

@@ -120,7 +120,7 @@ def identify_account(body: AccountIdentifyIn, request: Request, session: Session
         auth_provider=(
             "google"
             if matched_linked_gmail
-            else user.auth_provider if user and user.auth_provider in {"google", "apple", "github", "linkedin"} else None
+            else user.auth_provider if user and user.auth_provider in {"google", "apple", "github"} else None
         ),
     )
 
@@ -193,7 +193,7 @@ def oauth_login(body: OAuthIn, request: Request, response: Response, session: Se
 
 @router.get("/social/{provider}/start")
 def social_oauth_start(provider: str, return_to: str = "/"):
-    if provider not in {"github", "linkedin"}:
+    if provider != "github":
         raise HTTPException(status_code=404, detail="Unsupported social sign-in provider")
     redirect_uri = f"{get_settings().api_public_url.rstrip('/')}/auth/social/{provider}/callback"
     state_token = create_social_oauth_state(provider, return_to)

@@ -18,7 +18,7 @@ type AnyResp = { ok: true; data?: unknown } | { ok: false; error: string };
 
 type TabId = "jobs" | "profile" | "insights";
 type InsightRange = "7" | "30" | "90" | "custom";
-type AuthProvider = "google" | "apple" | "linkedin" | "github";
+type AuthProvider = "google" | "apple" | "github";
 type AuthStep = "email" | "password" | "oauth";
 type PrivacyConsentState = "loading" | "required" | "accepted";
 type LoadCvProfileOptions = { silent?: boolean; preferLatest?: boolean };
@@ -117,7 +117,7 @@ function initials(value: string): string {
   return text.toUpperCase();
 }
 
-function SocialIcon({ provider }: { provider: "google" | "linkedin" | "github" }) {
+function SocialIcon({ provider }: { provider: "google" | "github" }) {
   if (provider === "google") {
     return (
       <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden>
@@ -125,13 +125,6 @@ function SocialIcon({ provider }: { provider: "google" | "linkedin" | "github" }
         <path fill="#34A853" d="M12 22c2.7 0 5-.9 6.7-2.4l-3.3-2.8c-.9.6-2.1 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3v2.9A10 10 0 0 0 12 22Z" />
         <path fill="#FBBC05" d="M6.4 13.7A6 6 0 0 1 6.1 12c0-.6.1-1.2.3-1.7v-3H3A10 10 0 0 0 3 16.6l3.4-2.9Z" />
         <path fill="#EA4335" d="M12 6.2c1.5 0 2.9.5 3.9 1.5l2.9-2.9A9.8 9.8 0 0 0 3 7.4l3.4 2.9A6 6 0 0 1 12 6.2Z" />
-      </svg>
-    );
-  }
-  if (provider === "linkedin") {
-    return (
-      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="#0A66C2" aria-hidden>
-        <path d="M20.5 3h-17A2.5 2.5 0 0 0 1 5.5v13A2.5 2.5 0 0 0 3.5 21h17a2.5 2.5 0 0 0 2.5-2.5v-13A2.5 2.5 0 0 0 20.5 3ZM8 18H5V9h3v9ZM6.5 7.8A1.8 1.8 0 1 1 6.5 4a1.8 1.8 0 0 1 0 3.8ZM19 18h-3v-4.4c0-2.7-3-2.5-3 0V18h-3V9h3v1.4c1.4-2.5 6-2.7 6 2.4V18Z" />
       </svg>
     );
   }
@@ -1283,14 +1276,14 @@ export function KiwiJobPanel() {
                     ) : (
                       <div className="space-y-3">
                         <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
-                          This account uses {authProvider === "apple" ? "Apple" : authProvider === "linkedin" ? "LinkedIn" : authProvider === "github" ? "GitHub" : "Google"} sign-in. Continue with the same provider securely.
+                          This account uses {authProvider === "apple" ? "Apple" : authProvider === "github" ? "GitHub" : "Google"} sign-in. Continue with the same provider securely.
                         </div>
                         <button
                           type="button"
                           className="w-full rounded-lg bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-700"
                           onClick={() => openDashboardAuth(authProvider, authEmail)}
                         >
-                          Continue with {authProvider === "apple" ? "Apple" : authProvider === "linkedin" ? "LinkedIn" : authProvider === "github" ? "GitHub" : "Google"}
+                          Continue with {authProvider === "apple" ? "Apple" : authProvider === "github" ? "GitHub" : "Google"}
                         </button>
                       </div>
                     )}
@@ -1300,7 +1293,7 @@ export function KiwiJobPanel() {
                       <span className="h-px flex-1 bg-slate-200" />
                     </div>
                     <div className="space-y-2">
-                      {(["google", "linkedin", "github"] as const).map((provider) => (
+                      {(["google", "github"] as const).map((provider) => (
                         <button
                           key={provider}
                           type="button"
@@ -1308,7 +1301,7 @@ export function KiwiJobPanel() {
                           onClick={() => openDashboardAuth(provider)}
                         >
                           <span className="absolute left-3"><SocialIcon provider={provider} /></span>
-                          Continue with {provider === "google" ? "Google" : provider === "linkedin" ? "LinkedIn" : "GitHub"}
+                          Continue with {provider === "google" ? "Google" : "GitHub"}
                         </button>
                       ))}
                     </div>

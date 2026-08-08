@@ -29,6 +29,13 @@ def test_auth_required_for_user_data() -> None:
     assert res.status_code == 401
 
 
+def test_linkedin_social_login_is_not_available() -> None:
+    with TestClient(app) as client:
+        response = client.get("/auth/social/linkedin/start")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Unsupported social sign-in provider"
+
+
 def test_login_rate_limit_returns_retry_after() -> None:
     with TestClient(app) as client:
         responses = [

@@ -27,14 +27,6 @@ function AppleIcon() {
   );
 }
 
-function LinkedInIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="#0A66C2" aria-hidden>
-      <path d="M20.5 3h-17A2.5 2.5 0 0 0 1 5.5v13A2.5 2.5 0 0 0 3.5 21h17a2.5 2.5 0 0 0 2.5-2.5v-13A2.5 2.5 0 0 0 20.5 3ZM8 18H5V9h3v9ZM6.5 7.8A1.8 1.8 0 1 1 6.5 4a1.8 1.8 0 0 1 0 3.8ZM19 18h-3v-4.4c0-2.7-3-2.5-3 0V18h-3V9h3v1.4c1.4-2.5 6-2.7 6 2.4V18Z" />
-    </svg>
-  );
-}
-
 function GitHubIcon() {
   return (
     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -50,8 +42,8 @@ export default function AuthPage() {
   const authQuery = new URLSearchParams(location.search);
   const queryMode = authQuery.get("mode");
   const queryProvider = authQuery.get("provider");
-  const requestedProvider = ["google", "apple", "linkedin", "github"].includes(queryProvider || "")
-    ? (queryProvider as "google" | "apple" | "linkedin" | "github")
+  const requestedProvider = ["google", "apple", "github"].includes(queryProvider || "")
+    ? (queryProvider as "google" | "apple" | "github")
     : null;
   const initialEmail = authQuery.get("email")?.trim() || "";
   const preferredMode: AuthMode = queryMode === "register" ? "register" : "login";
@@ -74,7 +66,7 @@ export default function AuthPage() {
   const from = (queryReturnTo.startsWith("/") && !queryReturnTo.startsWith("//") ? queryReturnTo : stateFrom) || "/";
   const inPageModal = new URLSearchParams(location.search).get("auth") === "login";
 
-  function startSocialLogin(provider: "github" | "linkedin") {
+  function startSocialLogin(provider: "github") {
     const url = new URL(`${getApiBaseUrl()}/auth/social/${provider}/start`);
     url.searchParams.set("return_to", from);
     window.location.assign(url.toString());
@@ -92,7 +84,7 @@ export default function AuthPage() {
     const oauthError = authQuery.get("oauth_error");
     if (oauthError) setError("Social sign-in was cancelled or could not be completed.");
     if (
-      (requestedProvider === "github" || requestedProvider === "linkedin")
+      requestedProvider === "github"
       && !socialRedirectRequestedRef.current
     ) {
       socialRedirectRequestedRef.current = true;
@@ -393,7 +385,7 @@ export default function AuthPage() {
                 </label>
               ) : (
                 <div className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm leading-6 text-brand-900">
-                  This account uses {requestedProvider === "apple" ? "Apple" : requestedProvider === "linkedin" ? "LinkedIn" : requestedProvider === "github" ? "GitHub" : requestedProvider === "google" ? "Google" : "social"} sign-in. Continue with the same provider below.
+                  This account uses {requestedProvider === "apple" ? "Apple" : requestedProvider === "github" ? "GitHub" : requestedProvider === "google" ? "Google" : "social"} sign-in. Continue with the same provider below.
                 </div>
               )}
 
@@ -429,15 +421,6 @@ export default function AuthPage() {
           </div>
           <div className="space-y-3">
             {googleClientId ? <div ref={googleButtonRef} className="min-h-11 w-full overflow-hidden rounded-xl" /> : null}
-            <button
-              type="button"
-              disabled={busy}
-              className="relative flex w-full items-center justify-center rounded-xl border border-[#0A66C2] bg-white px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-blue-50 disabled:opacity-50"
-              onClick={() => startSocialLogin("linkedin")}
-            >
-              <span className="absolute left-4"><LinkedInIcon /></span>
-              Continue with LinkedIn
-            </button>
             <button
               type="button"
               disabled={busy}

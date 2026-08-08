@@ -20,7 +20,7 @@ CNAME records in place so AWS can renew the certificate automatically.
 
 Included in the first production-capable release:
 
-- **API**: FastAPI + SQLModel; liveness/readiness checks; email plus optional Google, LinkedIn, GitHub, and Apple authentication; account-scoped jobs, resumes, match analysis, CV optimization, copilot, and analytics; PostgreSQL/Alembic; durable rate limits; explicit CORS and production configuration validation.
+- **API**: FastAPI + SQLModel; liveness/readiness checks; email plus optional Google, GitHub, and Apple authentication; account-scoped jobs, resumes, match analysis, CV optimization, copilot, and analytics; PostgreSQL/Alembic; durable rate limits; explicit CORS and production configuration validation.
 - **Web**: Authenticated application tracker, job detail, CV upload/optimization, match analysis, copilot, analytics, account deletion, privacy notice, and terms.
 - **Extension (MV3, Chrome 114+)**: Side panel; allowlisted job-site extraction after user action; manual Save and Match calls to the same API.
 
@@ -34,7 +34,7 @@ Explicitly **out of scope for 1.0**: referral/network graph and fully automatic 
 - Set `CORS_ORIGINS` to explicit values: your web origin(s) (`https://…`) and each `chrome-extension://<extension-id>` origin for the MV3 build you ship (comma-separated). Avoid `*` in production unless you accept the risk.
 - Set `OPENAI_API_KEY` in a secret store; never commit `.env`.
 - Set `JWT_SECRET_KEY` to a unique value of at least 32 characters and `SECURE_AUTH_COOKIE=true`.
-- Set `API_PUBLIC_URL` to the public HTTPS API origin. For LinkedIn and GitHub setup, follow `docs/SOCIAL_LOGIN.md` and keep all client secrets in the deployment secret store.
+- Set `API_PUBLIC_URL` to the public HTTPS API origin. For GitHub setup, follow `docs/SOCIAL_LOGIN.md` and keep all client secrets in the deployment secret store.
 - Set `RESUME_S3_BUCKET` to the private production bucket. Local filesystem storage is development-only.
 - Keep `RATE_LIMIT_ENABLED=true`. Authentication limits are keyed by a hashed client address; CV uploads and AI generation are keyed by user.
 - Run behind HTTPS termination (reverse proxy or platform ingress).

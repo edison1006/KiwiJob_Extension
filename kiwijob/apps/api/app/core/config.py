@@ -23,8 +23,6 @@ class Settings(BaseSettings):
     google_oauth_client_id: str | None = None
     github_oauth_client_id: str | None = None
     github_oauth_client_secret: str | None = None
-    linkedin_oauth_client_id: str | None = None
-    linkedin_oauth_client_secret: str | None = None
     google_workspace_addon_client_id: str | None = None
     google_workspace_addon_service_account_email: str | None = None
     google_workspace_addon_audience: str = "http://localhost:8000/integrations/gmail-addon"
@@ -123,8 +121,6 @@ def validate_settings(settings: Settings) -> None:
         errors.append("RATE_LIMIT_ENABLED must be true")
     if bool(settings.github_oauth_client_id) != bool(settings.github_oauth_client_secret):
         errors.append("GITHUB_OAUTH_CLIENT_ID and GITHUB_OAUTH_CLIENT_SECRET must be set together")
-    if bool(settings.linkedin_oauth_client_id) != bool(settings.linkedin_oauth_client_secret):
-        errors.append("LINKEDIN_OAUTH_CLIENT_ID and LINKEDIN_OAUTH_CLIENT_SECRET must be set together")
 
     cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
     if not cors_origins or "*" in cors_origins:
