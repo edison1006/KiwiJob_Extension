@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     resume_s3_bucket: str | None = None
     resume_max_bytes: int = 10 * 1024 * 1024
     rate_limit_enabled: bool = True
+    career_sync_enabled: bool = False
+    career_sync_interval_seconds: int = 60
+    career_sync_batch_size: int = 100
+    career_sync_concurrency: int = 10
     # Cost guardrails for OpenAI-backed features. These count provider calls, not HTTP requests.
     ai_free_hourly_limit: int = 5
     ai_free_daily_limit: int = 5
@@ -61,6 +65,12 @@ def validate_settings(settings: Settings) -> None:
         raise RuntimeError("ENVIRONMENT must be development, staging, or production.")
     if settings.resume_max_bytes < 1024 or settings.resume_max_bytes > 25 * 1024 * 1024:
         raise RuntimeError("RESUME_MAX_BYTES must be between 1KB and 25MB.")
+    if settings.career_sync_interval_seconds < 30 or settings.career_sync_interval_seconds > 3600:
+        raise RuntimeError("CAREER_SYNC_INTERVAL_SECONDS must be between 30 and 3600.")
+    if settings.career_sync_batch_size < 1 or settings.career_sync_batch_size > 1000:
+        raise RuntimeError("CAREER_SYNC_BATCH_SIZE must be between 1 and 1000.")
+    if settings.career_sync_concurrency < 1 or settings.career_sync_concurrency > 50:
+        raise RuntimeError("CAREER_SYNC_CONCURRENCY must be between 1 and 50.")
     output_limits = {
         "OPENAI_MATCH_MAX_OUTPUT_TOKENS": settings.openai_match_max_output_tokens,
         "OPENAI_CV_MAX_OUTPUT_TOKENS": settings.openai_cv_max_output_tokens,

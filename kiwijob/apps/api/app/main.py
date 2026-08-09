@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
+from contextlib import suppress
 import json
 import logging
 from time import perf_counter
@@ -16,8 +18,39 @@ from app.cors_util import parse_cors_allow_origins, warn_insecure_cors_if_needed
 from app.db.session import get_engine, init_db
 from app.routers import analytics, auth, copilot, cv_optimizations, events, integrations, jobs, match, profile, resumes
 from app.services.rate_limit import cleanup_rate_limits
+from app.services.career_sources import sync_due_career_sources
 
 logger = logging.getLogger("kiwijob.api")
+
+
+async def _career_sync_loop() -> None:
+    settings = get_settings()
+    while True:
+        try:
+            with Session(get_engine()) as session:
+                summaries = await sync_due_career_sources(
+                    session,
+                    limit=settings.career_sync_batch_size,
+                    concurrency=settings.career_sync_concurrency,
+                )
+            if summaries:
+                logger.info(
+                    json.dumps(
+                        {
+                            "event": "career_sync_complete",
+                            "sources": len(summaries),
+                            "failed": sum(1 for summary in summaries if summary.error),
+                            "created": sum(summary.created for summary in summaries),
+                            "updated": sum(summary.updated for summary in summaries),
+                            "deactivated": sum(summary.deactivated for summary in summaries),
+                        }
+                    )
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Career source synchronization cycle failed")
+        await asyncio.sleep(settings.career_sync_interval_seconds)
 
 
 @asynccontextmanager
@@ -25,7 +58,14 @@ async def lifespan(app: FastAPI):
     init_db()
     with Session(get_engine()) as session:
         cleanup_rate_limits(session)
-    yield
+    sync_task = asyncio.create_task(_career_sync_loop()) if get_settings().career_sync_enabled else None
+    try:
+        yield
+    finally:
+        if sync_task:
+            sync_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await sync_task
 
 
 def create_app() -> FastAPI:

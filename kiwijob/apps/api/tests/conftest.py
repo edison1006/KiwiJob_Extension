@@ -16,6 +16,8 @@ os.environ.setdefault("DATABASE_URL", "postgresql+psycopg2://kiwijob:kiwijob@loc
 API_ROOT = Path(__file__).resolve().parents[1]
 TABLES = (
     "requestratelimit",
+    "externaljob",
+    "careersource",
     "cvoptimization",
     "notification",
     "emailevent",

@@ -49,6 +49,69 @@ class JobPost(SQLModel, table=True):
     applications: list["Application"] = Relationship(back_populates="job_post")
 
 
+class CareerSource(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("source_type", "tenant_key", name="uq_career_source_type_tenant"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    company_name: str = Field(index=True, max_length=500)
+    company_domain: Optional[str] = Field(default=None, index=True, max_length=500)
+    careers_url: str = Field(max_length=4096)
+    source_type: str = Field(index=True, max_length=50)
+    tenant_key: str = Field(index=True, max_length=500)
+    country_code: str = Field(default="NZ", index=True, max_length=2)
+    enabled: bool = Field(default=True, index=True)
+    polling_interval_minutes: int = Field(default=60)
+    next_poll_at: Optional[datetime] = Field(default=None, index=True)
+    last_checked_at: Optional[datetime] = None
+    last_success_at: Optional[datetime] = None
+    etag: Optional[str] = Field(default=None, max_length=1000)
+    last_modified: Optional[str] = Field(default=None, max_length=1000)
+    content_hash: Optional[str] = Field(default=None, max_length=64)
+    failure_count: int = Field(default=0)
+    last_error: Optional[str] = Field(default=None, max_length=2000)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+    jobs: list["ExternalJob"] = Relationship(
+        back_populates="career_source",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+
+
+class ExternalJob(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("career_source_id", "external_job_id", name="uq_external_job_source_id"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    career_source_id: int = Field(foreign_key="careersource.id", index=True)
+    external_job_id: str = Field(index=True, max_length=500)
+    title: str = Field(index=True, max_length=500)
+    company: str = Field(index=True, max_length=500)
+    location: Optional[str] = Field(default=None, index=True, max_length=1000)
+    country_code: Optional[str] = Field(default=None, index=True, max_length=2)
+    description: Optional[str] = None
+    salary: Optional[str] = Field(default=None, max_length=1000)
+    salary_min: Optional[int] = Field(default=None, index=True)
+    salary_max: Optional[int] = Field(default=None, index=True)
+    salary_currency: Optional[str] = Field(default=None, max_length=10)
+    employment_type: Optional[str] = Field(default=None, index=True, max_length=500)
+    workplace_type: Optional[str] = Field(default=None, index=True, max_length=500)
+    url: str = Field(index=True, max_length=4096)
+    apply_url: Optional[str] = Field(default=None, max_length=4096)
+    company_url: Optional[str] = Field(default=None, max_length=4096)
+    company_logo_url: Optional[str] = Field(default=None, max_length=4096)
+    posted_date: Optional[datetime] = Field(default=None, index=True)
+    closing_date: Optional[datetime] = Field(default=None, index=True)
+    content_hash: str = Field(max_length=64)
+    active: bool = Field(default=True, index=True)
+    missing_count: int = Field(default=0)
+    first_seen_at: datetime = Field(default_factory=utc_now)
+    last_seen_at: datetime = Field(default_factory=utc_now, index=True)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+    career_source: CareerSource = Relationship(back_populates="jobs")
+
+
 class Application(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "job_post_id", name="uq_application_user_job"),)
 

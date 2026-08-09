@@ -54,6 +54,41 @@ function logoFallbackText(company: string | null | undefined): string {
   return (words[0]?.[0] || "") + (words[1]?.[0] || "");
 }
 
+function formatJobDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-NZ", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function CompanyLogo({ company, sourceName, url }: { company?: string | null; sourceName: string; url?: string | null }) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [url]);
+
+  return (
+    <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5">
+      {url && !imageFailed ? (
+        <img
+          src={url}
+          alt={`${company || sourceName} logo`}
+          className="h-full w-full object-contain"
+          loading="lazy"
+          onError={() => setImageFailed(true)}
+        />
+      ) : (
+        <span className="text-sm font-bold uppercase text-slate-600">{logoFallbackText(company)}</span>
+      )}
+    </div>
+  );
+}
+
 function joinedQuery(filters: SearchFilters): string {
   return [filters.keywords, filters.jobType === "remote" ? "remote" : ""].map(clean).filter(Boolean).join(" ");
 }
@@ -402,47 +437,58 @@ export default function BrowseJobsPage() {
             {results.length ? (
               <div className="grid gap-4 xl:grid-cols-2">
                 {results.map((result) => (
-                  <article key={`${result.source_id}-${result.job.url}`} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <article key={`${result.source_id}-${result.job.url}`} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex items-start gap-3">
-                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-                        {result.company_logo_url ? (
-                          <img src={result.company_logo_url} alt={result.job.company || result.source_name} className="h-full w-full object-cover" />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-sm font-bold text-slate-600">
-                            {logoFallbackText(result.job.company)}
-                          </div>
-                        )}
-                      </div>
+                      <CompanyLogo company={result.job.company} sourceName={result.source_name} url={result.company_logo_url} />
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Detected</p>
-                        <div className="mt-2 space-y-1 text-sm text-slate-800">
-                          <p>
-                            <span className="mr-2 inline-block w-16 text-slate-500">Title</span>
+                        <dl className="mt-2 grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-2 gap-y-1 text-sm text-slate-800">
+                          <dt className="text-slate-500">Title</dt>
+                          <dd className="min-w-0 break-words">
                             <a href={result.job.url} target="_blank" rel="noreferrer" className="font-semibold hover:text-brand-700 hover:underline">
                               {result.job.title}
                             </a>
-                          </p>
-                          <p>
-                            <span className="mr-2 inline-block w-16 text-slate-500">Salary</span>
-                            {result.job.salary || "—"}
-                          </p>
-                          <p>
-                            <span className="mr-2 inline-block w-16 text-slate-500">Location</span>
-                            {result.job.location || "—"}
-                          </p>
-                          <p>
-                            <span className="mr-2 inline-block w-16 text-slate-500">Company</span>
-                            {result.job.company || "—"}
-                          </p>
-                          <p className="text-xs text-slate-600">
-                            Data source: {result.source_name}
-                            {result.job.employment_type ? ` · ${result.job.employment_type}` : ""}
-                          </p>
-                        </div>
+                          </dd>
+                          <dt className="text-slate-500">Company</dt>
+                          <dd className="min-w-0 break-words">{result.job.company || "Not provided"}</dd>
+                          <dt className="text-slate-500">Location</dt>
+                          <dd className="min-w-0 break-words">{result.job.location || "Not provided"}</dd>
+                          <dt className="text-slate-500">Salary</dt>
+                          <dd className="min-w-0 break-words">{result.job.salary || "Not disclosed"}</dd>
+                          {result.job.employment_type ? (
+                            <>
+                              <dt className="text-slate-500">Employment</dt>
+                              <dd className="min-w-0 break-words">{result.job.employment_type}</dd>
+                            </>
+                          ) : null}
+                          {result.job.workplace_type ? (
+                            <>
+                              <dt className="text-slate-500">Workplace</dt>
+                              <dd className="min-w-0 break-words">{result.job.workplace_type}</dd>
+                            </>
+                          ) : null}
+                          {formatJobDate(result.job.posted_date) ? (
+                            <>
+                              <dt className="text-slate-500">Posted</dt>
+                              <dd>{formatJobDate(result.job.posted_date)}</dd>
+                            </>
+                          ) : null}
+                          {formatJobDate(result.job.closing_date) ? (
+                            <>
+                              <dt className="text-slate-500">Closes</dt>
+                              <dd>{formatJobDate(result.job.closing_date)}</dd>
+                            </>
+                          ) : null}
+                        </dl>
                       </div>
                     </div>
-                    {result.job.description ? <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-slate-600">{result.job.description}</p> : null}
-                    <div className="mt-4 flex flex-wrap gap-2">
+                    <p className="mt-3 text-xs font-medium text-slate-500">Data source: {result.source_name}</p>
+                    {result.job.description ? (
+                      <p className="mt-2 whitespace-pre-wrap break-words text-xs leading-relaxed text-slate-600">{result.job.description}</p>
+                    ) : (
+                      <p className="mt-2 text-xs italic text-slate-500">No description was provided in the search result. Open the full job description for details.</p>
+                    )}
+                    <div className="mt-auto flex flex-wrap gap-2 pt-4">
                       <button
                         type="button"
                         disabled={savingUrl === result.job.url}

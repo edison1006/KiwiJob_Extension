@@ -26,6 +26,7 @@ from app.schemas import (
     JobSaveIn,
 )
 from app.services.job_extract import JobExtractError, extract_job_from_url, search_jobs
+from app.services.career_sources import search_aggregated_jobs
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -109,9 +110,23 @@ async def extract_job(body: JobExtractIn, user: User = Depends(get_current_user)
 
 
 @router.post("/search", response_model=list[JobSearchResultOut])
-async def search_job_boards(body: JobSearchIn, user: User = Depends(get_current_user)):
+async def search_job_boards(
+    body: JobSearchIn,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
     assert user.id is not None
-    return await search_jobs(body)
+    aggregated = search_aggregated_jobs(session, body)
+    live = await search_jobs(body)
+    results: list[JobSearchResultOut] = []
+    seen: set[str] = set()
+    for result in [*aggregated, *live]:
+        key = result.job.url.split("?", 1)[0].rstrip("/").lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        results.append(result)
+    return results
 
 
 @router.post("/save", response_model=ApplicationListOut)
