@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     resume_storage_dir: str = "./data/resumes"
     resume_s3_bucket: str | None = None
     resume_max_bytes: int = 10 * 1024 * 1024
+    forum_storage_dir: str = "./data/forum"
+    forum_attachment_max_bytes: int = 10 * 1024 * 1024
     rate_limit_enabled: bool = True
     career_sync_enabled: bool = False
     career_sync_interval_seconds: int = 60
@@ -65,6 +67,8 @@ def validate_settings(settings: Settings) -> None:
         raise RuntimeError("ENVIRONMENT must be development, staging, or production.")
     if settings.resume_max_bytes < 1024 or settings.resume_max_bytes > 25 * 1024 * 1024:
         raise RuntimeError("RESUME_MAX_BYTES must be between 1KB and 25MB.")
+    if settings.forum_attachment_max_bytes < 1024 or settings.forum_attachment_max_bytes > 25 * 1024 * 1024:
+        raise RuntimeError("FORUM_ATTACHMENT_MAX_BYTES must be between 1KB and 25MB.")
     if settings.career_sync_interval_seconds < 30 or settings.career_sync_interval_seconds > 3600:
         raise RuntimeError("CAREER_SYNC_INTERVAL_SECONDS must be between 30 and 3600.")
     if settings.career_sync_batch_size < 1 or settings.career_sync_batch_size > 1000:

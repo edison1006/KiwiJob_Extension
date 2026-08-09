@@ -19,6 +19,41 @@ python scripts/career_sources.py add \
 
 Supported `--type` values are `greenhouse`, `lever`, and `smartrecruiters`. The tenant is the public board identifier in the ATS career-site URL.
 
+## Discover sources from company websites
+
+Use a reviewed JSON list of New Zealand employers and their public websites. The discovery command follows only a small number of public company pages, respects `robots.txt`, detects supported public ATS links, and saves discoveries into the source registry:
+
+```bash
+python scripts/career_sources.py discover \
+  --file ../../docs/company-seeds.example.json \
+  --concurrency 10 \
+  --max-pages 4
+```
+
+Preview without changing the database:
+
+```bash
+python scripts/career_sources.py discover \
+  --file reviewed-nz-companies.json \
+  --dry-run
+```
+
+JSON and CSV seed files are supported. Each seed must contain `company` (or `name`) and `website` (or `domain`). For official bulk exports with different headers, pass `--company-column` and `--website-column`. Large files are processed in bounded batches without loading the entire CSV into memory:
+
+```bash
+python scripts/career_sources.py discover \
+  --file nzbn-businesses.csv \
+  --company-column ENTITY_NAME \
+  --website-column WEBSITE \
+  --offset 0 \
+  --limit 1000 \
+  --concurrency 10
+```
+
+Increase `--offset` by the batch size in subsequent runs. The official NZBN/Companies Office bulk data service requires approved access, and many registered entities do not publish a website or operate a public careers page. Run discovery daily or when the reviewed company list changes; run job synchronization separately every minute.
+
+Discovery recognizes public Greenhouse, Lever, and SmartRecruiters company boards. It also detects company-owned career sites that publish standard `schema.org/JobPosting` data, including job detail URLs exposed through public sitemaps. Unsupported sites without a documented feed or structured public job data are not scraped generically because public visibility alone does not imply permission for automated bulk access.
+
 For a reviewed registry, import a JSON array in one transaction:
 
 ```json

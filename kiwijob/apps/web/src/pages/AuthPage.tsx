@@ -35,6 +35,17 @@ function GitHubIcon() {
   );
 }
 
+function GoogleIcon() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden>
+      <path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.5-.2-2.2H12v4h5.4a4.6 4.6 0 0 1-2 3v2.6h3.3c1.9-1.8 2.9-4.4 2.9-7.4Z" />
+      <path fill="#34A853" d="M12 22c2.7 0 5-.9 6.7-2.4L15.4 17c-.9.6-2.1 1-3.4 1a5.9 5.9 0 0 1-5.5-4.1H3.1v2.7A10 10 0 0 0 12 22Z" />
+      <path fill="#FBBC05" d="M6.5 13.9a6 6 0 0 1 0-3.8V7.4H3.1a10 10 0 0 0 0 9.2l3.4-2.7Z" />
+      <path fill="#EA4335" d="M12 6c1.5 0 2.8.5 3.9 1.5l2.9-2.9A9.7 9.7 0 0 0 12 2a10 10 0 0 0-8.9 5.4l3.4 2.7A5.9 5.9 0 0 1 12 6Z" />
+    </svg>
+  );
+}
+
 export default function AuthPage() {
   const { user, login, loginWithOAuth, register } = useAuth();
   const location = useLocation();
@@ -56,9 +67,10 @@ export default function AuthPage() {
   const [passwordLoginAvailable, setPasswordLoginAvailable] = useState(!requestedProvider);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const googleButtonRef = useRef<HTMLDivElement>(null);
   const googlePromptRequestedRef = useRef(false);
+  const googleInitializedRef = useRef(false);
   const socialRedirectRequestedRef = useRef(false);
+  const [googleReady, setGoogleReady] = useState(false);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
   const appleClientId = import.meta.env.VITE_APPLE_CLIENT_ID?.trim();
   const queryReturnTo = authQuery.get("return_to") || "";
@@ -70,6 +82,19 @@ export default function AuthPage() {
     const url = new URL(`${getApiBaseUrl()}/auth/social/${provider}/start`);
     url.searchParams.set("return_to", from);
     window.location.assign(url.toString());
+  }
+
+  function startGoogleLogin() {
+    if (!window.google) {
+      setError("Google sign-in is still loading. Please try again.");
+      return;
+    }
+    setError("");
+    window.google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
+        setError("Google sign-in is unavailable in this browser. Please open KiwiJob in Chrome or Safari.");
+      }
+    });
   }
 
   useEffect(() => {
@@ -93,10 +118,15 @@ export default function AuthPage() {
   }, [requestedProvider]);
 
   useEffect(() => {
-    if (!googleClientId || !googleButtonRef.current) return;
+    if (!googleClientId) return;
     const scriptId = "google-identity-services";
     const render = () => {
-      if (!window.google || !googleButtonRef.current) return;
+      if (!window.google) return;
+      if (googleInitializedRef.current) {
+        setGoogleReady(true);
+        return;
+      }
+      googleInitializedRef.current = true;
       window.google.accounts.id.initialize({
         client_id: googleClientId,
         callback: (response) => {
@@ -112,13 +142,7 @@ export default function AuthPage() {
             .finally(() => setBusy(false));
         },
       });
-      googleButtonRef.current.innerHTML = "";
-      window.google.accounts.id.renderButton(googleButtonRef.current, {
-        theme: "outline",
-        size: "large",
-        width: googleButtonRef.current.clientWidth || 420,
-        text: step === "email" ? "continue_with" : mode === "register" ? "signup_with" : "signin_with",
-      });
+      setGoogleReady(true);
       if (requestedProvider === "google" && !googlePromptRequestedRef.current) {
         googlePromptRequestedRef.current = true;
         window.google.accounts.id.prompt();
@@ -136,7 +160,7 @@ export default function AuthPage() {
     script.defer = true;
     script.onload = render;
     document.head.appendChild(script);
-  }, [from, googleClientId, loginWithOAuth, mode, navigate, requestedProvider, step]);
+  }, [from, googleClientId, loginWithOAuth, navigate, requestedProvider]);
 
   useEffect(() => {
     if (!appleClientId) return;
@@ -196,6 +220,10 @@ export default function AuthPage() {
   }
 
   async function signInWithApple() {
+    if (!appleClientId) {
+      setError("Apple sign-in is not configured yet. Add the KiwiJob Apple Services ID to enable it.");
+      return;
+    }
     if (!window.AppleID) {
       setError("Apple sign-in is still loading. Try again in a moment.");
       return;
@@ -420,7 +448,17 @@ export default function AuthPage() {
             <span className="h-px flex-1 bg-slate-200" />
           </div>
           <div className="space-y-3">
-            {googleClientId ? <div ref={googleButtonRef} className="min-h-11 w-full overflow-hidden rounded-xl" /> : null}
+            {googleClientId ? (
+              <button
+                type="button"
+                disabled={busy || !googleReady}
+                className="relative flex w-full items-center justify-center rounded-xl border border-slate-800 bg-white px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-slate-50 disabled:opacity-50"
+                onClick={startGoogleLogin}
+              >
+                <span className="absolute left-4"><GoogleIcon /></span>
+                Continue with Google
+              </button>
+            ) : null}
             <button
               type="button"
               disabled={busy}
@@ -430,17 +468,15 @@ export default function AuthPage() {
               <span className="absolute left-4"><GitHubIcon /></span>
               Continue with GitHub
             </button>
-            {appleClientId ? (
-              <button
-                type="button"
-                disabled={busy}
-                className="relative flex w-full items-center justify-center rounded-xl border border-slate-800 bg-white px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-slate-50 disabled:opacity-50"
-                onClick={() => void signInWithApple()}
-              >
-                <span className="absolute left-4"><AppleIcon /></span>
-                Continue with Apple
-              </button>
-            ) : null}
+            <button
+              type="button"
+              disabled={busy}
+              className="relative flex w-full items-center justify-center rounded-xl border border-slate-800 bg-white px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-slate-50 disabled:opacity-50"
+              onClick={() => void signInWithApple()}
+            >
+              <span className="absolute left-4"><AppleIcon /></span>
+              Continue with Apple
+            </button>
           </div>
 
           <p className="mt-6 text-xs leading-5 text-slate-500">

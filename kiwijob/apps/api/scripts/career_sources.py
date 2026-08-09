@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import csv
 import json
 from pathlib import Path
 import sys
@@ -14,6 +15,7 @@ from sqlmodel import Session, select
 from app.core.time import utc_now
 from app.db.session import get_engine
 from app.models import CareerSource
+from app.services.career_discovery import CompanySeed, discover_company_registry
 from app.services.career_sources import SUPPORTED_SOURCE_TYPES, sync_due_career_sources, validate_source
 
 
@@ -32,6 +34,16 @@ def _parser() -> argparse.ArgumentParser:
 
     load = subparsers.add_parser("load", help="Bulk add or update sources from a JSON registry.")
     load.add_argument("--file", required=True)
+
+    discover = subparsers.add_parser("discover", help="Discover supported public ATS links from company websites.")
+    discover.add_argument("--file", required=True, help="JSON array containing company and website/domain fields.")
+    discover.add_argument("--concurrency", type=int, default=10)
+    discover.add_argument("--max-pages", type=int, default=4)
+    discover.add_argument("--offset", type=int, default=0, help="Skip this many valid company rows.")
+    discover.add_argument("--limit", type=int, default=1000, help="Maximum company rows to process in this run.")
+    discover.add_argument("--company-column", help="CSV column containing the company name.")
+    discover.add_argument("--website-column", help="CSV column containing the public website/domain.")
+    discover.add_argument("--dry-run", action="store_true", help="Print discoveries without updating the database.")
 
     subparsers.add_parser("list", help="List configured career sources.")
 
@@ -141,6 +153,67 @@ def _list() -> None:
         )
 
 
+async def _discover(args: argparse.Namespace) -> None:
+    path = Path(args.file).expanduser().resolve()
+    if args.offset < 0 or args.limit < 1 or args.limit > 10_000:
+        raise SystemExit("offset must be non-negative and limit must be between 1 and 10000")
+    def field(item: dict, explicit: str | None, candidates: tuple[str, ...]) -> str:
+        if explicit:
+            return str(item.get(explicit) or "").strip()
+        normalized = {str(key).lower().replace("_", "").replace(" ", ""): value for key, value in item.items()}
+        return next((str(normalized.get(candidate) or "").strip() for candidate in candidates if normalized.get(candidate)), "")
+
+    def selected_seeds(rows) -> list[CompanySeed]:
+        seeds: list[CompanySeed] = []
+        valid_index = 0
+        for item in rows:
+            if not isinstance(item, dict):
+                raise SystemExit("Every company seed must be an object")
+            company = field(item, args.company_column, ("company", "companyname", "name", "entityname", "legalname", "tradingname"))
+            website = field(item, args.website_column, ("website", "websiteurl", "domain", "url", "businesswebsite"))
+            if not company or not website:
+                continue
+            if valid_index >= args.offset:
+                seeds.append(CompanySeed(company_name=company, website=website))
+                if len(seeds) >= args.limit:
+                    break
+            valid_index += 1
+        return seeds
+
+    if path.suffix.lower() == ".csv":
+        with path.open("r", encoding="utf-8-sig", newline="") as handle:
+            seeds = selected_seeds(csv.DictReader(handle))
+    else:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, list):
+            raise SystemExit("Company seed JSON must contain a top-level array")
+        seeds = selected_seeds(payload)
+    if not seeds:
+        raise SystemExit("No company rows with both a name and website were found in the selected batch")
+    sources = await discover_company_registry(
+        seeds,
+        concurrency=args.concurrency,
+        max_pages=args.max_pages,
+    )
+    registry = [source.registry_item(interval=360 if source.source_type == "generic" else 60) for source in sources]
+    if not args.dry_run:
+        with Session(get_engine()) as session:
+            for item in registry:
+                _upsert_source(session, item)
+            session.commit()
+    print(
+        json.dumps(
+            {
+                "companies_checked": len(seeds),
+                "sources_discovered": len(registry),
+                "saved": 0 if args.dry_run else len(registry),
+                "sources": registry,
+            },
+            indent=2,
+        )
+    )
+
+
 async def _sync(args: argparse.Namespace) -> None:
     with Session(get_engine()) as session:
         if args.force:
@@ -161,6 +234,8 @@ def main() -> None:
         _load(args)
     elif args.command == "list":
         _list()
+    elif args.command == "discover":
+        asyncio.run(_discover(args))
     else:
         asyncio.run(_sync(args))
 

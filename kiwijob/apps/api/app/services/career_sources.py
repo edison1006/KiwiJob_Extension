@@ -3,12 +3,15 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import html
+import ipaddress
 import json
 import re
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
+from html.parser import HTMLParser
 from typing import Any, Protocol
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
+from urllib.robotparser import RobotFileParser
 
 import httpx
 from sqlmodel import Session, select
@@ -19,7 +22,7 @@ from app.schemas import JobSaveIn, JobSearchIn, JobSearchResultOut
 
 
 CAREER_SOURCE_USER_AGENT = "KiwiJobCareerSync/1.0 (+https://kiwijob.co.nz)"
-SUPPORTED_SOURCE_TYPES = frozenset({"greenhouse", "lever", "smartrecruiters"})
+SUPPORTED_SOURCE_TYPES = frozenset({"generic", "greenhouse", "lever", "smartrecruiters"})
 TENANT_KEY_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
 NZ_LOCATION_PATTERN = re.compile(
     r"\b(new zealand|aotearoa|auckland|wellington|christchurch|canterbury|hamilton|waikato|"
@@ -163,6 +166,299 @@ def _response_result(response: httpx.Response, jobs: list[NormalizedCareerJob]) 
     )
 
 
+class _OpenGraphImageParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.image_url: str | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.lower() != "meta" or self.image_url:
+            return
+        values = {key.lower(): value for key, value in attrs if value is not None}
+        if values.get("property", "").lower() == "og:image":
+            self.image_url = values.get("content", "").strip() or None
+
+
+async def _smartrecruiters_company_logo(source: CareerSource, client: httpx.AsyncClient) -> str | None:
+    try:
+        response = await client.get(
+            f"https://careers.smartrecruiters.com/{source.tenant_key}",
+            headers={"Accept": "text/html", "User-Agent": CAREER_SOURCE_USER_AGENT},
+        )
+        response.raise_for_status()
+    except httpx.HTTPError:
+        return None
+    parser = _OpenGraphImageParser()
+    parser.feed(response.text[:2_000_000])
+    logo_url = parser.image_url
+    parsed = urlparse(logo_url or "")
+    if parsed.scheme != "https" or not parsed.hostname or not (
+        parsed.hostname == "smartrecruiters.com" or parsed.hostname.endswith(".smartrecruiters.com")
+    ):
+        return None
+    return logo_url[:4096]
+
+
+class _StructuredJobPageParser(HTMLParser):
+    def __init__(self, base_url: str) -> None:
+        super().__init__()
+        self.base_url = base_url
+        self.links: set[str] = set()
+        self.logo_url: str | None = None
+        self.json_ld_blocks: list[str] = []
+        self._json_ld_depth = 0
+        self._json_ld_parts: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = {key.lower(): value for key, value in attrs if value is not None}
+        lowered = tag.lower()
+        if lowered == "script" and values.get("type", "").lower() == "application/ld+json":
+            self._json_ld_depth = 1
+            self._json_ld_parts = []
+            return
+        if self._json_ld_depth:
+            self._json_ld_depth += 1
+        if lowered == "meta" and values.get("property", "").lower() == "og:image":
+            self.logo_url = urljoin(self.base_url, values.get("content", "").strip()) or self.logo_url
+        for key in ("href", "src"):
+            value = values.get(key)
+            if value:
+                parsed = urlparse(urljoin(self.base_url, value.strip()))
+                if parsed.scheme in {"http", "https"} and parsed.hostname:
+                    self.links.add(parsed.geturl().split("#", 1)[0])
+
+    def handle_endtag(self, tag: str) -> None:
+        if not self._json_ld_depth:
+            return
+        self._json_ld_depth -= 1
+        if tag.lower() == "script" or self._json_ld_depth == 0:
+            block = "".join(self._json_ld_parts).strip()
+            if block:
+                self.json_ld_blocks.append(block)
+            self._json_ld_depth = 0
+            self._json_ld_parts = []
+
+    def handle_data(self, data: str) -> None:
+        if self._json_ld_depth:
+            self._json_ld_parts.append(data)
+
+
+def _public_http_url(value: str) -> str | None:
+    parsed = urlparse(value.strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return None
+    host = parsed.hostname.lower().rstrip(".")
+    if host == "localhost" or host.endswith(".localhost"):
+        return None
+    try:
+        if not ipaddress.ip_address(host).is_global:
+            return None
+    except ValueError:
+        pass
+    return parsed.geturl()
+
+
+async def _robots_policy(client: httpx.AsyncClient, url: str) -> RobotFileParser | None:
+    parsed = urlparse(url)
+    robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
+    try:
+        response = await client.get(robots_url, headers={"User-Agent": CAREER_SOURCE_USER_AGENT})
+        if response.status_code >= 400:
+            return None
+    except httpx.HTTPError:
+        return None
+    parser = RobotFileParser()
+    parser.set_url(robots_url)
+    parser.parse(response.text.splitlines())
+    return parser
+
+
+async def _robots_allows(client: httpx.AsyncClient, url: str) -> bool:
+    parser = await _robots_policy(client, url)
+    return parser is None or parser.can_fetch(CAREER_SOURCE_USER_AGENT, url)
+
+
+def _json_ld_job_postings(value: Any) -> list[dict[str, Any]]:
+    jobs: list[dict[str, Any]] = []
+    if isinstance(value, list):
+        for item in value:
+            jobs.extend(_json_ld_job_postings(item))
+    elif isinstance(value, dict):
+        item_type = value.get("@type")
+        types = item_type if isinstance(item_type, list) else [item_type]
+        if any(str(candidate).lower() == "jobposting" for candidate in types):
+            jobs.append(value)
+        for key in ("@graph", "itemListElement", "mainEntity"):
+            if key in value:
+                jobs.extend(_json_ld_job_postings(value[key]))
+    return jobs
+
+
+def _structured_salary(raw: Any) -> tuple[str | None, int | None, int | None, str | None]:
+    if not isinstance(raw, dict):
+        return None, None, None, None
+    currency = _text(raw.get("currency"), limit=10)
+    value = raw.get("value") if isinstance(raw.get("value"), dict) else raw
+    minimum = _int_or_none(value.get("minValue"))
+    maximum = _int_or_none(value.get("maxValue"))
+    exact = _int_or_none(value.get("value"))
+    minimum = minimum if minimum is not None else exact
+    maximum = maximum if maximum is not None else exact
+    unit = _text(value.get("unitText"), limit=50)
+    return _salary_text(currency, minimum, maximum, unit, None), minimum, maximum, currency
+
+
+def _structured_location(raw: Any) -> tuple[str | None, str | None]:
+    locations = raw if isinstance(raw, list) else [raw]
+    parts: list[str] = []
+    country_code: str | None = None
+    for location in locations:
+        if not isinstance(location, dict):
+            continue
+        address = location.get("address") if isinstance(location.get("address"), dict) else location
+        country = address.get("addressCountry")
+        if isinstance(country, dict):
+            country = country.get("name") or country.get("value")
+        country_code = country_code or _country(country)
+        rendered = _location([address.get("addressLocality"), address.get("addressRegion"), country])
+        if rendered:
+            parts.append(rendered)
+    return "; ".join(dict.fromkeys(parts)) or None, country_code
+
+
+def _normalize_structured_job(raw: dict[str, Any], page_url: str, source: CareerSource, logo_url: str | None) -> NormalizedCareerJob | None:
+    title = _text(raw.get("title") or raw.get("name"), limit=500)
+    job_url = _public_http_url(str(raw.get("url") or page_url))
+    if not title or not job_url:
+        return None
+    organization = raw.get("hiringOrganization") if isinstance(raw.get("hiringOrganization"), dict) else {}
+    identifier = raw.get("identifier")
+    if isinstance(identifier, dict):
+        identifier = identifier.get("value") or identifier.get("name")
+    external_id = _text(identifier, limit=500) or hashlib.sha256(job_url.encode("utf-8")).hexdigest()
+    location, country_code = _structured_location(raw.get("jobLocation"))
+    salary, salary_min, salary_max, salary_currency = _structured_salary(raw.get("baseSalary") or raw.get("estimatedSalary"))
+    employment = raw.get("employmentType")
+    if isinstance(employment, list):
+        employment = ", ".join(filter(None, (_text(item) for item in employment)))
+    remote = "telecommute" in str(raw.get("jobLocationType") or "").lower()
+    raw_logo = organization.get("logo")
+    if isinstance(raw_logo, dict):
+        raw_logo = raw_logo.get("url")
+    company_logo = _public_http_url(str(raw_logo or logo_url or ""))
+    return NormalizedCareerJob(
+        external_job_id=external_id,
+        title=title,
+        company=_text(organization.get("name"), limit=500) or source.company_name,
+        location=location or ("Remote" if remote else None),
+        country_code=country_code or (source.country_code if remote else None),
+        description=_text(raw.get("description")),
+        salary=salary,
+        salary_min=salary_min,
+        salary_max=salary_max,
+        salary_currency=salary_currency,
+        employment_type=_text(employment, limit=500),
+        workplace_type="Remote" if remote else _workplace_from_text(raw.get("jobLocationType"), location),
+        url=job_url,
+        apply_url=job_url,
+        company_url=_public_http_url(str(organization.get("sameAs") or source.company_domain or "")),
+        company_logo_url=company_logo,
+        posted_date=_parse_datetime(raw.get("datePosted")),
+        closing_date=_parse_datetime(raw.get("validThrough")),
+    )
+
+
+def _structured_jobs_from_html(html_text: str, page_url: str, source: CareerSource) -> tuple[list[NormalizedCareerJob], _StructuredJobPageParser]:
+    parser = _StructuredJobPageParser(page_url)
+    parser.feed(html_text[:5_000_000])
+    jobs: list[NormalizedCareerJob] = []
+    for block in parser.json_ld_blocks:
+        try:
+            payload = json.loads(block)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        for raw in _json_ld_job_postings(payload):
+            job = _normalize_structured_job(raw, page_url, source, parser.logo_url)
+            if job:
+                jobs.append(job)
+    return jobs, parser
+
+
+async def _sitemap_job_urls(client: httpx.AsyncClient, careers_url: str) -> list[str]:
+    parsed = urlparse(careers_url)
+    origin = f"{parsed.scheme}://{parsed.netloc}"
+
+    async def locations(url: str) -> list[str]:
+        try:
+            response = await client.get(
+                url,
+                headers={"Accept": "application/xml,text/xml", "User-Agent": CAREER_SOURCE_USER_AGENT},
+            )
+            response.raise_for_status()
+        except httpx.HTTPError:
+            return []
+        return [html.unescape(item).strip() for item in re.findall(r"<loc>\s*(.*?)\s*</loc>", response.text, re.I | re.S)]
+
+    first_level = await locations(f"{origin}/sitemap.xml")
+    urls: list[str] = []
+    child_sitemaps = [url for url in first_level if urlparse(url).hostname == parsed.hostname and urlparse(url).path.lower().endswith(".xml")][:10]
+    urls.extend(url for url in first_level if url not in child_sitemaps)
+    if child_sitemaps:
+        for group in await asyncio.gather(*(locations(url) for url in child_sitemaps)):
+            urls.extend(group)
+    return list(
+        dict.fromkeys(
+            url for url in urls
+            if urlparse(url).hostname == parsed.hostname
+            and re.search(r"/(job|jobs|position|positions|vacanc)", urlparse(url).path, re.I)
+        )
+    )[:500]
+
+
+class GenericCareerPageAdapter:
+    async def fetch(self, source: CareerSource, client: httpx.AsyncClient) -> CareerFetchResult:
+        careers_url = _public_http_url(source.careers_url)
+        robots = await _robots_policy(client, careers_url) if careers_url else None
+        if not careers_url or (robots is not None and not robots.can_fetch(CAREER_SOURCE_USER_AGENT, careers_url)):
+            raise CareerSyncError("Generic career page is not a permitted public HTTP URL.")
+        headers = _conditional_headers(source)
+        headers["Accept"] = "text/html,application/xhtml+xml"
+        response = await client.get(careers_url, headers=headers)
+        if response.status_code == 304:
+            return CareerFetchResult(jobs=[], not_modified=True)
+        response.raise_for_status()
+        jobs, parser = _structured_jobs_from_html(response.text, str(response.url), source)
+        base_host = urlparse(str(response.url)).hostname
+        page_detail_urls = [
+            link for link in parser.links
+            if urlparse(link).hostname == base_host and re.search(r"/(job|jobs|position|positions|vacanc)", urlparse(link).path, re.I)
+        ]
+        sitemap_detail_urls = await _sitemap_job_urls(client, str(response.url))
+        detail_urls = list(dict.fromkeys([*page_detail_urls, *sitemap_detail_urls]))[:500]
+        semaphore = asyncio.Semaphore(6)
+
+        async def fetch_detail(url: str) -> list[NormalizedCareerJob]:
+            if robots is not None and not robots.can_fetch(CAREER_SOURCE_USER_AGENT, url):
+                return []
+            async with semaphore:
+                try:
+                    detail_response = await client.get(
+                        url,
+                        headers={"Accept": "text/html,application/xhtml+xml", "User-Agent": CAREER_SOURCE_USER_AGENT},
+                    )
+                    detail_response.raise_for_status()
+                except httpx.HTTPError:
+                    return []
+                detail_jobs, _ = _structured_jobs_from_html(detail_response.text, str(detail_response.url), source)
+                return detail_jobs
+
+        if detail_urls:
+            for detail_jobs in await asyncio.gather(*(fetch_detail(url) for url in detail_urls)):
+                jobs.extend(detail_jobs)
+        unique = {job.external_job_id: job for job in jobs}
+        return _response_result(response, list(unique.values()))
+
+
 class GreenhouseAdapter:
     async def fetch(self, source: CareerSource, client: httpx.AsyncClient) -> CareerFetchResult:
         response = await client.get(
@@ -274,6 +570,7 @@ class SmartRecruitersAdapter:
             if not page or offset >= int(payload.get("totalFound", offset)):
                 break
 
+        company_logo_url = await _smartrecruiters_company_logo(source, client)
         semaphore = asyncio.Semaphore(4)
 
         async def detail(summary: dict[str, Any]) -> NormalizedCareerJob:
@@ -306,6 +603,7 @@ class SmartRecruitersAdapter:
                     url=_text(raw.get("applyUrl"), limit=4096) or source.careers_url,
                     apply_url=_text(raw.get("applyUrl"), limit=4096),
                     company_url=source.company_domain,
+                    company_logo_url=company_logo_url,
                     posted_date=_parse_datetime(raw.get("releasedDate")),
                 )
 
@@ -344,6 +642,7 @@ def _source_website(source: CareerSource) -> str:
 
 def _adapter(source_type: str) -> CareerAdapter:
     adapters: dict[str, CareerAdapter] = {
+        "generic": GenericCareerPageAdapter(),
         "greenhouse": GreenhouseAdapter(),
         "lever": LeverAdapter(),
         "smartrecruiters": SmartRecruitersAdapter(),

@@ -85,6 +85,14 @@ export function IconRefer({ className = "h-5 w-5 shrink-0" }: { className?: stri
   );
 }
 
+export function IconCommunity({ className = "h-5 w-5 shrink-0" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden>
+      <path {...fill} d="M8 3a4 4 0 100 8 4 4 0 000-8zm8.5 2a3.5 3.5 0 100 7 3.5 3.5 0 000-7zM8 13c-4.2 0-7 2.1-7 5v2h12v-2c0-1.4.5-2.6 1.4-3.6A10.8 10.8 0 008 13zm8.5 1c-1 0-1.9.16-2.7.45A5.9 5.9 0 0115 18v2h8v-1.5c0-2.7-2.6-4.5-6.5-4.5z" />
+    </svg>
+  );
+}
+
 export function IconChevronDown({ className }: { className?: string }) {
   return (
     <svg

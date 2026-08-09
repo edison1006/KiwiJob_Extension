@@ -427,6 +427,64 @@ export type CoverLetterResult = {
   warnings: string[];
 };
 
+export type InterviewType = "behavioral" | "technical" | "panel" | "case";
+
+export type InterviewQuestion = {
+  question: string;
+  focus: string;
+  guidance: string[];
+};
+
+export type InterviewQuestionsResult = {
+  questions: InterviewQuestion[];
+  source: "ai" | "fallback";
+  warnings: string[];
+};
+
+export type InterviewFeedback = {
+  score: number;
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  suggested_structure: string[];
+  source: "ai" | "fallback";
+  warnings: string[];
+};
+
+export type ForumAuthor = { id: number; display_name: string };
+export type ForumAttachment = {
+  id: number;
+  filename: string;
+  media_type: string;
+  size_bytes: number;
+  kind: "image" | "file";
+};
+export type ForumComment = {
+  id: number;
+  content: string;
+  author: ForumAuthor;
+  created_at: string;
+  updated_at: string;
+  can_delete: boolean;
+};
+export type ForumPost = {
+  id: number;
+  category: string;
+  title: string;
+  content: string;
+  tags: string[];
+  attachments: ForumAttachment[];
+  author: ForumAuthor;
+  view_count: number;
+  like_count: number;
+  comment_count: number;
+  liked_by_me: boolean;
+  can_delete: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export type ForumPostDetail = ForumPost & { comments: ForumComment[] };
+
 export async function generateCoverLetter(payload: {
   job_id?: number;
   resume_id?: number;
@@ -440,6 +498,118 @@ export async function generateCoverLetter(payload: {
     body: JSON.stringify(payload),
   });
   return parseJson(res);
+}
+
+export async function generateInterviewQuestions(payload: {
+  interview_type: InterviewType;
+  occupation_category: string;
+  role?: string;
+  company?: string;
+  job_description?: string;
+  difficulty?: "easy" | "medium" | "hard";
+  question_count?: number;
+}): Promise<InterviewQuestionsResult> {
+  const res = await fetch(`${API_URL}/copilot/interview/questions`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...headers() },
+    body: JSON.stringify(payload),
+  });
+  return parseJson(res);
+}
+
+export async function evaluateInterviewAnswer(payload: {
+  interview_type: InterviewType;
+  occupation_category: string;
+  role?: string;
+  question: string;
+  answer: string;
+}): Promise<InterviewFeedback> {
+  const res = await fetch(`${API_URL}/copilot/interview/feedback`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...headers() },
+    body: JSON.stringify(payload),
+  });
+  return parseJson(res);
+}
+
+export async function fetchForumPosts(filters: { category?: string; query?: string; sort?: "latest" | "popular" } = {}): Promise<ForumPost[]> {
+  const params = new URLSearchParams({
+    category: filters.category || "all",
+    query: filters.query || "",
+    sort: filters.sort || "latest",
+  });
+  const res = await fetch(`${API_URL}/forum/posts?${params}`, { credentials: "include", headers: headers() });
+  return parseJson(res);
+}
+
+export async function fetchForumPost(id: number): Promise<ForumPostDetail> {
+  const res = await fetch(`${API_URL}/forum/posts/${id}`, { credentials: "include", headers: headers() });
+  return parseJson(res);
+}
+
+export async function createForumPost(payload: { category: string; title: string; content: string; tags: string[]; attachment_ids?: number[] }): Promise<ForumPost> {
+  const res = await fetch(`${API_URL}/forum/posts`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...headers() },
+    body: JSON.stringify(payload),
+  });
+  return parseJson(res);
+}
+
+export async function uploadForumAttachment(file: File): Promise<ForumAttachment> {
+  const body = new FormData();
+  body.append("file", file);
+  const res = await fetch(`${API_URL}/forum/attachments`, {
+    method: "POST",
+    credentials: "include",
+    headers: headers(),
+    body,
+  });
+  return parseJson(res);
+}
+
+export async function deleteForumAttachment(attachmentId: number): Promise<void> {
+  const res = await fetch(`${API_URL}/forum/attachments/${attachmentId}`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: headers(),
+  });
+  if (!res.ok) throw new Error(formatErrorBody(await res.text()));
+}
+
+export function forumAttachmentUrl(attachmentId: number): string {
+  return `${API_URL}/forum/attachments/${attachmentId}/content`;
+}
+
+export async function createForumComment(postId: number, content: string): Promise<ForumComment> {
+  const res = await fetch(`${API_URL}/forum/posts/${postId}/comments`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...headers() },
+    body: JSON.stringify({ content }),
+  });
+  return parseJson(res);
+}
+
+export async function toggleForumLike(postId: number): Promise<{ liked: boolean; like_count: number }> {
+  const res = await fetch(`${API_URL}/forum/posts/${postId}/like`, {
+    method: "POST",
+    credentials: "include",
+    headers: headers(),
+  });
+  return parseJson(res);
+}
+
+export async function deleteForumPost(postId: number): Promise<void> {
+  const res = await fetch(`${API_URL}/forum/posts/${postId}`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: headers(),
+  });
+  if (!res.ok) throw new Error(formatErrorBody(await res.text()));
 }
 
 export async function saveJobRemote(payload: JobSavePayload): Promise<ApplicationListItem> {

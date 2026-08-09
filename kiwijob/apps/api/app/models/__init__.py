@@ -26,6 +26,48 @@ class User(SQLModel, table=True):
     resumes: list["Resume"] = Relationship(back_populates="user")
 
 
+class ForumPost(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    category: str = Field(default="job_search", index=True, max_length=50)
+    title: str = Field(max_length=300)
+    content: str
+    tags: list[str] = Field(sa_column=Column(JSON), default_factory=list)
+    view_count: int = Field(default=0)
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class ForumComment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    post_id: int = Field(foreign_key="forumpost.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    content: str
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class ForumPostLike(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("post_id", "user_id", name="uq_forum_post_like_user"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    post_id: int = Field(foreign_key="forumpost.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class ForumAttachment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    post_id: Optional[int] = Field(default=None, foreign_key="forumpost.id", index=True)
+    filename: str = Field(max_length=500)
+    stored_path: str = Field(max_length=2000)
+    media_type: str = Field(max_length=200)
+    size_bytes: int
+    kind: str = Field(default="file", max_length=20)
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+
+
 class JobPost(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str

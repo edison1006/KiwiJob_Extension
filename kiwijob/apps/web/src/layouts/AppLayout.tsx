@@ -5,6 +5,7 @@ import AuthPage from "../pages/AuthPage";
 import {
   IconBell,
   IconBriefcase,
+  IconCommunity,
   IconDocument,
   IconHeart,
   IconHelp,
@@ -59,6 +60,7 @@ export function AppLayout() {
     || location.pathname === "/settings"
     || location.pathname === "/services"
     || location.pathname === "/interview-assistant"
+    || location.pathname === "/community"
     || location.pathname === "/analytics"
     || location.pathname.startsWith("/jobs/")
     || location.pathname.startsWith("/match/");
@@ -253,6 +255,16 @@ export function AppLayout() {
                   <IconRefer />
                 </span>
                 <span className={sidebarCollapsed ? "hidden" : ""}>Interview Assistant</span>
+              </>
+            )}
+          </NavLink>
+          <NavLink to="/community" className={({ isActive }) => `${linkClass({ isActive, collapsed: sidebarCollapsed })}`} title="Community">
+            {({ isActive }) => (
+              <>
+                <span className={navIconClass(isActive, sidebarCollapsed)}>
+                  <IconCommunity />
+                </span>
+                <span className={sidebarCollapsed ? "hidden" : ""}>Community</span>
               </>
             )}
           </NavLink>

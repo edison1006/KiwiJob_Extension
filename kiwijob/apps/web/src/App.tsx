@@ -9,6 +9,7 @@ const BrowseJobsPage = lazy(() => import("./pages/BrowseJobsPage"));
 const CvUploadPage = lazy(() => import("./pages/CvUploadPage"));
 const CvOptimizerPage = lazy(() => import("./pages/CvOptimizerPage"));
 const HomePage = lazy(() => import("./pages/HomePage"));
+const ForumPage = lazy(() => import("./pages/ForumPage"));
 const InterviewAssistantPage = lazy(() => import("./pages/InterviewAssistantPage"));
 const JobDetailPage = lazy(() => import("./pages/JobDetailPage"));
 const JobsPage = lazy(() => import("./pages/JobsPage"));
@@ -38,6 +39,7 @@ const router = createBrowserRouter([
       { path: "settings", element: <SettingsPage /> },
       { path: "services", element: <ServicesPage /> },
       { path: "interview-assistant", element: <InterviewAssistantPage /> },
+      { path: "community", element: <ForumPage /> },
       { path: "premium", element: <MembershipPage /> },
       { path: "membership", element: <Navigate to="/premium" replace /> },
       { path: "match/:jobId", element: <MatchReportPage /> },

@@ -65,6 +65,32 @@ function formatJobDate(value: string | null | undefined): string | null {
   }).format(date);
 }
 
+function compactJobSummary(value: string): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= 280) return normalized;
+  const preview = normalized.slice(0, 280);
+  const sentenceEnd = Math.max(preview.lastIndexOf(". "), preview.lastIndexOf("! "), preview.lastIndexOf("? "));
+  const cutAt = sentenceEnd >= 140 ? sentenceEnd + 1 : preview.lastIndexOf(" ");
+  return `${preview.slice(0, cutAt > 0 ? cutAt : 280).trim()}…`;
+}
+
+function HighlightedText({ text, query }: { text: string; query: string }) {
+  const terms = query.trim().split(/\s+/).filter(Boolean);
+  if (!terms.length) return <>{text}</>;
+  const escaped = terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const pattern = new RegExp(`(${escaped.join("|")})`, "gi");
+  const normalizedTerms = new Set(terms.map((term) => term.toLowerCase()));
+  return (
+    <>
+      {text.split(pattern).map((part, index) =>
+        normalizedTerms.has(part.toLowerCase()) ? (
+          <mark key={`${part}-${index}`} className="rounded bg-amber-100 px-0.5 text-inherit">{part}</mark>
+        ) : part,
+      )}
+    </>
+  );
+}
+
 function CompanyLogo({ company, sourceName, url }: { company?: string | null; sourceName: string; url?: string | null }) {
   const [imageFailed, setImageFailed] = useState(false);
 
@@ -251,7 +277,7 @@ export default function BrowseJobsPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [filters, setFilters] = useState<SearchFilters>({
-    keywords: "Data Analyst",
+    keywords: "",
     location: "All New Zealand",
     jobType: "",
     minSalary: "",
@@ -446,7 +472,7 @@ export default function BrowseJobsPage() {
                           <dt className="text-slate-500">Title</dt>
                           <dd className="min-w-0 break-words">
                             <a href={result.job.url} target="_blank" rel="noreferrer" className="font-semibold hover:text-brand-700 hover:underline">
-                              {result.job.title}
+                              <HighlightedText text={result.job.title} query={filters.keywords} />
                             </a>
                           </dd>
                           <dt className="text-slate-500">Company</dt>
@@ -484,7 +510,9 @@ export default function BrowseJobsPage() {
                     </div>
                     <p className="mt-3 text-xs font-medium text-slate-500">Data source: {result.source_name}</p>
                     {result.job.description ? (
-                      <p className="mt-2 whitespace-pre-wrap break-words text-xs leading-relaxed text-slate-600">{result.job.description}</p>
+                      <p className="mt-2 line-clamp-3 break-words text-xs leading-relaxed text-slate-600">
+                        <HighlightedText text={compactJobSummary(result.job.description)} query={filters.keywords} />
+                      </p>
                     ) : (
                       <p className="mt-2 text-xs italic text-slate-500">No description was provided in the search result. Open the full job description for details.</p>
                     )}

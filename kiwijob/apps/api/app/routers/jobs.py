@@ -33,6 +33,41 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 TRACKED_APPLICATION_STATUSES = {"Applied", "Assessment", "Reply", "Interview", "Rejected", "Offer", "Withdrawn"}
 
 
+def _search_relevance(result: JobSearchResultOut, query: str) -> int:
+    phrase = " ".join(query.lower().split())
+    if not phrase:
+        return 0
+    title = (result.job.title or "").lower()
+    company = (result.job.company or "").lower()
+    description = (result.job.description or "").lower()
+    score = 0
+    if phrase in title:
+        score += 500
+    elif phrase in company:
+        score += 250
+    elif phrase in description:
+        score += 50
+    for token in re.findall(r"[\w+#.-]+", phrase, re.UNICODE):
+        if token in title:
+            score += 100
+        elif token in company:
+            score += 40
+        elif token in description:
+            score += 10
+    return score
+
+
+def _search_result_keys(result: JobSearchResultOut) -> set[str]:
+    clean_url = result.job.url.split("?", 1)[0].rstrip("/").lower()
+    title = _normalize_duplicate_field(result.job.title)
+    company = _normalize_duplicate_field(result.job.company)
+    location = _normalize_duplicate_field(result.job.location)
+    keys = {f"url:{clean_url}"}
+    if title and company:
+        keys.add(f"job:{title}|{company}|{location}")
+    return keys
+
+
 def _normalize_duplicate_field(value: str | None) -> str:
     return " ".join(re.findall(r"[a-z0-9]+", (value or "").lower()))
 
@@ -120,11 +155,13 @@ async def search_job_boards(
     live = await search_jobs(body)
     results: list[JobSearchResultOut] = []
     seen: set[str] = set()
-    for result in [*aggregated, *live]:
-        key = result.job.url.split("?", 1)[0].rstrip("/").lower()
-        if key in seen:
+    candidates = [*aggregated, *live]
+    candidates.sort(key=lambda result: _search_relevance(result, body.keywords), reverse=True)
+    for result in candidates:
+        keys = _search_result_keys(result)
+        if seen.intersection(keys):
             continue
-        seen.add(key)
+        seen.update(keys)
         results.append(result)
     return results
 

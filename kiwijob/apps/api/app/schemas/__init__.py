@@ -444,6 +444,107 @@ class CopilotCoverLetterOut(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class InterviewQuestionOut(BaseModel):
+    question: str
+    focus: str = ""
+    guidance: list[str] = Field(default_factory=list)
+
+
+class InterviewQuestionsIn(BaseModel):
+    interview_type: str = Field(..., pattern="^(behavioral|technical|panel|case)$")
+    occupation_category: str = Field(default="general", pattern="^[a-z_]+$", max_length=80)
+    role: str = Field(default="", max_length=300)
+    company: str = Field(default="", max_length=300)
+    job_description: str = Field(default="", max_length=16000)
+    difficulty: str = Field(default="medium", pattern="^(easy|medium|hard)$")
+    question_count: int = Field(default=5, ge=3, le=10)
+
+
+class InterviewQuestionsOut(BaseModel):
+    questions: list[InterviewQuestionOut]
+    source: str = Field(description="ai or fallback")
+    warnings: list[str] = Field(default_factory=list)
+
+
+class InterviewFeedbackIn(BaseModel):
+    interview_type: str = Field(..., pattern="^(behavioral|technical|panel|case)$")
+    occupation_category: str = Field(default="general", pattern="^[a-z_]+$", max_length=80)
+    role: str = Field(default="", max_length=300)
+    question: str = Field(..., min_length=1, max_length=4000)
+    answer: str = Field(..., min_length=1, max_length=16000)
+
+
+class InterviewFeedbackOut(BaseModel):
+    score: int = Field(ge=0, le=100)
+    summary: str
+    strengths: list[str] = Field(default_factory=list)
+    improvements: list[str] = Field(default_factory=list)
+    suggested_structure: list[str] = Field(default_factory=list)
+    source: str = Field(description="ai or fallback")
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ForumAuthorOut(BaseModel):
+    id: int
+    display_name: str
+
+
+class ForumPostCreateIn(BaseModel):
+    category: str = Field(..., pattern="^(job_search|interviews|cv_cover_letter|career_change|workplace|visa_nz|success_story|general)$")
+    title: str = Field(..., min_length=5, max_length=300)
+    # Rich-text markup adds bytes around the user-visible 30,000-character limit.
+    content: str = Field(..., min_length=20, max_length=100000)
+    tags: list[str] = Field(default_factory=list, max_length=5)
+    attachment_ids: list[int] = Field(default_factory=list, max_length=10)
+
+
+class ForumCommentCreateIn(BaseModel):
+    content: str = Field(..., min_length=2, max_length=8000)
+
+
+class ForumCommentOut(BaseModel):
+    id: int
+    content: str
+    author: ForumAuthorOut
+    created_at: datetime
+    updated_at: datetime
+    can_delete: bool = False
+
+
+class ForumAttachmentOut(BaseModel):
+    id: int
+    filename: str
+    media_type: str
+    size_bytes: int
+    kind: str
+
+
+class ForumPostOut(BaseModel):
+    id: int
+    category: str
+    title: str
+    content: str
+    tags: list[str] = Field(default_factory=list)
+    attachments: list[ForumAttachmentOut] = Field(default_factory=list)
+    author: ForumAuthorOut
+    view_count: int
+    like_count: int
+    comment_count: int
+    liked_by_me: bool = False
+    can_delete: bool = False
+    created_at: datetime
+    updated_at: datetime
+
+
+class ForumPostDetailOut(ForumPostOut):
+    comments: list[ForumCommentOut] = Field(default_factory=list)
+
+
+class ForumLikeOut(BaseModel):
+    liked: bool
+    like_count: int
+
+
 class AnalyticsSummaryOut(BaseModel):
     total_saved: int
     total_applied: int

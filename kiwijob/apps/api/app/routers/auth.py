@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -262,7 +263,10 @@ def change_password(
 
 @router.delete("/account", status_code=204)
 def delete_account(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    from app.models import Application, ApplicationEvent, CvOptimization, EmailConnection, EmailEvent, Notification, Resume
+    from app.models import (
+        Application, ApplicationEvent, CvOptimization, EmailConnection, EmailEvent, ForumAttachment,
+        ForumComment, ForumPost, ForumPostLike, Notification, Resume,
+    )
     from app.services.resume_parse import delete_resume_file
 
     user_id = user.id
@@ -281,6 +285,16 @@ def delete_account(user: User = Depends(get_current_user), session: Session = De
             session.delete(row)
     for row in session.exec(select(EmailConnection).where(EmailConnection.user_id == user_id)).all():
         session.delete(row)
+    for row in session.exec(select(ForumAttachment).where(ForumAttachment.user_id == user_id)).all():
+        if row.stored_path:
+            try:
+                Path(row.stored_path).unlink(missing_ok=True)
+            except OSError:
+                pass
+        session.delete(row)
+    for model in (ForumPostLike, ForumComment, ForumPost):
+        for row in session.exec(select(model).where(model.user_id == user_id)).all():
+            session.delete(row)
     session.delete(user)
     session.commit()
     return None

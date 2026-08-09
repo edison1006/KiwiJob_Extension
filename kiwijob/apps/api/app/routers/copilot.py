@@ -14,8 +14,13 @@ from app.schemas import (
     CopilotCoverLetterIn,
     CopilotCoverLetterOut,
     CopilotQuestionIn,
+    InterviewFeedbackIn,
+    InterviewFeedbackOut,
+    InterviewQuestionsIn,
+    InterviewQuestionsOut,
 )
 from app.services.copilot_ai import answer_question, build_autofill_plan, generate_cover_letter
+from app.services.interview_ai import TECHNICAL_CATEGORIES, evaluate_interview_answer, generate_interview_questions
 from app.services.rate_limit import enforce_ai_generation_limits
 
 router = APIRouter(prefix="/copilot", tags=["copilot"])
@@ -113,4 +118,40 @@ def copilot_cover_letter(
         resume_text=resume_text,
         tone=body.tone,
         extra_instructions=body.extra_instructions,
+    )
+
+
+@router.post("/interview/questions", response_model=InterviewQuestionsOut)
+def interview_questions(
+    body: InterviewQuestionsIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    if body.interview_type == "technical" and body.occupation_category not in TECHNICAL_CATEGORIES:
+        raise HTTPException(status_code=422, detail="Technical Interview requires a technical occupation category.")
+    enforce_ai_generation_limits(session, user=user, budget_cost_cents=4)
+    return generate_interview_questions(
+        interview_type=body.interview_type,
+        occupation_category=body.occupation_category,
+        role=body.role,
+        company=body.company,
+        job_description=body.job_description,
+        difficulty=body.difficulty,
+        count=body.question_count,
+    )
+
+
+@router.post("/interview/feedback", response_model=InterviewFeedbackOut)
+def interview_feedback(
+    body: InterviewFeedbackIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    enforce_ai_generation_limits(session, user=user, budget_cost_cents=4)
+    return evaluate_interview_answer(
+        interview_type=body.interview_type,
+        occupation_category=body.occupation_category,
+        role=body.role,
+        question=body.question,
+        answer=body.answer,
     )

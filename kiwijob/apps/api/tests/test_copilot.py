@@ -83,6 +83,78 @@ def test_copilot_cover_letter_fallback() -> None:
     assert body["source"] in {"fallback", "ai"}
 
 
+def test_interview_questions_fallback_is_role_specific(monkeypatch) -> None:
+    monkeypatch.setattr("app.services.interview_ai._client", lambda: None)
+    with TestClient(app) as client:
+        headers, _ = auth_headers(client)
+        res = client.post(
+            "/copilot/interview/questions",
+            json={
+                "interview_type": "technical",
+                "occupation_category": "data_analytics",
+                "role": "Data Analyst",
+                "company": "Example Ltd",
+                "difficulty": "medium",
+                "question_count": 5,
+            },
+            headers=headers,
+        )
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["source"] == "fallback"
+    assert len(body["questions"]) == 5
+    assert "Data Analyst" in body["questions"][0]["question"]
+    assert body["questions"][0]["guidance"]
+
+
+def test_technical_interview_rejects_nontechnical_category(monkeypatch) -> None:
+    monkeypatch.setattr("app.services.interview_ai._client", lambda: None)
+    with TestClient(app) as client:
+        headers, _ = auth_headers(client)
+        res = client.post(
+            "/copilot/interview/questions",
+            json={
+                "interview_type": "technical",
+                "occupation_category": "marketing_sales",
+                "role": "Marketing Manager",
+                "question_count": 5,
+            },
+            headers=headers,
+        )
+
+    assert res.status_code == 422
+    assert "technical occupation category" in res.json()["detail"]
+
+
+def test_interview_feedback_fallback_returns_actionable_score(monkeypatch) -> None:
+    monkeypatch.setattr("app.services.interview_ai._client", lambda: None)
+    with TestClient(app) as client:
+        headers, _ = auth_headers(client)
+        res = client.post(
+            "/copilot/interview/feedback",
+            json={
+                "interview_type": "behavioral",
+                "role": "Data Analyst",
+                "question": "Tell me about a difficult stakeholder situation.",
+                "answer": (
+                    "The reporting team had conflicting definitions. I created a shared metric dictionary, "
+                    "met each stakeholder, and tested the revised dashboard. As a result, review time was reduced "
+                    "and the team learned to confirm definitions before development."
+                ),
+            },
+            headers=headers,
+        )
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["source"] == "fallback"
+    assert 0 <= body["score"] <= 100
+    assert body["strengths"]
+    assert body["improvements"]
+    assert body["suggested_structure"]
+
+
 def test_copilot_cover_letter_accepts_owned_resume() -> None:
     with TestClient(app) as client:
         headers, user_id = auth_headers(client)
