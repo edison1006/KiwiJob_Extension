@@ -66,6 +66,7 @@ class JobSaveIn(BaseModel):
     description: Optional[str] = None
     salary: Optional[str] = None
     employment_type: Optional[str] = Field(default=None, max_length=500)
+    classification: Optional[str] = Field(default=None, max_length=500)
     workplace_type: Optional[str] = Field(default=None, max_length=500)
     visa_requirement: Optional[str] = Field(default=None, max_length=1000)
     url: str = Field(..., min_length=4, max_length=4096)
@@ -90,6 +91,7 @@ class JobExtractIn(BaseModel):
 
 class JobSearchIn(BaseModel):
     keywords: str = Field(default="", max_length=200)
+    classification: str = Field(default="", max_length=200)
     location: str = Field(default="All New Zealand", max_length=200)
     job_type: str = Field(default="", max_length=50)
     min_salary: str = Field(default="", max_length=20)

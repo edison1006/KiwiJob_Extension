@@ -20,6 +20,7 @@ from sqlmodel import Session, select
 from app.core.time import utc_now
 from app.models import CareerSource, ExternalJob
 from app.schemas import JobSaveIn, JobSearchIn, JobSearchResultOut
+from app.services.job_classifications import classification_terms
 
 
 CAREER_SOURCE_USER_AGENT = "KiwiJobCareerSync/1.0 (+https://kiwijob.co.nz)"
@@ -758,6 +759,17 @@ def _apply_external_job_filters(statement, filters: JobSearchIn):
         pattern = f"%{keyword}%"
         statement = statement.where(
             ExternalJob.title.ilike(pattern) | ExternalJob.company.ilike(pattern) | ExternalJob.description.ilike(pattern)
+        )
+    if filters.classification.strip():
+        patterns = (filters.classification.strip(), *classification_terms(filters.classification))
+        statement = statement.where(
+            or_(
+                *(
+                    ExternalJob.title.ilike(f"%{pattern}%")
+                    | ExternalJob.description.ilike(f"%{pattern}%")
+                    for pattern in patterns
+                )
+            )
         )
     location = filters.location.strip()
     if location and location not in {"All New Zealand", "Remote"}:

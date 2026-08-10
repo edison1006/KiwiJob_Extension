@@ -24,6 +24,7 @@ export interface JobSavePayload {
   description?: string | null;
   salary?: string | null;
   employment_type?: string | null;
+  classification?: string | null;
   workplace_type?: string | null;
   visa_requirement?: string | null;
   url: string;

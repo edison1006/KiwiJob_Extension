@@ -490,6 +490,7 @@ def test_job_search_paginates_ranked_results() -> None:
         jobs_router.search_jobs = original
 
     assert response.status_code == 200
+    assert response.headers["X-Total-Count"] == "30"
     assert [row["job"]["title"] for row in response.json()] == [
         "Engineer 25",
         "Engineer 24",

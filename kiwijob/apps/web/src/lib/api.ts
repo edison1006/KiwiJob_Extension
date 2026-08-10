@@ -47,6 +47,7 @@ export type GmailIntegrationStatus = {
 
 export type JobSearchFilters = {
   keywords: string;
+  classification: string;
   location: string;
   jobType: string;
   minSalary: string;
@@ -62,6 +63,11 @@ export type JobSearchResult = {
   search_url: string;
   job: JobSavePayload;
   company_logo_url?: string | null;
+};
+
+export type JobSearchPage = {
+  items: JobSearchResult[];
+  total: number;
 };
 
 export function getApiBaseUrl(): string {
@@ -312,13 +318,14 @@ export async function extractJobFromUrl(url: string): Promise<JobSavePayload> {
   return parseJson(res);
 }
 
-export async function searchJobsRemote(filters: JobSearchFilters): Promise<JobSearchResult[]> {
+export async function searchJobsRemote(filters: JobSearchFilters): Promise<JobSearchPage> {
   const res = await fetch(`${API_URL}/jobs/search`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json", ...headers() },
     body: JSON.stringify({
       keywords: filters.keywords,
+      classification: filters.classification,
       location: filters.location,
       job_type: filters.jobType,
       min_salary: filters.minSalary,
@@ -328,7 +335,12 @@ export async function searchJobsRemote(filters: JobSearchFilters): Promise<JobSe
       result_offset: filters.resultOffset ?? 0,
     }),
   });
-  return parseJson(res);
+  const items = await parseJson<JobSearchResult[]>(res);
+  const parsedTotal = Number.parseInt(res.headers.get("X-Total-Count") || "", 10);
+  return {
+    items,
+    total: Number.isFinite(parsedTotal) ? parsedTotal : items.length,
+  };
 }
 
 export async function fetchMatch(jobId: number): Promise<MatchAnalysis> {

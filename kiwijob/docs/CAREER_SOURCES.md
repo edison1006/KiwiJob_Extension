@@ -113,11 +113,15 @@ Database-backed leases prevent multiple API instances from intentionally process
 
 The regular authenticated `POST /jobs/search` endpoint automatically merges active aggregated jobs with the existing live job-board results and removes duplicate canonical URLs.
 
-The normal debounced search is read-only. When the user explicitly selects **Refresh jobs**, the web app sends `refresh_sources: true`; the API then refreshes a bounded batch of due career sources before returning results. Sources with existing jobs that match the current keyword, location, work type, or salary filters are moved to the front of that batch. This keeps interactive refreshes bounded while the background loop continues to cover the full registry.
+Live SEEK searches read up to five result pages (100 listings) instead of stopping at the first page. Public live-search results are cached by keyword, classification, location, work type, salary, and source selection for five minutes so moving between KiwiJob result pages does not repeatedly request the same public pages. An explicit **Find jobs** request bypasses that cache.
+
+The Jobs page loads default recommendations once when the signed-in user opens it. Editing keywords, classification, location, work type, or salary does not issue requests. When the user explicitly selects **Find jobs**, the web app sends `refresh_sources: true`; the API then refreshes a bounded batch of due career sources before returning results. Sources with existing jobs that match the current filters are moved to the front of that batch. This keeps interactive refreshes bounded while the background loop continues to cover the full registry.
+
+The classification filter uses the standard broad job families shown by major New Zealand job boards. SEEK cards retain their published classification; structured company postings use `occupationalCategory` or `industry` when available, with title and description matching as a fallback for indexed company jobs.
 
 When no keyword is supplied, results are ranked using the signed-in user's saved skills, professional summary, preferred city, and recent tracked roles. Posting date is the secondary sort key, so equally relevant jobs show newest first. With a keyword, explicit keyword relevance takes priority and posting date breaks ties.
 
-The Jobs page displays 20 ranked results per page. It requests one additional row to determine whether a next page exists, while the API applies `result_offset` and `result_limit` only after ranking and deduplication so ordering remains stable across pages.
+The Jobs page displays 20 ranked results per page. The API returns the filtered result total in `X-Total-Count`, while applying `result_offset` and `result_limit` only after ranking and deduplication so ordering remains stable across pages. The web app uses that total for the displayed range and next-page availability.
 
 ## Operating rules
 

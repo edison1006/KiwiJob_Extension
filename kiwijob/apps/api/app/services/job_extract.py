@@ -7,15 +7,19 @@ import re
 import socket
 from datetime import datetime
 from html.parser import HTMLParser
+from time import monotonic
 from typing import Any
 from urllib.parse import quote_plus, urljoin, urlparse
 
 import httpx
 
 from app.schemas import JobSaveIn, JobSearchIn, JobSearchResultOut
+from app.services.job_classifications import matches_classification
 
 MAX_HTML_BYTES = 2_000_000
 USER_AGENT = "KiwiJobBot/1.0 (+https://kiwijob.local)"
+LIVE_SEARCH_CACHE_SECONDS = 300
+_LIVE_SEARCH_CACHE: dict[str, tuple[float, list[JobSearchResultOut]]] = {}
 
 
 class JobExtractError(ValueError):
@@ -259,19 +263,20 @@ def _seek_slug(value: str) -> str:
 
 
 def _joined_query(filters: JobSearchIn) -> str:
-    parts = [filters.keywords.strip()]
+    parts = [filters.keywords.strip(), filters.classification.strip()]
     if filters.job_type == "remote":
         parts.append("remote")
     return " ".join(part for part in parts if part)
 
 
-def _build_search_url(source: str, filters: JobSearchIn) -> str:
+def _build_search_url(source: str, filters: JobSearchIn, *, page: int = 1) -> str:
     query = _joined_query(filters)
     location = filters.location.strip()
     if source == "seek":
-        keywords = _seek_slug(query)
+        keywords = _seek_slug(filters.keywords)
+        classification = _seek_slug(filters.classification)
         location_slug = "" if location in {"", "All New Zealand", "Remote"} else _seek_slug(location)
-        path = f"{keywords}-jobs" if keywords else "jobs"
+        path = f"{keywords}-jobs" if keywords else f"{classification}-jobs" if classification else "jobs"
         loc_path = f"/in-{location_slug}" if location_slug else ""
         url = f"https://nz.seek.com/{path}{loc_path}"
         params: list[str] = []
@@ -280,19 +285,23 @@ def _build_search_url(source: str, filters: JobSearchIn) -> str:
         worktypes = {"fulltime": "242", "parttime": "243", "contract": "244", "casual": "245"}
         if filters.job_type in worktypes:
             params.append(f"worktype={worktypes[filters.job_type]}")
+        if page > 1:
+            params.append(f"page={page}")
         return f"{url}?{'&'.join(params)}" if params else url
     if source == "trademe":
         params = {"search_string": query, "location": "" if location == "All New Zealand" else location}
+        if page > 1:
+            params["page"] = str(page)
         return _url_with_query("https://www.trademe.co.nz/a/jobs/search", params)
     if source == "indeed":
-        return _url_with_query("https://nz.indeed.com/jobs", {"q": query, "l": "" if location == "All New Zealand" else location})
+        return _url_with_query("https://nz.indeed.com/jobs", {"q": query, "l": "" if location == "All New Zealand" else location, "start": str((page - 1) * 10) if page > 1 else ""})
     if source == "linkedin":
-        params = {"keywords": query, "location": "New Zealand" if location == "All New Zealand" else location}
+        params = {"keywords": query, "location": "New Zealand" if location == "All New Zealand" else location, "start": str((page - 1) * 25) if page > 1 else ""}
         return _url_with_query("https://www.linkedin.com/jobs/search/", params)
     if source == "jora":
-        return _url_with_query("https://nz.jora.com/jobs", {"q": query, "l": "" if location == "All New Zealand" else location})
+        return _url_with_query("https://nz.jora.com/jobs", {"q": query, "l": "" if location == "All New Zealand" else location, "p": str(page) if page > 1 else ""})
     if source == "govt":
-        return _url_with_query("https://jobs.govt.nz/jobs", {"q": query, "location": "" if location == "All New Zealand" else location})
+        return _url_with_query("https://jobs.govt.nz/jobs", {"q": query, "location": "" if location == "All New Zealand" else location, "page": str(page) if page > 1 else ""})
     raise JobSearchError(f"Unsupported job source: {source}")
 
 
@@ -373,6 +382,7 @@ def _job_from_json_ld(raw_scripts: list[str], page_url: str) -> dict[str, Any] |
             "description": description,
             "salary": salary,
             "employment_type": employment_type,
+            "classification": _clean_text(_scalar(node.get("occupationalCategory")) or _scalar(node.get("industry")), limit=500),
             "workplace_type": _workplace_type(node, location),
             "url": page_url,
             "apply_url": apply_url,
@@ -456,7 +466,7 @@ def _parse_seek_results(raw_html: str, search_url: str, limit: int) -> list[JobS
             location=location,
             description=teaser or classification or listed,
             salary=salary,
-            employment_type=classification,
+            classification=classification,
             url=url,
             apply_url=url,
             external_job_id=job_id,
@@ -523,19 +533,55 @@ async def extract_job_from_url(url: str) -> JobSaveIn:
 
 
 async def search_jobs(filters: JobSearchIn, *, per_source_limit: int = 8) -> list[JobSearchResultOut]:
+    cache_key = json.dumps(
+        {
+            "keywords": filters.keywords.strip().lower(),
+            "classification": filters.classification.strip().lower(),
+            "location": filters.location.strip().lower(),
+            "job_type": filters.job_type,
+            "min_salary": filters.min_salary,
+            "sources": [source.strip().lower() for source in filters.sources],
+            "per_source_limit": per_source_limit,
+        },
+        sort_keys=True,
+    )
+    cached = _LIVE_SEARCH_CACHE.get(cache_key)
+    if not filters.refresh_sources and cached and monotonic() - cached[0] < LIVE_SEARCH_CACHE_SECONDS:
+        return list(cached[1])
+
     results: list[JobSearchResultOut] = []
     for source in filters.sources:
         source_id = source.strip().lower()
         if source_id not in SOURCE_NAMES:
             continue
-        search_url = _build_search_url(source_id, filters)
-        try:
-            raw_html, final_url = await _fetch_html(search_url)
-        except JobExtractError:
-            continue
-        if source_id == "seek":
-            parsed = _parse_seek_results(raw_html, final_url, per_source_limit)
-        else:
-            parsed = _parse_generic_json_ld_results(raw_html, final_url, source_id, per_source_limit)
-        results.extend(parsed)
+        source_result_count = 0
+        page_count = min(5, max(1, (per_source_limit + 19) // 20)) if source_id == "seek" else 1
+        for page in range(1, page_count + 1):
+            search_url = _build_search_url(source_id, filters, page=page)
+            try:
+                raw_html, final_url = await _fetch_html(search_url)
+            except JobExtractError:
+                break
+            if source_id == "seek":
+                parsed = _parse_seek_results(raw_html, final_url, min(20, per_source_limit - source_result_count))
+            else:
+                parsed = _parse_generic_json_ld_results(raw_html, final_url, source_id, per_source_limit)
+            accepted = [
+                result
+                for result in parsed
+                if matches_classification(
+                    filters.classification,
+                    result.job.classification,
+                    result.job.title,
+                    result.job.description,
+                )
+            ]
+            results.extend(accepted)
+            source_result_count += len(accepted)
+            if source_result_count >= per_source_limit:
+                break
+    _LIVE_SEARCH_CACHE[cache_key] = (monotonic(), list(results))
+    if len(_LIVE_SEARCH_CACHE) > 100:
+        oldest_key = min(_LIVE_SEARCH_CACHE, key=lambda key: _LIVE_SEARCH_CACHE[key][0])
+        _LIVE_SEARCH_CACHE.pop(oldest_key, None)
     return results

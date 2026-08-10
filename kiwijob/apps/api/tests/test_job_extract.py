@@ -56,6 +56,8 @@ def test_seek_search_page_extracts_specific_job_cards() -> None:
     assert job.title == "Data Analyst"
     assert job.company == "Watercare Services Limited"
     assert job.location == "Newmarket, Auckland"
+    assert job.classification == "Information & Communication Technology"
+    assert job.employment_type is None
     assert job.url == "https://nz.seek.com/job/92304747?type=standard&ref=search-standalone"
 
 

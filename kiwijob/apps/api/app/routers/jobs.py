@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
@@ -200,6 +200,7 @@ async def extract_job(body: JobExtractIn, user: User = Depends(get_current_user)
 @router.post("/search", response_model=list[JobSearchResultOut])
 async def search_job_boards(
     body: JobSearchIn,
+    response: Response,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
@@ -212,11 +213,13 @@ async def search_job_boards(
             filters=body,
         )
     requested_count = body.result_offset + body.result_limit
-    candidate_pool_size = max(200, requested_count)
+    candidate_pool_size = max(1000, requested_count)
     aggregated = search_aggregated_jobs(session, body, limit=candidate_pool_size)
-    source_count = max(1, len(body.sources))
-    per_source_limit = min(20, max(8, (requested_count + source_count - 1) // source_count))
-    live = await search_jobs(body, per_source_limit=per_source_limit)
+    # Keep the live candidate pool identical across result pages. Varying this
+    # limit with the requested offset can insert newly fetched jobs ahead of a
+    # page boundary, which makes jobs repeat or disappear when the user clicks
+    # Next.
+    live = await search_jobs(body, per_source_limit=100)
     results: list[JobSearchResultOut] = []
     seen: set[str] = set()
     candidates = [*aggregated, *live]
@@ -239,8 +242,7 @@ async def search_job_boards(
             continue
         seen.update(keys)
         results.append(result)
-        if len(results) >= requested_count:
-            break
+    response.headers["X-Total-Count"] = str(len(results))
     return results[body.result_offset:requested_count]
 
 

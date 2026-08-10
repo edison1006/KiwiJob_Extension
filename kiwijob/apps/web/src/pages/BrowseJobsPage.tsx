@@ -23,6 +23,7 @@ type Source = {
 
 type SearchFilters = {
   keywords: string;
+  classification: string;
   location: string;
   jobType: JobType;
   minSalary: string;
@@ -39,6 +40,37 @@ const NZ_LOCATIONS = [
   "Lower Hutt",
   "Queenstown",
   "Remote",
+];
+
+const JOB_CLASSIFICATIONS = [
+  "Accounting",
+  "Administration & Office Support",
+  "Advertising, Arts & Media",
+  "Banking & Financial Services",
+  "Call Centre & Customer Service",
+  "Community Services & Development",
+  "Construction",
+  "Consulting & Strategy",
+  "Design & Architecture",
+  "Education & Training",
+  "Engineering",
+  "Farming, Animals & Conservation",
+  "Government & Defence",
+  "Healthcare & Medical",
+  "Hospitality & Tourism",
+  "Human Resources & Recruitment",
+  "Information & Communication Technology",
+  "Insurance & Superannuation",
+  "Legal",
+  "Manufacturing, Transport & Logistics",
+  "Marketing & Communications",
+  "Mining, Resources & Energy",
+  "Real Estate & Property",
+  "Retail & Consumer Products",
+  "Sales",
+  "Science & Technology",
+  "Sport & Recreation",
+  "Trades & Services",
 ];
 
 const QUICK_SEARCHES = ["Data Analyst", "Software Engineer", "Business Analyst", "Marketing", "Project Manager", "Graduate"];
@@ -117,7 +149,7 @@ function CompanyLogo({ company, sourceName, url }: { company?: string | null; so
 }
 
 function joinedQuery(filters: SearchFilters): string {
-  return [filters.keywords, filters.jobType === "remote" ? "remote" : ""].map(clean).filter(Boolean).join(" ");
+  return [filters.keywords, filters.classification, filters.jobType === "remote" ? "remote" : ""].map(clean).filter(Boolean).join(" ");
 }
 
 function addParams(base: string, params: Record<string, string | undefined>): string {
@@ -134,9 +166,10 @@ function seekSlug(value: string): string {
 }
 
 function seekUrl(filters: SearchFilters): string {
-  const keywords = seekSlug(joinedQuery(filters));
+  const keywords = seekSlug(filters.keywords);
+  const classification = seekSlug(filters.classification);
   const location = filters.location === "All New Zealand" || filters.location === "Remote" ? "" : seekSlug(filters.location);
-  const path = keywords ? `${keywords}-jobs` : "jobs";
+  const path = keywords ? `${keywords}-jobs` : classification ? `${classification}-jobs` : "jobs";
   const locPath = location ? `/in-${location}` : "";
   const url = new URL(`https://nz.seek.com/${path}${locPath}`);
   if (filters.minSalary) url.searchParams.set("salaryrange", `${filters.minSalary}-`);
@@ -279,18 +312,21 @@ export default function BrowseJobsPage() {
   const { user, loading: authLoading } = useAuth();
   const [filters, setFilters] = useState<SearchFilters>({
     keywords: "",
+    classification: "",
     location: "All New Zealand",
     jobType: "",
     minSalary: "",
   });
   const [results, setResults] = useState<JobSearchResult[]>([]);
+  const [totalResults, setTotalResults] = useState(0);
   const [searchBusy, setSearchBusy] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [savingUrl, setSavingUrl] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
   const requestIdRef = useRef(0);
-  const debounceTimerRef = useRef<number | undefined>(undefined);
+  const initialLoadUserIdRef = useRef<number | null>(null);
+  const resultsSectionRef = useRef<HTMLElement | null>(null);
 
   const selectedSources = SOURCES;
   const sourceLinks = useMemo(
@@ -301,15 +337,11 @@ export default function BrowseJobsPage() {
     setFilters((prev) => ({ ...prev, [key]: value }));
   }
 
-  function openAll() {
-    for (const { url } of sourceLinks) {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
-  }
-
   async function fetchRealJobs(nextFilters: SearchFilters = filters, refreshSources = false, requestedPage = page) {
     if (!user || !selectedSources.length) return;
     const requestId = ++requestIdRef.current;
+    const previousPage = page;
+    setPage(requestedPage);
     setSearchBusy(true);
     setSearchError(null);
     try {
@@ -317,16 +349,22 @@ export default function BrowseJobsPage() {
         ...nextFilters,
         sources: selectedSources.map((source) => source.id),
         refreshSources,
-        resultLimit: PAGE_SIZE + 1,
+        resultLimit: PAGE_SIZE,
         resultOffset: (requestedPage - 1) * PAGE_SIZE,
       });
       if (requestId !== requestIdRef.current) return;
-      setResults(data.slice(0, PAGE_SIZE));
-      setHasNextPage(data.length > PAGE_SIZE);
-      setPage(requestedPage);
-      if (!data.length) setSearchError("No concrete job cards were found. Try SEEK first, broaden your filters, or open the source site.");
+      setResults(data.items);
+      setTotalResults(data.total);
+      setHasNextPage(requestedPage * PAGE_SIZE < data.total);
+      if (!data.items.length) setSearchError("No concrete job cards were found. Try SEEK first, broaden your filters, or open the source site.");
+      if (requestedPage !== previousPage) {
+        window.requestAnimationFrame(() => {
+          resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      }
     } catch (e) {
       if (requestId !== requestIdRef.current) return;
+      setPage(previousPage);
       setSearchError(e instanceof Error ? e.message : "Could not fetch job listings.");
     } finally {
       if (requestId !== requestIdRef.current) return;
@@ -335,21 +373,21 @@ export default function BrowseJobsPage() {
   }
 
   useEffect(() => {
-    window.clearTimeout(debounceTimerRef.current);
     if (authLoading || !user) {
       setResults([]);
+      setTotalResults(0);
       setPage(1);
       setHasNextPage(false);
       setSearchError(null);
       setSearchBusy(false);
+      initialLoadUserIdRef.current = null;
       return;
     }
-    debounceTimerRef.current = window.setTimeout(() => {
-      setPage(1);
-      void fetchRealJobs(filters, false, 1);
-    }, 280);
-    return () => window.clearTimeout(debounceTimerRef.current);
-  }, [authLoading, user?.id, filters.keywords, filters.location, filters.jobType, filters.minSalary]);
+    if (initialLoadUserIdRef.current === user.id) return;
+    initialLoadUserIdRef.current = user.id;
+    setPage(1);
+    void fetchRealJobs(filters, false, 1);
+  }, [authLoading, user?.id]);
 
   async function saveResult(result: JobSearchResult) {
     if (savingUrl) return;
@@ -367,36 +405,22 @@ export default function BrowseJobsPage() {
   return (
     <div className="space-y-6">
       <section className="border-b border-slate-200 pb-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Find NZ jobs</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600">
-              Search public roles from New Zealand company career pages and supported job boards, then save useful opportunities directly into KiwiJob.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={!sourceLinks.length || searchBusy}
-              onClick={() => void fetchRealJobs(filters, true, 1)}
-              className="inline-flex items-center justify-center rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {searchBusy ? "Fetching jobs…" : "Refresh jobs"}
-            </button>
-            <button
-              type="button"
-              disabled={!sourceLinks.length}
-              onClick={openAll}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Open selected sites
-            </button>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Find NZ jobs</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600">
+            Search public roles from New Zealand company career pages and supported job boards, then save useful opportunities directly into KiwiJob.
+          </p>
         </div>
       </section>
 
       <section className="space-y-4">
-          <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-2 xl:grid-cols-4">
+          <form
+            className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void fetchRealJobs(filters, true, 1);
+            }}
+          >
             <label className="space-y-1.5">
               <span className="text-xs font-semibold text-slate-600">Keywords</span>
               <input
@@ -405,6 +429,19 @@ export default function BrowseJobsPage() {
                 placeholder="Role, skill, company"
                 className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
               />
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold text-slate-600">Classification</span>
+              <select
+                value={filters.classification}
+                onChange={(e) => update("classification", e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+              >
+                <option value="">All classifications</option>
+                {JOB_CLASSIFICATIONS.map((classification) => (
+                  <option key={classification} value={classification}>{classification}</option>
+                ))}
+              </select>
             </label>
             <label className="space-y-1.5">
               <span className="text-xs font-semibold text-slate-600">Location</span>
@@ -443,7 +480,16 @@ export default function BrowseJobsPage() {
                 className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
               />
             </label>
-          </div>
+            <div className="flex items-end">
+              <button
+                type="submit"
+                disabled={!selectedSources.length || searchBusy}
+                className="inline-flex h-[42px] w-full items-center justify-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {searchBusy ? "Finding jobs…" : "Find jobs"}
+              </button>
+            </div>
+          </form>
 
           <div className="flex flex-wrap gap-2">
             {QUICK_SEARCHES.map((q) => (
@@ -462,17 +508,23 @@ export default function BrowseJobsPage() {
             ))}
           </div>
 
-          <section className="space-y-3">
+          <section ref={resultsSectionRef} className="scroll-mt-4 space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-slate-950">Real job results</h2>
                 <p className="text-sm text-slate-600">
                   {filters.keywords.trim()
-                    ? "Ranked by your filters; Refresh jobs prioritises matching company sources in the next sync batch."
+                    ? "Ranked by your filters; Find jobs prioritises matching company sources in the next sync batch."
                     : "Personalised from your skills, profile, and saved applications, with newer postings ranked higher."}
                 </p>
               </div>
-              {results.length ? <span className="text-xs font-semibold text-slate-500">Page {page} · {results.length} jobs</span> : null}
+              {results.length ? (
+                <span className="text-xs font-semibold text-slate-500">
+                  {searchBusy
+                    ? `Loading page ${page}…`
+                    : `Page ${page} · Showing ${(page - 1) * PAGE_SIZE + 1}–${(page - 1) * PAGE_SIZE + results.length} of ${totalResults} jobs`}
+                </span>
+              ) : null}
             </div>
             {searchError ? <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">{searchError}</div> : null}
             {results.length ? (
@@ -501,6 +553,12 @@ export default function BrowseJobsPage() {
                             <>
                               <dt className="text-slate-500">Employment</dt>
                               <dd className="min-w-0 break-words">{result.job.employment_type}</dd>
+                            </>
+                          ) : null}
+                          {result.job.classification ? (
+                            <>
+                              <dt className="text-slate-500">Classification</dt>
+                              <dd className="min-w-0 break-words">{result.job.classification}</dd>
                             </>
                           ) : null}
                           {result.job.workplace_type ? (
@@ -574,14 +632,14 @@ export default function BrowseJobsPage() {
                       }}
                       className="rounded-xl border border-brand-200 bg-white px-6 py-2.5 text-sm font-semibold text-brand-800 shadow-sm hover:bg-brand-50 disabled:opacity-50"
                     >
-                      Next
+                      {searchBusy ? "Loading…" : "Next"}
                     </button>
                   </nav>
                 ) : null}
               </>
             ) : (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-5 py-8 text-sm text-slate-600">
-                Click <span className="font-semibold text-slate-800">Fetch real jobs</span> to load specific postings for your current filters.
+                Click <span className="font-semibold text-slate-800">Find jobs</span> to load specific postings for your current filters.
               </div>
             )}
           </section>
