@@ -51,6 +51,9 @@ export type JobSearchFilters = {
   jobType: string;
   minSalary: string;
   sources: string[];
+  refreshSources?: boolean;
+  resultLimit?: number;
+  resultOffset?: number;
 };
 
 export type JobSearchResult = {
@@ -320,6 +323,9 @@ export async function searchJobsRemote(filters: JobSearchFilters): Promise<JobSe
       job_type: filters.jobType,
       min_salary: filters.minSalary,
       sources: filters.sources,
+      refresh_sources: filters.refreshSources ?? false,
+      result_limit: filters.resultLimit ?? 20,
+      result_offset: filters.resultOffset ?? 0,
     }),
   });
   return parseJson(res);

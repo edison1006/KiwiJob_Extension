@@ -84,7 +84,7 @@ def test_extract_endpoint_returns_job_payload(monkeypatch) -> None:
 
 
 def test_search_endpoint_returns_real_job_results(monkeypatch) -> None:
-    async def fake_search(body):
+    async def fake_search(body, **_kwargs):
         return [
             JobSearchResultOut(
                 source_id="seek",

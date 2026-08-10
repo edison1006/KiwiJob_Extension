@@ -42,6 +42,7 @@ const NZ_LOCATIONS = [
 ];
 
 const QUICK_SEARCHES = ["Data Analyst", "Software Engineer", "Business Analyst", "Marketing", "Project Manager", "Graduate"];
+const PAGE_SIZE = 20;
 
 function clean(value: string): string {
   return value.trim();
@@ -286,6 +287,8 @@ export default function BrowseJobsPage() {
   const [searchBusy, setSearchBusy] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [savingUrl, setSavingUrl] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(false);
   const requestIdRef = useRef(0);
   const debounceTimerRef = useRef<number | undefined>(undefined);
 
@@ -304,7 +307,7 @@ export default function BrowseJobsPage() {
     }
   }
 
-  async function fetchRealJobs(nextFilters: SearchFilters = filters) {
+  async function fetchRealJobs(nextFilters: SearchFilters = filters, refreshSources = false, requestedPage = page) {
     if (!user || !selectedSources.length) return;
     const requestId = ++requestIdRef.current;
     setSearchBusy(true);
@@ -313,9 +316,14 @@ export default function BrowseJobsPage() {
       const data = await searchJobsRemote({
         ...nextFilters,
         sources: selectedSources.map((source) => source.id),
+        refreshSources,
+        resultLimit: PAGE_SIZE + 1,
+        resultOffset: (requestedPage - 1) * PAGE_SIZE,
       });
       if (requestId !== requestIdRef.current) return;
-      setResults(data);
+      setResults(data.slice(0, PAGE_SIZE));
+      setHasNextPage(data.length > PAGE_SIZE);
+      setPage(requestedPage);
       if (!data.length) setSearchError("No concrete job cards were found. Try SEEK first, broaden your filters, or open the source site.");
     } catch (e) {
       if (requestId !== requestIdRef.current) return;
@@ -330,12 +338,15 @@ export default function BrowseJobsPage() {
     window.clearTimeout(debounceTimerRef.current);
     if (authLoading || !user) {
       setResults([]);
+      setPage(1);
+      setHasNextPage(false);
       setSearchError(null);
       setSearchBusy(false);
       return;
     }
     debounceTimerRef.current = window.setTimeout(() => {
-      void fetchRealJobs(filters);
+      setPage(1);
+      void fetchRealJobs(filters, false, 1);
     }, 280);
     return () => window.clearTimeout(debounceTimerRef.current);
   }, [authLoading, user?.id, filters.keywords, filters.location, filters.jobType, filters.minSalary]);
@@ -360,14 +371,14 @@ export default function BrowseJobsPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Find NZ jobs</h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600">
-              Search once, fetch real job cards from supported boards, then save useful roles directly into KiwiJob.
+              Search public roles from New Zealand company career pages and supported job boards, then save useful opportunities directly into KiwiJob.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               disabled={!sourceLinks.length || searchBusy}
-              onClick={() => void fetchRealJobs(filters)}
+              onClick={() => void fetchRealJobs(filters, true, 1)}
               className="inline-flex items-center justify-center rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {searchBusy ? "Fetching jobs…" : "Refresh jobs"}
@@ -455,14 +466,19 @@ export default function BrowseJobsPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-slate-950">Real job results</h2>
-                <p className="text-sm text-slate-600">Concrete postings fetched from supported sources.</p>
+                <p className="text-sm text-slate-600">
+                  {filters.keywords.trim()
+                    ? "Ranked by your filters; Refresh jobs prioritises matching company sources in the next sync batch."
+                    : "Personalised from your skills, profile, and saved applications, with newer postings ranked higher."}
+                </p>
               </div>
-              {results.length ? <span className="text-xs font-semibold text-slate-500">{results.length} found</span> : null}
+              {results.length ? <span className="text-xs font-semibold text-slate-500">Page {page} · {results.length} jobs</span> : null}
             </div>
             {searchError ? <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">{searchError}</div> : null}
             {results.length ? (
-              <div className="grid gap-4 xl:grid-cols-2">
-                {results.map((result) => (
+              <>
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {results.map((result) => (
                   <article key={`${result.source_id}-${result.job.url}`} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex items-start gap-3">
                       <CompanyLogo company={result.job.company} sourceName={result.source_name} url={result.company_logo_url} />
@@ -535,8 +551,34 @@ export default function BrowseJobsPage() {
                       </a>
                     </div>
                   </article>
-                ))}
-              </div>
+                  ))}
+                </div>
+                {page > 1 || hasNextPage ? (
+                  <nav className="flex items-center justify-center gap-3 pt-3" aria-label="Job results pagination">
+                    <button
+                      type="button"
+                      disabled={searchBusy || page <= 1}
+                      onClick={() => {
+                        void fetchRealJobs(filters, false, page - 1);
+                      }}
+                      className="rounded-xl border border-brand-200 bg-white px-6 py-2.5 text-sm font-semibold text-brand-800 shadow-sm hover:bg-brand-50 disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <span className="min-w-24 text-center text-sm font-semibold text-slate-600">Page {page}</span>
+                    <button
+                      type="button"
+                      disabled={searchBusy || !hasNextPage}
+                      onClick={() => {
+                        void fetchRealJobs(filters, false, page + 1);
+                      }}
+                      className="rounded-xl border border-brand-200 bg-white px-6 py-2.5 text-sm font-semibold text-brand-800 shadow-sm hover:bg-brand-50 disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </nav>
+                ) : null}
+              </>
             ) : (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-5 py-8 text-sm text-slate-600">
                 Click <span className="font-semibold text-slate-800">Fetch real jobs</span> to load specific postings for your current filters.
@@ -563,7 +605,7 @@ export default function BrowseJobsPage() {
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950">
             <h2 className="font-semibold">How this works</h2>
             <p className="mt-2">
-              KiwiJob fetches supported search pages, extracts concrete job cards, and lets you save them to your tracker. If a site blocks server-side fetching, open it directly.
+              KiwiJob combines supported job boards with public career sites discovered from active Companies Office records. It extracts concrete job cards and lets you save them to your tracker. Sites requiring login or disallowing automated access are not collected.
             </p>
           </div>
       </section>

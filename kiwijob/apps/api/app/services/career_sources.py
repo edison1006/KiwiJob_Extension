@@ -14,6 +14,7 @@ from urllib.parse import urljoin, urlparse
 from urllib.robotparser import RobotFileParser
 
 import httpx
+from sqlalchemy import case, or_
 from sqlmodel import Session, select
 
 from app.core.time import utc_now
@@ -751,15 +752,86 @@ def mark_career_fetch_failed(session: Session, source: CareerSource, exc: Except
     return CareerSyncSummary(source_id=source.id, company_name=source.company_name, error=source.last_error)
 
 
-async def sync_due_career_sources(session: Session, *, limit: int = 100, concurrency: int = 10) -> list[CareerSyncSummary]:
+def _apply_external_job_filters(statement, filters: JobSearchIn):
+    keywords = [part for part in re.findall(r"[\w+#.-]+", filters.keywords, re.UNICODE) if part]
+    for keyword in keywords:
+        pattern = f"%{keyword}%"
+        statement = statement.where(
+            ExternalJob.title.ilike(pattern) | ExternalJob.company.ilike(pattern) | ExternalJob.description.ilike(pattern)
+        )
+    location = filters.location.strip()
+    if location and location not in {"All New Zealand", "Remote"}:
+        statement = statement.where(ExternalJob.location.ilike(f"%{location}%"))
+    else:
+        statement = statement.where(ExternalJob.country_code == "NZ")
+    if location == "Remote" or filters.job_type == "remote":
+        statement = statement.where(ExternalJob.workplace_type.ilike("%remote%"))
+    elif filters.job_type:
+        job_type_patterns = {
+            "fulltime": "%full%",
+            "parttime": "%part%",
+            "contract": "%contract%",
+            "casual": "%casual%",
+        }
+        pattern = job_type_patterns.get(filters.job_type)
+        if pattern:
+            statement = statement.where(ExternalJob.employment_type.ilike(pattern))
+    if filters.min_salary.strip().isdigit():
+        statement = statement.where(ExternalJob.salary_max >= int(filters.min_salary))
+    return statement
+
+
+def filter_priority_source_ids(session: Session, filters: JobSearchIn, *, limit: int = 500) -> set[int]:
+    """Find already-discovered sources most likely to refresh the requested result set."""
+    location = filters.location.strip()
+    has_filters = bool(
+        filters.keywords.strip()
+        or filters.job_type.strip()
+        or filters.min_salary.strip()
+        or (location and location != "All New Zealand")
+    )
+    if not has_filters:
+        return set()
+
+    job_statement = _apply_external_job_filters(
+        select(ExternalJob.career_source_id).where(ExternalJob.active.is_(True)),
+        filters,
+    )
+    ids = set(session.exec(job_statement.distinct().limit(max(1, min(limit, 1000)))).all())
+
+    keyword_terms = [part for part in re.findall(r"[\w+#.-]+", filters.keywords, re.UNICODE) if len(part) >= 2]
+    if keyword_terms:
+        company_matches = session.exec(
+            select(CareerSource.id)
+            .where(CareerSource.enabled.is_(True), or_(*(CareerSource.company_name.ilike(f"%{term}%") for term in keyword_terms)))
+            .limit(max(1, min(limit, 1000)))
+        ).all()
+        ids.update(source_id for source_id in company_matches if source_id is not None)
+    return ids
+
+
+async def sync_due_career_sources(
+    session: Session,
+    *,
+    limit: int = 100,
+    concurrency: int = 10,
+    filters: JobSearchIn | None = None,
+) -> list[CareerSyncSummary]:
     now = utc_now()
-    sources = session.exec(
+    statement = (
         select(CareerSource)
         .where(CareerSource.enabled.is_(True), (CareerSource.next_poll_at.is_(None)) | (CareerSource.next_poll_at <= now))
-        .order_by(CareerSource.next_poll_at.asc().nullsfirst(), CareerSource.id.asc())
-        .limit(max(1, min(limit, 1000)))
-        .with_for_update(skip_locked=True)
-    ).all()
+    )
+    priority_ids = filter_priority_source_ids(session, filters) if filters else set()
+    if priority_ids:
+        statement = statement.order_by(
+            case((CareerSource.id.in_(priority_ids), 0), else_=1),
+            CareerSource.next_poll_at.asc().nullsfirst(),
+            CareerSource.id.asc(),
+        )
+    else:
+        statement = statement.order_by(CareerSource.next_poll_at.asc().nullsfirst(), CareerSource.id.asc())
+    sources = session.exec(statement.limit(max(1, min(limit, 1000))).with_for_update(skip_locked=True)).all()
     # Commit a short lease before network I/O so overlapping Cron invocations do not poll the same tenants.
     for source in sources:
         source.next_poll_at = now + timedelta(minutes=15)
@@ -794,31 +866,7 @@ def search_aggregated_jobs(session: Session, filters: JobSearchIn, *, limit: int
         .join(CareerSource, CareerSource.id == ExternalJob.career_source_id)
         .where(ExternalJob.active.is_(True), CareerSource.enabled.is_(True))
     )
-    keywords = [part for part in re.findall(r"[\w+#.-]+", filters.keywords, re.UNICODE) if part]
-    for keyword in keywords:
-        pattern = f"%{keyword}%"
-        statement = statement.where(
-            ExternalJob.title.ilike(pattern) | ExternalJob.company.ilike(pattern) | ExternalJob.description.ilike(pattern)
-        )
-    location = filters.location.strip()
-    if location and location not in {"All New Zealand", "Remote"}:
-        statement = statement.where(ExternalJob.location.ilike(f"%{location}%"))
-    else:
-        statement = statement.where(ExternalJob.country_code == "NZ")
-    if location == "Remote" or filters.job_type == "remote":
-        statement = statement.where(ExternalJob.workplace_type.ilike("%remote%"))
-    elif filters.job_type:
-        job_type_patterns = {
-            "fulltime": "%full%",
-            "parttime": "%part%",
-            "contract": "%contract%",
-            "casual": "%casual%",
-        }
-        pattern = job_type_patterns.get(filters.job_type)
-        if pattern:
-            statement = statement.where(ExternalJob.employment_type.ilike(pattern))
-    if filters.min_salary.strip().isdigit():
-        statement = statement.where(ExternalJob.salary_max >= int(filters.min_salary))
+    statement = _apply_external_job_filters(statement, filters)
     rows = session.exec(statement.order_by(ExternalJob.posted_date.desc().nullslast(), ExternalJob.last_seen_at.desc()).limit(limit)).all()
     return [
         JobSearchResultOut(

@@ -94,6 +94,10 @@ class JobSearchIn(BaseModel):
     job_type: str = Field(default="", max_length=50)
     min_salary: str = Field(default="", max_length=20)
     sources: list[str] = Field(default_factory=lambda: ["seek"])
+    refresh_sources: bool = False
+    sync_batch_size: int = Field(default=8, ge=1, le=25)
+    result_limit: int = Field(default=20, ge=1, le=50)
+    result_offset: int = Field(default=0, ge=0, le=980)
 
 
 class JobSearchResultOut(BaseModel):

@@ -50,7 +50,19 @@ python scripts/career_sources.py discover \
   --concurrency 10
 ```
 
-Increase `--offset` by the batch size in subsequent runs. The official NZBN/Companies Office bulk data service requires approved access, and many registered entities do not publish a website or operate a public careers page. Run discovery daily or when the reviewed company list changes; run job synchronization separately every minute.
+The monthly Companies Office ZIP can also be used directly, without extracting its roughly 850 MB of CSV data. KiwiJob joins `companies_core_data.csv` and `companies_website.csv` by NZBN, keeps only companies whose status is `Registered`, ignores placeholder website values, and checks every distinct public website recorded for each selected company:
+
+```bash
+python scripts/career_sources.py discover \
+  --file "../../../Companies Office Bulk Data August 2026.zip" \
+  --offset 0 \
+  --limit 1000 \
+  --concurrency 10
+```
+
+The offset and limit apply to companies rather than website rows. Increase `--offset` by the batch size until the command reports no more eligible companies. A company can produce more than one website check when the register contains multiple distinct public websites for its NZBN.
+
+The official NZBN/Companies Office bulk data service requires approved access, and many registered entities do not publish a website or operate a public careers page. Run discovery after each monthly bulk-data release; run job synchronization separately every minute.
 
 Discovery recognizes public Greenhouse, Lever, and SmartRecruiters company boards. It also detects company-owned career sites that publish standard `schema.org/JobPosting` data, including job detail URLs exposed through public sitemaps. Unsupported sites without a documented feed or structured public job data are not scraped generically because public visibility alone does not imply permission for automated bulk access.
 
@@ -100,6 +112,12 @@ CAREER_SYNC_CONCURRENCY=10
 Database-backed leases prevent multiple API instances from intentionally processing the same due source. For a registry approaching 50,000 active companies, increase the batch size toward 833 per minute and scale API/worker capacity only after measuring ATS response times and failure rates.
 
 The regular authenticated `POST /jobs/search` endpoint automatically merges active aggregated jobs with the existing live job-board results and removes duplicate canonical URLs.
+
+The normal debounced search is read-only. When the user explicitly selects **Refresh jobs**, the web app sends `refresh_sources: true`; the API then refreshes a bounded batch of due career sources before returning results. Sources with existing jobs that match the current keyword, location, work type, or salary filters are moved to the front of that batch. This keeps interactive refreshes bounded while the background loop continues to cover the full registry.
+
+When no keyword is supplied, results are ranked using the signed-in user's saved skills, professional summary, preferred city, and recent tracked roles. Posting date is the secondary sort key, so equally relevant jobs show newest first. With a keyword, explicit keyword relevance takes priority and posting date breaks ties.
+
+The Jobs page displays 20 ranked results per page. It requests one additional row to determine whether a next page exists, while the API applies `result_offset` and `result_limit` only after ranking and deduplication so ordering remains stable across pages.
 
 ## Operating rules
 

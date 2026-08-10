@@ -10,9 +10,15 @@ from sqlmodel import Session
 from app.db.session import get_engine
 from app.main import app
 from app.models import CareerSource
-from app.routers.jobs import _search_relevance, _search_result_keys
-from app.schemas import JobSaveIn, JobSearchResultOut
-from app.services.career_sources import CareerFetchResult, NormalizedCareerJob, apply_career_fetch, fetch_career_source
+from app.routers.jobs import _personalized_relevance, _search_relevance, _search_result_keys
+from app.schemas import JobSaveIn, JobSearchIn, JobSearchResultOut
+from app.services.career_sources import (
+    CareerFetchResult,
+    NormalizedCareerJob,
+    apply_career_fetch,
+    fetch_career_source,
+    filter_priority_source_ids,
+)
 from conftest import auth_headers
 
 
@@ -31,6 +37,24 @@ def test_title_keyword_match_ranks_above_description_match() -> None:
     )
 
     assert _search_relevance(title_match, "data") > _search_relevance(description_match, "data")
+
+
+def test_profile_skill_match_ranks_above_unrelated_job() -> None:
+    matching = JobSearchResultOut(
+        source_id="ats:lever",
+        source_name="Example careers",
+        search_url="https://jobs.example",
+        job=JobSaveIn(title="Python Data Engineer", company="Example", location="Wellington", url="https://jobs.example/python"),
+    )
+    unrelated = JobSearchResultOut(
+        source_id="ats:lever",
+        source_name="Example careers",
+        search_url="https://jobs.example",
+        job=JobSaveIn(title="Retail Manager", company="Example", location="Auckland", url="https://jobs.example/retail"),
+    )
+
+    weights = {"python": 8, "sql": 8}
+    assert _personalized_relevance(matching, weights, "Wellington") > _personalized_relevance(unrelated, weights, "Wellington")
 
 
 def test_same_job_on_company_site_and_ats_has_shared_dedupe_key() -> None:
@@ -314,7 +338,7 @@ def test_aggregated_job_is_searchable_through_jobs_endpoint() -> None:
             ),
         )
 
-    async def no_live_results(_body):
+    async def no_live_results(_body, **_kwargs):
         return []
 
     from app.routers import jobs as jobs_router
@@ -338,3 +362,202 @@ def test_aggregated_job_is_searchable_through_jobs_endpoint() -> None:
     assert body[0]["source_id"] == "ats:lever"
     assert body[0]["job"]["title"] == "Senior Data Analyst"
     assert body[0]["job"]["description"] == "Own Power BI reporting and SQL analytics."
+
+
+def test_empty_keyword_search_uses_profile_relevance_then_recency() -> None:
+    with Session(get_engine()) as session:
+        source = CareerSource(
+            company_name="Example NZ",
+            careers_url="https://jobs.lever.co/example-nz",
+            source_type="lever",
+            tenant_key="example-nz",
+            country_code="NZ",
+        )
+        session.add(source)
+        session.commit()
+        session.refresh(source)
+        apply_career_fetch(
+            session,
+            source,
+            CareerFetchResult(
+                jobs=[
+                    NormalizedCareerJob(
+                        external_job_id="python-1",
+                        title="Python Data Engineer",
+                        company="Example NZ",
+                        location="Wellington, New Zealand",
+                        country_code="NZ",
+                        description="Build SQL data pipelines.",
+                        url="https://jobs.lever.co/example-nz/python-1",
+                        posted_date=datetime(2026, 8, 1),
+                    ),
+                    NormalizedCareerJob(
+                        external_job_id="retail-1",
+                        title="Retail Manager",
+                        company="Example NZ",
+                        location="Auckland, New Zealand",
+                        country_code="NZ",
+                        description="Lead a store team.",
+                        url="https://jobs.lever.co/example-nz/retail-1",
+                        posted_date=datetime(2026, 8, 9),
+                    ),
+                ]
+            ),
+        )
+
+    async def no_live_results(_body, **_kwargs):
+        return []
+
+    from app.routers import jobs as jobs_router
+
+    original = jobs_router.search_jobs
+    jobs_router.search_jobs = no_live_results
+    try:
+        with TestClient(app) as client:
+            headers, _ = auth_headers(client)
+            profile = client.put(
+                "/me/applicant-profile",
+                headers=headers,
+                json={"skills": "Python, SQL", "city": "Wellington"},
+            )
+            assert profile.status_code == 200
+            response = client.post(
+                "/jobs/search",
+                headers=headers,
+                json={"keywords": "", "location": "All New Zealand", "sources": []},
+            )
+    finally:
+        jobs_router.search_jobs = original
+
+    assert response.status_code == 200
+    assert [row["job"]["title"] for row in response.json()] == ["Python Data Engineer", "Retail Manager"]
+
+
+def test_job_search_paginates_ranked_results() -> None:
+    with Session(get_engine()) as session:
+        source = CareerSource(
+            company_name="Paged Careers",
+            careers_url="https://jobs.lever.co/paged",
+            source_type="lever",
+            tenant_key="paged",
+            country_code="NZ",
+        )
+        session.add(source)
+        session.commit()
+        session.refresh(source)
+        apply_career_fetch(
+            session,
+            source,
+            CareerFetchResult(
+                jobs=[
+                    NormalizedCareerJob(
+                        external_job_id=f"job-{day}",
+                        title=f"Engineer {day:02d}",
+                        company="Paged Careers",
+                        location="Auckland, New Zealand",
+                        country_code="NZ",
+                        description="Build software.",
+                        url=f"https://jobs.lever.co/paged/job-{day}",
+                        posted_date=datetime(2026, 8, day),
+                    )
+                    for day in range(1, 31)
+                ]
+            ),
+        )
+
+    async def no_live_results(_body, **_kwargs):
+        return []
+
+    from app.routers import jobs as jobs_router
+
+    original = jobs_router.search_jobs
+    jobs_router.search_jobs = no_live_results
+    try:
+        with TestClient(app) as client:
+            headers, _ = auth_headers(client)
+            response = client.post(
+                "/jobs/search",
+                headers=headers,
+                json={
+                    "keywords": "",
+                    "location": "All New Zealand",
+                    "sources": [],
+                    "result_limit": 5,
+                    "result_offset": 5,
+                },
+            )
+    finally:
+        jobs_router.search_jobs = original
+
+    assert response.status_code == 200
+    assert [row["job"]["title"] for row in response.json()] == [
+        "Engineer 25",
+        "Engineer 24",
+        "Engineer 23",
+        "Engineer 22",
+        "Engineer 21",
+    ]
+
+
+def test_filter_priority_selects_matching_career_source() -> None:
+    with Session(get_engine()) as session:
+        data_source = CareerSource(
+            company_name="Data Company",
+            careers_url="https://jobs.lever.co/data-company",
+            source_type="lever",
+            tenant_key="data-company",
+            country_code="NZ",
+        )
+        retail_source = CareerSource(
+            company_name="Retail Company",
+            careers_url="https://jobs.lever.co/retail-company",
+            source_type="lever",
+            tenant_key="retail-company",
+            country_code="NZ",
+        )
+        session.add(data_source)
+        session.add(retail_source)
+        session.commit()
+        session.refresh(data_source)
+        session.refresh(retail_source)
+        apply_career_fetch(
+            session,
+            data_source,
+            CareerFetchResult(
+                jobs=[
+                    NormalizedCareerJob(
+                        external_job_id="data-1",
+                        title="Data Analyst",
+                        company="Data Company",
+                        location="Auckland, New Zealand",
+                        country_code="NZ",
+                        description="Analyse customer data with SQL.",
+                        url="https://jobs.lever.co/data-company/data-1",
+                    )
+                ]
+            ),
+        )
+        apply_career_fetch(
+            session,
+            retail_source,
+            CareerFetchResult(
+                jobs=[
+                    NormalizedCareerJob(
+                        external_job_id="retail-1",
+                        title="Store Manager",
+                        company="Retail Company",
+                        location="Auckland, New Zealand",
+                        country_code="NZ",
+                        description="Lead a retail team.",
+                        url="https://jobs.lever.co/retail-company/retail-1",
+                    )
+                ]
+            ),
+        )
+
+        data_source_id = data_source.id
+        retail_source_id = retail_source.id
+        ids = filter_priority_source_ids(session, JobSearchIn(keywords="Data Analyst", location="Auckland"))
+
+    assert data_source_id in ids
+    assert retail_source_id not in ids

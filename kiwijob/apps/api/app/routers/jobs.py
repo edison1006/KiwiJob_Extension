@@ -26,11 +26,15 @@ from app.schemas import (
     JobSaveIn,
 )
 from app.services.job_extract import JobExtractError, extract_job_from_url, search_jobs
-from app.services.career_sources import search_aggregated_jobs
+from app.services.career_sources import search_aggregated_jobs, sync_due_career_sources
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 TRACKED_APPLICATION_STATUSES = {"Applied", "Assessment", "Reply", "Interview", "Rejected", "Offer", "Withdrawn"}
+INTEREST_STOPWORDS = {
+    "and", "are", "for", "from", "have", "into", "job", "new", "our", "role", "the", "this", "with", "work",
+    "your", "you", "will", "that", "who", "using", "looking", "experience", "skills", "professional", "summary",
+}
 
 
 def _search_relevance(result: JobSearchResultOut, query: str) -> int:
@@ -55,6 +59,55 @@ def _search_relevance(result: JobSearchResultOut, query: str) -> int:
         elif token in description:
             score += 10
     return score
+
+
+def _interest_tokens(value: str) -> list[str]:
+    return [
+        token
+        for token in re.findall(r"[\w+#.-]+", value.lower(), re.UNICODE)
+        if len(token) >= 2 and token not in INTEREST_STOPWORDS
+    ]
+
+
+def _user_interest_weights(session: Session, user: User) -> dict[str, int]:
+    weights: dict[str, int] = {}
+
+    def add(value: str, weight: int) -> None:
+        for token in _interest_tokens(value):
+            weights[token] = min(30, weights.get(token, 0) + weight)
+
+    profile = user.applicant_profile if isinstance(user.applicant_profile, dict) else {}
+    add(str(profile.get("skills") or ""), 8)
+    add(str(profile.get("summary") or ""), 2)
+    history = session.exec(
+        select(JobPost)
+        .join(Application, Application.job_post_id == JobPost.id)
+        .where(Application.user_id == user.id)
+        .order_by(Application.updated_at.desc())
+        .limit(20)
+    ).all()
+    for job in history:
+        add(job.title or "", 5)
+        add(job.description or "", 1)
+    return weights
+
+
+def _personalized_relevance(result: JobSearchResultOut, weights: dict[str, int], preferred_city: str = "") -> int:
+    title = (result.job.title or "").lower()
+    company = (result.job.company or "").lower()
+    description = (result.job.description or "").lower()
+    score = sum(
+        weight * (20 if token in title else 5 if token in company else 2 if token in description else 0)
+        for token, weight in weights.items()
+    )
+    if preferred_city.strip() and preferred_city.strip().lower() in (result.job.location or "").lower():
+        score += 150
+    return score
+
+
+def _posted_timestamp(result: JobSearchResultOut) -> float:
+    posted = result.job.posted_date
+    return posted.timestamp() if posted else 0.0
 
 
 def _search_result_keys(result: JobSearchResultOut) -> set[str]:
@@ -151,19 +204,44 @@ async def search_job_boards(
     user: User = Depends(get_current_user),
 ):
     assert user.id is not None
-    aggregated = search_aggregated_jobs(session, body)
-    live = await search_jobs(body)
+    if body.refresh_sources:
+        await sync_due_career_sources(
+            session,
+            limit=body.sync_batch_size,
+            concurrency=min(4, body.sync_batch_size),
+            filters=body,
+        )
+    requested_count = body.result_offset + body.result_limit
+    candidate_pool_size = max(200, requested_count)
+    aggregated = search_aggregated_jobs(session, body, limit=candidate_pool_size)
+    source_count = max(1, len(body.sources))
+    per_source_limit = min(20, max(8, (requested_count + source_count - 1) // source_count))
+    live = await search_jobs(body, per_source_limit=per_source_limit)
     results: list[JobSearchResultOut] = []
     seen: set[str] = set()
     candidates = [*aggregated, *live]
-    candidates.sort(key=lambda result: _search_relevance(result, body.keywords), reverse=True)
+    if body.keywords.strip():
+        candidates.sort(key=lambda result: (_search_relevance(result, body.keywords), _posted_timestamp(result)), reverse=True)
+    else:
+        profile = user.applicant_profile if isinstance(user.applicant_profile, dict) else {}
+        interest_weights = _user_interest_weights(session, user)
+        preferred_city = str(profile.get("city") or "")
+        candidates.sort(
+            key=lambda result: (
+                _personalized_relevance(result, interest_weights, preferred_city),
+                _posted_timestamp(result),
+            ),
+            reverse=True,
+        )
     for result in candidates:
         keys = _search_result_keys(result)
         if seen.intersection(keys):
             continue
         seen.update(keys)
         results.append(result)
-    return results
+        if len(results) >= requested_count:
+            break
+    return results[body.result_offset:requested_count]
 
 
 @router.post("/save", response_model=ApplicationListOut)
