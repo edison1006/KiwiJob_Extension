@@ -1,4 +1,4 @@
-# Chrome Web Store submission — KiwiJob 0.3.0
+# Chrome Web Store submission — KiwiJob 0.4.0
 
 Use this as the source of truth for the Developer Dashboard. Keep the listing,
 Privacy practices answers, test instructions, and packaged behavior consistent.
@@ -6,7 +6,7 @@ Privacy practices answers, test instructions, and packaged behavior consistent.
 ## Item
 
 - Extension ID: `medjbbmnbpeijhapfldniaehipbllohd`
-- Package: `releases/kiwijob-extension-0.3.0.zip`
+- Package: `releases/kiwijob-extension-0.4.0.zip`
 - Privacy policy: `https://app.kiwijob.co.nz/privacy`
 - Terms: `https://app.kiwijob.co.nz/terms`
 - Support: `https://github.com/edison1006/KiwiJob_Extension/issues`
