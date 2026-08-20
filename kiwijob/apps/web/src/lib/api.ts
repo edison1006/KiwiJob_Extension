@@ -25,6 +25,18 @@ export type UserDTO = {
   membership_expires_at: string | null;
 };
 
+export type BillingStatus = {
+  tier: "free" | "pro" | "premium";
+  status: string;
+  configured: boolean;
+  has_billing_account: boolean;
+  has_subscription: boolean;
+  renews_at: string | null;
+  cancel_at_period_end: boolean;
+  monthly_ai_used: number;
+  monthly_ai_limit: number;
+};
+
 export type AuthResponse = {
   access_token: string;
   token_type: "bearer";
@@ -203,6 +215,30 @@ export async function changePassword(currentPassword: string, newPassword: strin
 export async function fetchCurrentUser(): Promise<UserDTO> {
   const res = await fetch(`${API_URL}/auth/me`, { credentials: "include", headers: headers() });
   return parseJson(res);
+}
+
+export async function fetchBillingStatus(): Promise<BillingStatus> {
+  const res = await fetch(`${API_URL}/billing/status`, { credentials: "include", headers: headers() });
+  return parseJson(res);
+}
+
+export async function createBillingCheckout(tier: "pro" | "premium"): Promise<string> {
+  const res = await fetch(`${API_URL}/billing/checkout`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...headers() },
+    body: JSON.stringify({ tier }),
+  });
+  return (await parseJson<{ url: string }>(res)).url;
+}
+
+export async function createBillingPortal(): Promise<string> {
+  const res = await fetch(`${API_URL}/billing/portal`, {
+    method: "POST",
+    credentials: "include",
+    headers: headers(),
+  });
+  return (await parseJson<{ url: string }>(res)).url;
 }
 
 export async function deleteAccount(): Promise<void> {

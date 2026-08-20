@@ -61,7 +61,7 @@ export default function PrivacyPage() {
           asks you to agree. After that agreement, it reads a supported active job page when you open the panel or request a refresh.
           While signed in on a supported job page, it also sends the detected company and position title to the KiwiJob API to compare
           them with your existing tracker and warn about possible duplicate applications. It sends fuller job information only when you
-          choose Save or Run match now. A match request may also send relevant selected CV or profile data to the API and the AI provider
+          choose Save, confirm Add to Tracker after a detected SEEK application, or Run match now. A match request may also send relevant selected CV or profile data to the API and the AI provider
           described above. Authentication state, API and web addresses, consent, and your selected CV id may be stored in Chrome storage.
         </p>
       </section>

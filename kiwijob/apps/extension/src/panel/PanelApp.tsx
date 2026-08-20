@@ -1042,7 +1042,7 @@ export function KiwiJobPanel() {
           <div className="mt-5 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">
             <p>
               <strong className="text-slate-950">Save:</strong> sends the detected job details to your KiwiJob account only
-              when you click <strong>Save</strong>.
+              when you click <strong>Save</strong> or confirm <strong>Add to Tracker</strong> after SEEK reports a successful application.
             </p>
             <p>
               <strong className="text-slate-950">Duplicate warning:</strong> while you are signed in on a supported job page,
@@ -1463,7 +1463,7 @@ export function KiwiJobPanel() {
                 <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-700">
                   <div className="font-semibold text-slate-800">AI Match / Resume Optimization</div>
                   <p className="mt-2 leading-relaxed">
-                    Match runs only when you click the button. Saving to your tracker also stays manual.
+                    Match runs only when you click the button. Tracker updates happen only when you click Save or confirm a detected SEEK application.
                   </p>
                   {matchError ? <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-900">{matchError}</div> : null}
                 </div>

@@ -16,7 +16,7 @@ from sqlmodel import Session
 from app.core.config import get_settings, validate_settings
 from app.cors_util import parse_cors_allow_origins, warn_insecure_cors_if_needed
 from app.db.session import get_engine, init_db
-from app.routers import analytics, auth, copilot, cv_optimizations, events, forum, integrations, jobs, match, profile, resumes
+from app.routers import analytics, auth, billing, copilot, cv_optimizations, events, forum, integrations, jobs, match, profile, resumes
 from app.services.rate_limit import cleanup_rate_limits
 from app.services.career_sources import sync_due_career_sources
 
@@ -122,6 +122,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(auth.router)
+    app.include_router(billing.router)
     app.include_router(profile.router)
     app.include_router(copilot.router)
     app.include_router(cv_optimizations.router)

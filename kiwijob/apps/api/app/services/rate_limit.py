@@ -189,3 +189,21 @@ def cleanup_rate_limits(session: Session) -> None:
         {"cutoff": cutoff},
     )
     session.commit()
+
+
+def monthly_ai_usage(session: Session, user_id: int) -> int:
+    now = datetime.now(UTC).replace(tzinfo=None)
+    month_start = datetime(now.year, now.month, 1)
+    value = session.connection().execute(
+        text(
+            """
+            SELECT COALESCE(SUM(count), 0)
+            FROM requestratelimit
+            WHERE bucket_key = :bucket_key
+              AND action IN ('ai_free_month', 'ai_pro_month', 'ai_premium_month')
+              AND bucket_start = :month_start
+            """
+        ),
+        {"bucket_key": user_rate_limit_key(user_id), "month_start": month_start},
+    ).scalar_one()
+    return int(value or 0)

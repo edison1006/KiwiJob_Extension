@@ -13,6 +13,10 @@ def production_settings(**overrides) -> Settings:
         "web_app_url": "https://app.kiwijob.co.nz",
         "api_public_url": "https://api.kiwijob.co.nz",
         "resume_s3_bucket": "kiwijob-resumes",
+        "stripe_secret_key": "sk_test_example",
+        "stripe_webhook_secret": "whsec_example",
+        "stripe_pro_price_id": "price_pro",
+        "stripe_premium_price_id": "price_premium",
         "cors_origins": "https://app.kiwijob.co.nz,chrome-extension://abcdefghijklmnopabcdefghijklmnop",
         "cors_origin_regex": "",
     }
@@ -55,6 +59,7 @@ def test_invalid_ai_limits_are_rejected(overrides: dict) -> None:
         ({"openai_model": "gpt-4o"}, "OPENAI_MODEL"),
         ({"resume_s3_bucket": None}, "RESUME_S3_BUCKET"),
         ({"rate_limit_enabled": False}, "RATE_LIMIT_ENABLED"),
+        ({"stripe_webhook_secret": None}, "STRIPE_WEBHOOK_SECRET"),
         ({"cors_origins": "*"}, "CORS_ORIGINS"),
         ({"cors_origins": "https://app.kiwijob.co.nz,chrome-extension://.*"}, "exact 32-character"),
         ({"cors_origin_regex": "^chrome-extension://.*$"}, "CORS_ORIGIN_REGEX"),

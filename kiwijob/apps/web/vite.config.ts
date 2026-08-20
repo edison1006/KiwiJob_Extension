@@ -5,6 +5,7 @@ import path from "node:path";
 export default defineConfig({
   plugins: [react()],
   resolve: {
+    dedupe: ["react", "react-dom"],
     alias: {
       "@kiwijob/shared": path.resolve(import.meta.dirname, "../../packages/shared/src/index.ts"),
     },

@@ -27,6 +27,26 @@ class UserOut(BaseModel):
     membership_expires_at: Optional[datetime] = None
 
 
+class BillingCheckoutIn(BaseModel):
+    tier: str = Field(..., pattern="^(pro|premium)$")
+
+
+class BillingUrlOut(BaseModel):
+    url: str
+
+
+class BillingStatusOut(BaseModel):
+    tier: str
+    status: str
+    configured: bool
+    has_billing_account: bool = False
+    has_subscription: bool = False
+    renews_at: Optional[datetime] = None
+    cancel_at_period_end: bool = False
+    monthly_ai_used: int = 0
+    monthly_ai_limit: int
+
+
 class AuthIn(BaseModel):
     email: str = Field(..., min_length=3, max_length=320)
     password: str = Field(..., min_length=8, max_length=200)

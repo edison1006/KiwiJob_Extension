@@ -76,7 +76,7 @@ export function UserMenu({ displayName, onSignOut, variant = "sidebar", compactR
           isHeader
             ? "flex w-full items-center gap-2 rounded-lg border border-white/30 bg-white/15 px-2.5 py-1.5 text-sm font-semibold text-white shadow-sm backdrop-blur hover:bg-white/25"
             : isSidebarCompact
-              ? "flex min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-violet-200/55 transition hover:-translate-y-0.5 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-violet-300/30 lg:w-full"
+              ? "group/account flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-[14px] border border-violet-300/15 bg-gradient-to-br from-violet-400/25 via-violet-500/20 to-fuchsia-400/20 px-1.5 text-violet-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_14px_30px_-18px_rgba(139,92,246,0.95)] transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-200/30 hover:from-violet-400/35 hover:to-fuchsia-400/30 hover:text-white focus:outline-none focus:ring-2 focus:ring-violet-300/30"
               : "flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
         }
         aria-expanded={open}
@@ -93,7 +93,7 @@ export function UserMenu({ displayName, onSignOut, variant = "sidebar", compactR
             isHeader
               ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/90 text-xs font-bold text-brand-700"
               : isSidebarCompact
-                ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-300 to-brand-700 text-xs font-bold text-white shadow-[0_14px_36px_-18px_rgba(139,92,246,0.95)]"
+                ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] bg-gradient-to-br from-violet-300 via-violet-500 to-fuchsia-500 text-[11px] font-black tracking-wide text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_12px_24px_-12px_rgba(168,85,247,0.95)]"
                 : "flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand-600 text-xs font-bold text-white"
           }
         >
@@ -101,7 +101,7 @@ export function UserMenu({ displayName, onSignOut, variant = "sidebar", compactR
         </span>
         {isSidebarCompact ? (
           <svg
-            className={`h-3 w-3 shrink-0 text-violet-200/55 transition duration-200 ${open ? "translate-x-0.5" : ""}`.trim()}
+            className={`h-3 w-3 shrink-0 text-violet-100/55 transition duration-200 group-hover/account:text-white ${open ? "translate-x-0.5" : ""}`.trim()}
             viewBox="0 0 24 24"
             aria-hidden
           >

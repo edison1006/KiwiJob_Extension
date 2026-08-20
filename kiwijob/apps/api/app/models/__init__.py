@@ -18,12 +18,24 @@ class User(SQLModel, table=True):
     gmail_subject: Optional[str] = Field(default=None, index=True, unique=True)
     membership_tier: str = Field(default="free", index=True, max_length=20)
     membership_expires_at: Optional[datetime] = Field(default=None, index=True)
+    membership_status: str = Field(default="inactive", index=True, max_length=30)
+    membership_cancel_at_period_end: bool = Field(default=False)
+    stripe_livemode: Optional[bool] = Field(default=None, index=True)
+    stripe_customer_id: Optional[str] = Field(default=None, index=True, unique=True, max_length=255)
+    stripe_subscription_id: Optional[str] = Field(default=None, index=True, unique=True, max_length=255)
     gmail_onboarding_completed: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utc_now)
     applicant_profile: Optional[dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
 
     applications: list["Application"] = Relationship(back_populates="user")
     resumes: list["Resume"] = Relationship(back_populates="user")
+
+
+class StripeWebhookEvent(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    event_id: str = Field(index=True, unique=True, max_length=255)
+    event_type: str = Field(index=True, max_length=100)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class ForumPost(SQLModel, table=True):

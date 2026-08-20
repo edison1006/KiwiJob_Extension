@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     web_app_url: str = "http://localhost:5173"
     api_public_url: str = "http://localhost:8000"
     apple_oauth_client_id: str | None = None
+    stripe_secret_key: str | None = None
+    stripe_webhook_secret: str | None = None
+    stripe_pro_price_id: str | None = None
+    stripe_premium_price_id: str | None = None
     jwt_secret_key: str = "change-me-in-production"
     jwt_expires_minutes: int = 60 * 24 * 14
     secure_auth_cookie: bool = False
@@ -135,6 +139,17 @@ def validate_settings(settings: Settings) -> None:
         errors.append("RATE_LIMIT_ENABLED must be true")
     if bool(settings.github_oauth_client_id) != bool(settings.github_oauth_client_secret):
         errors.append("GITHUB_OAUTH_CLIENT_ID and GITHUB_OAUTH_CLIENT_SECRET must be set together")
+    stripe_values = (
+        settings.stripe_secret_key,
+        settings.stripe_webhook_secret,
+        settings.stripe_pro_price_id,
+        settings.stripe_premium_price_id,
+    )
+    if not all(stripe_values):
+        errors.append(
+            "STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRO_PRICE_ID, and "
+            "STRIPE_PREMIUM_PRICE_ID must all be set"
+        )
 
     cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
     if not cors_origins or "*" in cors_origins:

@@ -121,8 +121,8 @@ export function AppLayout() {
   const issuesUrl = import.meta.env.VITE_ISSUES_URL?.trim();
   const displayName = user?.display_name || user?.email || "Account";
 
-  const utilBtn = `group/tool relative grid h-10 w-10 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.045] text-violet-200/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-300/25 hover:bg-white/[0.12] hover:text-white hover:shadow-[0_12px_30px_-16px_rgba(139,92,246,0.9)] focus:outline-none focus:ring-2 focus:ring-violet-300/30 ${
-    sidebarCollapsed ? "h-8 w-8" : "flex-1"
+  const utilBtn = `group/tool relative grid h-11 w-11 shrink-0 place-items-center rounded-[14px] border border-white/[0.09] bg-white/[0.055] text-violet-100/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_24px_-20px_rgba(139,92,246,0.9)] transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-300/30 hover:bg-white/[0.12] hover:text-white hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_14px_28px_-16px_rgba(139,92,246,0.95)] focus:outline-none focus:ring-2 focus:ring-violet-300/30 ${
+    sidebarCollapsed ? "h-8 w-8 rounded-[11px]" : ""
   }`;
 
   function trackPointer(event: PointerEvent<HTMLElement>) {
@@ -293,20 +293,12 @@ export function AppLayout() {
           </NavLink>
         </nav>
 
-        <div className={`sticky bottom-0 z-20 mt-auto shrink-0 border-t border-white/10 bg-[#120b29]/92 p-2.5 shadow-[0_-24px_70px_-54px_rgba(139,92,246,0.75)] backdrop-blur-xl ${sidebarCollapsed ? "w-full px-2" : ""}`}>
-          {!sidebarCollapsed ? (
-            <div className="mb-2 flex items-center justify-between px-1.5">
-              <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-violet-200/35">Quick access</span>
-              <span className="inline-flex items-center gap-1.5 text-[9px] font-semibold text-emerald-300/65">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_9px_rgba(110,231,183,.9)]" />
-                All systems ready
-              </span>
-            </div>
-          ) : null}
-          <div className={`items-center rounded-2xl border border-white/[0.08] bg-black/10 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)] ${sidebarCollapsed ? "grid grid-cols-2 gap-1" : "flex gap-1"}`}>
+        <div className={`sticky bottom-0 z-20 mt-auto shrink-0 border-t border-white/[0.08] bg-[#120b29]/94 p-2.5 shadow-[0_-24px_70px_-54px_rgba(139,92,246,0.75)] backdrop-blur-xl ${sidebarCollapsed ? "w-full px-2" : ""}`}>
+          <div className={`relative items-center overflow-visible rounded-[20px] border border-white/[0.09] bg-[linear-gradient(145deg,rgba(255,255,255,0.055),rgba(0,0,0,0.08))] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.055),0_16px_36px_-30px_rgba(168,85,247,0.9)] ${sidebarCollapsed ? "grid grid-cols-2 gap-1" : "flex gap-1.5"}`}>
+            <span className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/25 to-transparent" />
             <button type="button" className={utilBtn} title="Product updates" aria-label="Announcements">
               <IconMegaphone className="h-[18px] w-[18px]" />
-              <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-fuchsia-400 shadow-[0_0_8px_rgba(232,121,249,.9)]" aria-hidden />
+              <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-fuchsia-300 ring-2 ring-[#21143c] shadow-[0_0_8px_rgba(232,121,249,.9)]" aria-hidden />
             </button>
             {issuesUrl ? (
               <a href={issuesUrl} target="_blank" rel="noreferrer" className={utilBtn} title="Help & support" aria-label="Help">
@@ -320,7 +312,6 @@ export function AppLayout() {
             <button type="button" className={utilBtn} title="No in-app notifications in this MVP." aria-label="Notifications">
               <IconBell className="h-[18px] w-[18px]" />
             </button>
-            <div className={`shrink-0 bg-white/10 ${sidebarCollapsed ? "hidden" : "mx-0.5 h-6 w-px"}`} aria-hidden />
             {user ? (
               <UserMenu displayName={displayName} onSignOut={signOut} variant="sidebar" compactRow />
             ) : (
